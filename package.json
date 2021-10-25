@@ -1,0 +1,15 @@
+{
+  "name": "proctf-cell",
+  "source": "index.html",
+  "scripts": {
+    "build": "esbuild main.ts --bundle --outfile=main.js",
+    "watch": "esbuild main.ts --bundle --outfile=main.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.13.8"
+  },
+  "dependencies": {
+    "@types/three": "^0.133.1",
+    "three": "^0.133.1"
+  }
+}
