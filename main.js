@@ -6209,7 +6209,7 @@
         }
       }
     }
-    raycast(raycaster, intersects3) {
+    raycast(raycaster, intersects2) {
       const geometry = this.geometry;
       const material = this.material;
       const matrixWorld = this.matrixWorld;
@@ -6252,7 +6252,7 @@
                 if (intersection) {
                   intersection.faceIndex = Math.floor(j / 3);
                   intersection.face.materialIndex = group.materialIndex;
-                  intersects3.push(intersection);
+                  intersects2.push(intersection);
                 }
               }
             }
@@ -6266,7 +6266,7 @@
               intersection = checkBufferGeometryIntersection(this, material, raycaster, _ray$2, position, morphPosition, morphTargetsRelative, uv, uv2, a, b, c);
               if (intersection) {
                 intersection.faceIndex = Math.floor(i / 3);
-                intersects3.push(intersection);
+                intersects2.push(intersection);
               }
             }
           }
@@ -6285,7 +6285,7 @@
                 if (intersection) {
                   intersection.faceIndex = Math.floor(j / 3);
                   intersection.face.materialIndex = group.materialIndex;
-                  intersects3.push(intersection);
+                  intersects2.push(intersection);
                 }
               }
             }
@@ -6299,7 +6299,7 @@
               intersection = checkBufferGeometryIntersection(this, material, raycaster, _ray$2, position, morphPosition, morphTargetsRelative, uv, uv2, a, b, c);
               if (intersection) {
                 intersection.faceIndex = Math.floor(i / 3);
-                intersects3.push(intersection);
+                intersects2.push(intersection);
               }
             }
           }
@@ -16166,7 +16166,7 @@
       this.material = material !== void 0 ? material : new SpriteMaterial();
       this.center = new Vector2(0.5, 0.5);
     }
-    raycast(raycaster, intersects3) {
+    raycast(raycaster, intersects2) {
       if (raycaster.camera === null) {
         console.error('THREE.Sprite: "Raycaster.camera" needs to be set in order to raycast against sprites.');
       }
@@ -16202,7 +16202,7 @@
       const distance = raycaster.ray.origin.distanceTo(_intersectPoint);
       if (distance < raycaster.near || distance > raycaster.far)
         return;
-      intersects3.push({
+      intersects2.push({
         distance,
         point: _intersectPoint.clone(),
         uv: Triangle.getUV(_intersectPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2()),
@@ -16381,7 +16381,7 @@
     getMatrixAt(index, matrix) {
       matrix.fromArray(this.instanceMatrix.array, index * 16);
     }
-    raycast(raycaster, intersects3) {
+    raycast(raycaster, intersects2) {
       const matrixWorld = this.matrixWorld;
       const raycastTimes = this.count;
       _mesh.geometry = this.geometry;
@@ -16397,7 +16397,7 @@
           const intersect = _instanceIntersects[i];
           intersect.instanceId = instanceId;
           intersect.object = this;
-          intersects3.push(intersect);
+          intersects2.push(intersect);
         }
         _instanceIntersects.length = 0;
       }
@@ -16478,7 +16478,7 @@
       }
       return this;
     }
-    raycast(raycaster, intersects3) {
+    raycast(raycaster, intersects2) {
       const geometry = this.geometry;
       const matrixWorld = this.matrixWorld;
       const threshold = raycaster.params.Line.threshold;
@@ -16518,7 +16518,7 @@
             const distance = raycaster.ray.origin.distanceTo(interRay);
             if (distance < raycaster.near || distance > raycaster.far)
               continue;
-            intersects3.push({
+            intersects2.push({
               distance,
               point: interSegment.clone().applyMatrix4(this.matrixWorld),
               index: i,
@@ -16540,7 +16540,7 @@
             const distance = raycaster.ray.origin.distanceTo(interRay);
             if (distance < raycaster.near || distance > raycaster.far)
               continue;
-            intersects3.push({
+            intersects2.push({
               distance,
               point: interSegment.clone().applyMatrix4(this.matrixWorld),
               index: i,
@@ -16657,7 +16657,7 @@
       this.geometry = source.geometry;
       return this;
     }
-    raycast(raycaster, intersects3) {
+    raycast(raycaster, intersects2) {
       const geometry = this.geometry;
       const matrixWorld = this.matrixWorld;
       const threshold = raycaster.params.Points.threshold;
@@ -16683,14 +16683,14 @@
           for (let i = start, il = end; i < il; i++) {
             const a = index.getX(i);
             _position$2.fromBufferAttribute(positionAttribute, a);
-            testPoint(_position$2, a, localThresholdSq, matrixWorld, raycaster, intersects3, this);
+            testPoint(_position$2, a, localThresholdSq, matrixWorld, raycaster, intersects2, this);
           }
         } else {
           const start = Math.max(0, drawRange.start);
           const end = Math.min(positionAttribute.count, drawRange.start + drawRange.count);
           for (let i = start, l = end; i < l; i++) {
             _position$2.fromBufferAttribute(positionAttribute, i);
-            testPoint(_position$2, i, localThresholdSq, matrixWorld, raycaster, intersects3, this);
+            testPoint(_position$2, i, localThresholdSq, matrixWorld, raycaster, intersects2, this);
           }
         }
       } else {
@@ -16723,7 +16723,7 @@
     }
   };
   Points.prototype.isPoints = true;
-  function testPoint(point, index, localThresholdSq, matrixWorld, raycaster, intersects3, object) {
+  function testPoint(point, index, localThresholdSq, matrixWorld, raycaster, intersects2, object) {
     const rayPointDistanceSq = _ray.distanceSqToPoint(point);
     if (rayPointDistanceSq < localThresholdSq) {
       const intersectPoint = new Vector3();
@@ -16732,7 +16732,7 @@
       const distance = raycaster.ray.origin.distanceTo(intersectPoint);
       if (distance < raycaster.near || distance > raycaster.far)
         return;
-      intersects3.push({
+      intersects2.push({
         distance,
         distanceToRay: Math.sqrt(rayPointDistanceSq),
         point: intersectPoint,
@@ -23954,22 +23954,17 @@
     const height = canvas.clientHeight;
     renderer.setSize(width, height, false);
   }
-  function getRandomRange(l, r) {
-    const a = Math.random() * (r - l) + l;
-    const b = Math.random() * (r - l) + l;
-    return a < b ? [a, b] : [b, a];
-  }
   function generate(l, r) {
     return Math.random() * (r - l) + l;
   }
   function interpolate(l, r, time, alpha) {
     const k = time * alpha;
     const d = r - l;
-    let delta = k % (2 * d);
-    if (delta > d) {
-      delta = 2 * d - delta;
+    let delta = k % Math.abs(2 * d);
+    if (delta > Math.abs(d)) {
+      delta = Math.abs(2 * d) - delta;
     }
-    return l + delta;
+    return l + (d < 0 ? -1 : 1) * delta;
   }
   function getCircle(n, r) {
     const points = [];
@@ -23979,15 +23974,48 @@
     }
     return points;
   }
-  function intersects2(c1, r1, c2, r2) {
-    const d = c1.distanceTo(c2);
-    return d < r1 + r2 && d > Math.abs(r1 - r2);
+  function generateCircles(n, r) {
+    const positions = [];
+    for (let i = 0; i < n; i++) {
+      const angle = 2 * Math.PI / n * i + (0.5 - Math.random()) * 0.01;
+      const radius = r / 2;
+      const v = new Vector2(radius, 0).rotateAround(zero2, angle);
+      positions.push(v);
+    }
+    const radiuses = [];
+    for (let i = 0; i < n; i++) {
+      let maxR = r - positions[i].length();
+      for (let s = 0; s < i; s++) {
+        maxR = Math.min(maxR, positions[i].distanceTo(positions[s]) - radiuses[s]);
+      }
+      for (let s = i + 1; s < n; s++) {
+        maxR = Math.min(maxR, positions[i].distanceTo(positions[s]));
+      }
+      radiuses.push(0.4 * (1 + Math.random()) * maxR);
+    }
+    const result = [];
+    for (let i = 0; i < n; i++) {
+      result.push([positions[i], radiuses[i]]);
+    }
+    return result;
   }
-  function containedIn(c1, r1, c2, r2) {
-    return r1 < r2 && c1.distanceTo(c2) < Math.abs(r1 - r2);
+  function getH(p, a, v) {
+    const k = new Vector2().subVectors(p, a).dot(v);
+    return new Vector2().copy(v).multiplyScalar(k / v.lengthSq()).add(a);
   }
-  function createAliveMembrane(n, r, debug = false) {
-    const polygon = getCircle(n, r);
+  function tryIntersectLineCircle(p, v, c, r) {
+    const h = getH(c, p, v);
+    const d = h.distanceToSquared(c);
+    if (d > r * r) {
+      return null;
+    }
+    const l = Math.sqrt(r * r - d) / v.length();
+    const a = new Vector2().copy(h).addScaledVector(v, l);
+    const b = new Vector2().copy(h).addScaledVector(v, -l);
+    return new Vector2().subVectors(a, p).dot(v) > 0 ? a : b;
+  }
+  function createAliveMembrane(n, r, dr, debug = false) {
+    const polygon = getCircle(n, r / Math.cos(Math.PI / n));
     const edges = [];
     const centers = [];
     for (let i = 0; i < n; i++) {
@@ -23996,13 +24024,23 @@
       centers.push(new Vector2().copy(polygon[i]).addScaledVector(edge, 0.5));
     }
     const limits = [];
+    let sign2 = 1;
     for (let i = 0; i < n; i++) {
+      const angle = (1 + Math.random()) * Math.PI / 6;
+      const intersectionOuter = tryIntersectLineCircle(centers[i], new Vector2().copy(edges[i]).rotateAround(zero2, -angle), zero2, r + dr);
+      const intersectionInner = tryIntersectLineCircle(centers[i], new Vector2().copy(edges[i]).rotateAround(zero2, angle), zero2, r - dr);
+      if (intersectionOuter == null && intersectionInner == null) {
+        throw new Error("invalid operation");
+      }
+      const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(centers[i]);
+      const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(centers[i]);
       limits.push({
-        first: getRandomRange(0.1, 0.6),
-        second: getRandomRange(0.1, 0.6)
+        angle: sign2 * angle,
+        length: Math.min(outer, inner, edges[i].length() / 2)
       });
+      sign2 = -sign2;
     }
-    const angular = (Math.random() - 0.5) * 1e-3;
+    const angular = (1 + Math.random()) * 0.01 / r;
     function getPoints(time) {
       const path = new Path();
       path.moveTo(centers[0].x, centers[0].y);
@@ -24012,10 +24050,10 @@
         const c2 = centers[(i + 1) % n];
         const e1 = edges[i];
         const e2 = edges[(i + 1) % n];
-        const k1 = interpolate(limits[i].first[0], limits[i].first[1], time, 0.02 / r);
-        const d1 = new Vector2().copy(e1).multiplyScalar(k1);
-        const k2 = interpolate(limits[i].second[0], limits[i].second[1], time, 0.02 / r);
-        const d2 = new Vector2().copy(e2).negate().multiplyScalar(k2);
+        const a1 = interpolate(-limits[i].angle, limits[i].angle, time, 0.01 * Math.pow(limits[i].length, 1 / 2));
+        const d1 = new Vector2().copy(e1).rotateAround(zero2, -a1).setLength(limits[i].length);
+        const a2 = interpolate(-limits[(i + 1) % n].angle, limits[(i + 1) % n].angle, time, 0.01 * Math.pow(limits[(i + 1) % n].length, 1 / 2));
+        const d2 = new Vector2().copy(e2).negate().rotateAround(zero2, -a2).setLength(limits[(i + 1) % n].length);
         cp.push({
           first: d1.add(c1),
           second: d2.add(c2)
@@ -24040,13 +24078,17 @@
     geometry.setAttribute("position", positionAttribute);
     const material = new LineBasicMaterial({ color: "rgba(141, 177, 185, 0.5)" });
     const curve = new Line(geometry, material);
-    if (debug) {
-      const circle = getCircle(64, r);
-      curve.add(new Line(new BufferGeometry().setFromPoints([...circle, circle[0]]), new LineBasicMaterial({ color: "rgba(100, 100, 100)" })));
+    if (false) {
+      const outerCircle = getCircle(32, r + dr);
+      curve.add(new Line(new BufferGeometry().setFromPoints([...outerCircle, outerCircle[0]]), new LineBasicMaterial({ color: "rgba(100, 100, 100)" })));
+      const innerCircle = getCircle(32, r - dr);
+      curve.add(new Line(new BufferGeometry().setFromPoints([...innerCircle, innerCircle[0]]), new LineBasicMaterial({ color: "rgba(100, 100, 100)" })));
+      curve.add(new Line(new BufferGeometry().setFromPoints([...polygon, polygon[0]]), new LineBasicMaterial({ color: "rgba(100, 100, 100)" })));
     }
     let t = 0;
     return {
-      r,
+      maxR: r + dr,
+      minR: r - dr,
       object: curve,
       tick: () => {
         t += 1;
@@ -24057,31 +24099,21 @@
     };
   }
   function createAliveCell(n, r, organellsCount, debug = false) {
-    const membrane = createAliveMembrane(n, r, debug);
+    const root = new Object3D();
+    const membrane = createAliveMembrane(n, r, 0.3 * r, debug);
     const organells = [];
-    const k = Math.cos(Math.PI / 4);
-    const m = 0.9;
+    const circles = generateCircles(organellsCount, (membrane.minR + membrane.maxR) / 2);
     for (let i = 0; i < organellsCount; i++) {
-      while (true) {
-        const [x, y] = [generate(-k * r, k * r), generate(-k * r, k * r)];
-        const or = generate(0.2 * r, 0.3 * r);
-        let valid = !intersects2(new Vector3(x, y, 0), or, zero3, r * m);
-        for (let s = 0; s < i; s++) {
-          valid = valid && !intersects2(new Vector3(x, y, 0), or / m, organells[s].object.position, organells[s].r / m);
-          valid = valid && !containedIn(new Vector3(x, y, 0), or / m, organells[s].object.position, organells[s].r / m);
-          valid = valid && !containedIn(organells[s].object.position, organells[s].r / m, new Vector3(x, y, 0), or / m);
-        }
-        if (valid) {
-          const current = createAliveMembrane(Math.floor(Math.random() * 2 + 3), or, debug);
-          current.object.position.set(x, y, 0);
-          organells.push(current);
-          membrane.object.add(current.object);
-          break;
-        }
-      }
+      const or = circles[i][1];
+      const current = createAliveMembrane(Math.floor((1 + Math.random()) * 3), or, 0.3 * or, debug);
+      current.object.position.set(circles[i][0].x, circles[i][0].y, 0);
+      organells.push(current);
+      membrane.object.add(current.object);
     }
+    root.add(membrane.object);
     return {
-      object: membrane.object,
+      r: r + 0.1 * r,
+      object: root,
       tick: () => {
         membrane.tick();
         for (let i = 0; i < organells.length; i++) {
@@ -24090,9 +24122,63 @@
       }
     };
   }
+  function createCells(n, debug) {
+    const root = new Object3D();
+    const cells = [];
+    const velocities = [];
+    const angular = [];
+    const circles = generateCircles(n, 100);
+    for (let i = 0; i < n; i++) {
+      const cell = createAliveCell(Math.floor((1 + Math.random()) * 4), circles[i][1], Math.floor((1 + Math.random()) * 3), debug);
+      cell.object.position.set(circles[i][0].x, circles[i][0].y, 0);
+      cells.push(cell);
+      velocities.push(new Vector2(generate(-0.5, 0.5), generate(-0.5, 0.5)));
+      angular.push(0);
+    }
+    for (let i = 0; i < n; i++) {
+      root.add(cells[i].object);
+    }
+    return {
+      object: root,
+      tick: () => {
+        for (let i = 0; i < n; i++) {
+          velocities[i].rotateAround(zero2, angular[i]);
+          angular[i] += (0.5 - Math.random()) * 0.1;
+          angular[i] = Math.min(-0.01, Math.max(0.01, angular[i]));
+        }
+        for (let i = 0; i < n; i++) {
+          cells[i].tick();
+          cells[i].object.translateX(velocities[i].x);
+          cells[i].object.translateY(velocities[i].y);
+          if (cells[i].object.position.x - cells[i].r < -100) {
+            velocities[i].x = Math.abs(velocities[i].x);
+          }
+          if (cells[i].object.position.x + cells[i].r > 100) {
+            velocities[i].x = -Math.abs(velocities[i].x);
+          }
+          if (cells[i].object.position.y - cells[i].r < -100) {
+            velocities[i].y = Math.abs(velocities[i].y);
+          }
+          if (cells[i].object.position.y + cells[i].r > 100) {
+            velocities[i].y = -Math.abs(velocities[i].y);
+          }
+        }
+        for (let i = 0; i < n; i++) {
+          for (let s = i + 1; s < n; s++) {
+            if (cells[i].r + cells[s].r < cells[i].object.position.distanceTo(cells[s].object.position)) {
+              continue;
+            }
+            const tmp2 = velocities[i];
+            velocities[i] = velocities[s];
+            velocities[s] = tmp2;
+          }
+        }
+      }
+    };
+  }
   function createScene() {
     const scene = new Scene();
-    const planeGeometry = new PlaneGeometry(200, 200);
+    const planeGeometry = new PlaneGeometry(300, 300);
     const planeMaterial = new MeshBasicMaterial({ color: 16777215, side: DoubleSide });
     const planeMesh = new Mesh(planeGeometry, planeMaterial);
     planeMesh.position.set(0, 0, -10);
@@ -24113,15 +24199,11 @@
   }
   function initialize() {
     const scene = createScene();
-    const cell1 = createAliveCell(6, 25, 5, false);
-    cell1.object.position.set(-50, -50, 0);
-    const cell2 = createAliveCell(8, 25, 3, false);
-    cell2.object.position.set(50, 50, 0);
-    scene.add(cell1.object);
-    scene.add(cell2.object);
+    const cell = createCells(5, false);
+    scene.add(cell.object);
     const light = createLight(0, 0, 100);
     scene.add(light);
-    const camera = createCamera(200, 200);
+    const camera = createCamera(300, 300);
     scene.add(camera);
     const renderer = new WebGLRenderer({
       canvas: document.getElementById("canvas"),
@@ -24130,12 +24212,7 @@
     adjust(renderer);
     let t = 0;
     function render() {
-      cell1.tick();
-      cell2.tick();
-      const x = interpolate(-50, 50, t++, 0.1);
-      const y = 1 / 50 * x * x + 25;
-      cell1.object.position.set(x, y, 0);
-      cell2.object.position.set(-x, -y, 0);
+      cell.tick();
       renderer.render(scene, camera);
       requestAnimationFrame(render);
     }
