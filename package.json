@@ -2,14 +2,17 @@
   "name": "proctf-cell",
   "source": "index.html",
   "scripts": {
-    "build": "esbuild main.ts --bundle --outfile=main.js",
-    "watch": "esbuild main.ts --bundle --outfile=main.js --watch"
+    "build": "esbuild src/main.ts --bundle --outfile=main.js",
+    "watch": "esbuild src/main.ts --bundle --outfile=main.js --watch"
   },
   "devDependencies": {
-    "esbuild": "^0.13.8"
+    "esbuild": "^0.13.8",
+    "prettier": "2.4.1"
   },
   "dependencies": {
     "@types/three": "^0.133.1",
+    "dat.gui": "^0.7.7",
+    "nanostores": "^0.5.3",
     "three": "^0.133.1"
   }
 }
