@@ -1,4 +1,5 @@
 import { GUI } from "dat.gui";
+import { hasOwnFunction } from "./type";
 
 interface Lazy<T> {
     get(): T;
@@ -18,10 +19,6 @@ function lazy<T>(factory: () => T): Lazy<T> {
             return lazy(() => selector(this.get()));
         },
     };
-}
-
-function hasOwnFunction<X extends {}, Y extends PropertyKey>(obj: X, prop: Y): obj is X & Record<Y, Function> {
-    return obj.hasOwnProperty(prop);
 }
 
 function createProxy(get: (obj: any, prop: PropertyKey) => any, set: (obj: any, prop: PropertyKey, value: any) => boolean) {

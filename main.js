@@ -24119,15 +24119,9 @@
 
   // src/world/light.ts
   function createLight(x, y, z, configuration) {
-    const light = new AmbientLight(configuration.color.get(), configuration.intensity.get());
+    const light = new AmbientLight(configuration.color, configuration.intensity);
     light.position.set(x, y, z);
     light.lookAt(0, 0, 0);
-    configuration.color.listen((c) => {
-      light.color.set(c);
-    });
-    configuration.intensity.listen((i) => {
-      light.intensity = i;
-    });
     return light;
   }
 
@@ -24137,6 +24131,77 @@
     camera.position.set(0, 0, 100);
     camera.lookAt(0, 0, 0);
     return camera;
+  }
+
+  // src/utils/type.ts
+  function hasOwnFunction(obj, prop) {
+    return obj.hasOwnProperty(prop);
+  }
+
+  // node_modules/three/examples/jsm/nodes/core/NodeLib.js
+  var NodeLib = {
+    nodes: {},
+    keywords: {},
+    add: function(node) {
+      this.nodes[node.name] = node;
+    },
+    addKeyword: function(name, callback, cache) {
+      cache = cache !== void 0 ? cache : true;
+      this.keywords[name] = { callback, cache };
+    },
+    remove: function(node) {
+      delete this.nodes[node.name];
+    },
+    removeKeyword: function(name) {
+      delete this.keywords[name];
+    },
+    get: function(name) {
+      return this.nodes[name];
+    },
+    getKeyword: function(name, builder) {
+      return this.keywords[name].callback.call(this, builder);
+    },
+    getKeywordData: function(name) {
+      return this.keywords[name];
+    },
+    contains: function(name) {
+      return this.nodes[name] !== void 0;
+    },
+    containsKeyword: function(name) {
+      return this.keywords[name] !== void 0;
+    }
+  };
+
+  // src/configuration.ts
+  var addKeyword = NodeLib.addKeyword;
+  function getState(configuration, world) {
+    for (const [key, value] of Object.entries(configuration)) {
+      if (typeof value === "object" && hasOwnFunction(value, "get")) {
+        world[key] = value.get();
+      } else if (typeof value === "object") {
+        world[key] = getState(value, {});
+      } else {
+        world[key] = value;
+      }
+    }
+    return world;
+  }
+  function gatherStores(configuration) {
+    const stores = [];
+    for (const [, value] of Object.entries(configuration)) {
+      if (typeof value === "object" && hasOwnFunction(value, "get")) {
+        stores.push(value);
+      } else if (typeof value === "object") {
+        stores.push(...gatherStores(value));
+      }
+    }
+    return stores;
+  }
+  function createConfigurationStore(configuration) {
+    const stores = gatherStores(configuration);
+    return computed(stores, () => {
+      return getState(configuration, {});
+    });
   }
 
   // src/world/environment.ts
@@ -24160,31 +24225,6 @@
       points.push(new Vector2(Math.cos(angle) * r, Math.sin(angle) * r));
     }
     return points;
-  }
-  function generateCircles(n, spaceRadius, radiusLimit) {
-    const centers = [];
-    for (let i = 0; i < n; i++) {
-      const angle = 2 * Math.PI / n * i;
-      const radius = spaceRadius / 2;
-      const v = new Vector2(radius, 0).rotateAround(zero2, angle);
-      centers.push(v);
-    }
-    const radiuses = [];
-    for (let i = 0; i < n; i++) {
-      let maxR = Math.min(radiusLimit, spaceRadius - centers[i].length());
-      for (let s = 0; s < i; s++) {
-        maxR = Math.min(maxR, centers[i].distanceTo(centers[s]) - radiuses[s]);
-      }
-      for (let s = i + 1; s < n; s++) {
-        maxR = Math.min(maxR, centers[i].distanceTo(centers[s]));
-      }
-      radiuses.push((1 + Math.random()) * maxR / 2);
-    }
-    const result2 = [];
-    for (let i = 0; i < n; i++) {
-      result2.push({ center: centers[i], radius: radiuses[i] });
-    }
-    return result2;
   }
   function getH(p, a, v) {
     const k = new Vector2().subVectors(p, a).dot(v);
@@ -24215,63 +24255,56 @@
   function randomFrom(l, r) {
     return Math.random() * (r - l) + l;
   }
-  function randomVector(length) {
-    const angle = Math.random() * Math.PI * 2;
-    return new Vector2(length, 0).rotateAround(zero2, angle);
-  }
 
   // src/world/membrane.ts
-  function generateAliveMembrane(n, r, dr) {
-    const skeleton = getRegularPolygon(n, r / Math.cos(Math.PI / n));
-    const edges = [];
-    const centers = [];
-    for (let i = 0; i < n; i++) {
-      const edge = new Vector2().subVectors(skeleton[(i + 1) % n], skeleton[i]);
-      edges.push(edge);
-      centers.push(new Vector2().copy(skeleton[i]).addScaledVector(edge, 0.5));
+  function generateAliveMembrane({ segments, radius, delta, detalization }) {
+    const skeleton = getRegularPolygon(segments, radius / Math.cos(Math.PI / segments));
+    const directions = [];
+    const anchors = [];
+    for (let i = 0; i < segments; i++) {
+      const direction = new Vector2().subVectors(skeleton[(i + 1) % segments], skeleton[i]);
+      directions.push(direction);
+      anchors.push(new Vector2().copy(skeleton[i]).addScaledVector(direction, 0.5));
     }
-    const limits = [];
+    const deformations = [];
     let sign2 = 1;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < segments; i++) {
       const angle = (1 + Math.random()) * Math.PI / 6;
-      const intersectionOuter = tryIntersectLineCircle(centers[i], new Vector2().copy(edges[i]).rotateAround(zero2, -angle), zero2, r + dr);
-      const intersectionInner = tryIntersectLineCircle(centers[i], new Vector2().copy(edges[i]).rotateAround(zero2, angle), zero2, r - dr);
+      const intersectionOuter = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, -angle), zero2, radius + delta);
+      const intersectionInner = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, angle), zero2, radius - delta);
       if (intersectionOuter == null && intersectionInner == null) {
         throw new Error("invalid operation");
       }
-      const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(centers[i]);
-      const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(centers[i]);
-      limits.push({
+      const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(anchors[i]);
+      const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(anchors[i]);
+      deformations.push({
         angle: sign2 * angle,
-        length: Math.min(outer, inner, edges[i].length() / 2)
+        length: Math.min(outer, inner, directions[i].length() / 2)
       });
       sign2 = -sign2;
     }
-    return [centers, edges, limits];
+    return { anchors, directions, deformations };
   }
-  function getPoints(time, centers, edges, limits) {
-    const n = centers.length;
+  function calculateControlPoint(anchor, direction, deformation, time) {
+    const angle = interpolate(-deformation.angle, deformation.angle, time, 0.01 * Math.pow(deformation.length, 1 / 2));
+    return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
+  }
+  function calculateMembranePoints(membrane, detalization, time) {
+    const n = membrane.anchors.length;
+    const controlPoints = [];
+    for (let i = 0; i < n; i++) {
+      const direction1 = membrane.directions[i];
+      const direction2 = new Vector2().copy(membrane.directions[(i + 1) % n]).negate();
+      const c1 = calculateControlPoint(membrane.anchors[i], direction1, membrane.deformations[i], time);
+      const c2 = calculateControlPoint(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], time);
+      controlPoints.push({ first: c1, second: c2 });
+    }
     const path = new Path();
-    path.moveTo(centers[0].x, centers[0].y);
-    const cp = [];
+    path.moveTo(membrane.anchors[0].x, membrane.anchors[0].y);
     for (let i = 0; i < n; i++) {
-      const c1 = centers[i];
-      const c2 = centers[(i + 1) % n];
-      const e1 = edges[i];
-      const e2 = edges[(i + 1) % n];
-      const a1 = interpolate(-limits[i].angle, limits[i].angle, time, 0.01 * Math.pow(limits[i].length, 1 / 2));
-      const d1 = new Vector2().copy(e1).rotateAround(zero2, -a1).setLength(limits[i].length);
-      const a2 = interpolate(-limits[(i + 1) % n].angle, limits[(i + 1) % n].angle, time, 0.01 * Math.pow(limits[(i + 1) % n].length, 1 / 2));
-      const d2 = new Vector2().copy(e2).negate().rotateAround(zero2, -a2).setLength(limits[(i + 1) % n].length);
-      cp.push({
-        first: d1.add(c1),
-        second: d2.add(c2)
-      });
+      path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
     }
-    for (let i = 0; i < n; i++) {
-      path.bezierCurveTo(cp[i].first.x, cp[i].first.y, cp[i].second.x, cp[i].second.y, centers[(i + 1) % n].x, centers[(i + 1) % n].y);
-    }
-    const points = path.getPoints(50);
+    const points = path.getPoints(detalization);
     const components = new Float32Array(points.length * 3);
     let position = 0;
     for (let point of points) {
@@ -24281,23 +24314,23 @@
     }
     return components;
   }
-  function createAliveMembrane(n, r, dr, color) {
-    const [centers, edges, limits] = generateAliveMembrane(r, dr, n);
-    const positionAttribute = new BufferAttribute(getPoints(0, centers, edges, limits), 3);
+  function createAliveMembrane(configuration) {
+    const root = new Object3D();
+    const material = new LineBasicMaterial({ color: configuration.color });
+    const membrane = generateAliveMembrane(configuration);
+    const positionAttribute = new BufferAttribute(calculateMembranePoints(membrane, configuration.detalization, 0), 3);
     positionAttribute.setUsage(DynamicDrawUsage);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", positionAttribute);
-    const material = new LineBasicMaterial({ color });
     const curve = new Line(geometry, material);
+    root.add(curve);
     const angular = randomFrom(-0.1, 0.1);
     return {
-      maxR: r + dr,
-      minR: r - dr,
-      object: curve,
+      object: root,
       tick: (time) => {
-        positionAttribute.set(getPoints(time, centers, edges, limits));
+        const points = calculateMembranePoints(membrane, configuration.detalization, time * configuration.frequency);
+        positionAttribute.set(points);
         positionAttribute.needsUpdate = true;
-        curve.rotateZ(angular);
       },
       attack: (position) => {
       }
@@ -24305,110 +24338,28 @@
   }
 
   // src/world/scene.ts
-  function createAliveCell(n, r, organellsCount, organellsRadius) {
-    const root = new Object3D();
-    const membrane = createAliveMembrane(n, r, 0.3 * r);
-    const organells = [];
-    const circles = generateCircles(organellsCount, (membrane.minR + membrane.maxR) / 2, organellsRadius);
-    for (let i = 0; i < organellsCount; i++) {
-      const or = circles[i].radius;
-      const current = createAliveMembrane(Math.floor((1 + Math.random()) * 3), or, 0.3 * or);
-      current.object.position.set(circles[i].center.x, circles[i].center.y, 0);
-      organells.push(current);
-      membrane.object.add(current.object);
-    }
-    root.add(membrane.object);
-    return {
-      r: r + 0.1 * r,
-      object: root,
-      tick: (time) => {
-        membrane.tick(time);
-        for (let i = 0; i < organells.length; i++) {
-          organells[i].tick(time);
-        }
-      }
-    };
-  }
-  function generateCells(soupConfiguration, cellConfiguration) {
-    return computed([soupConfiguration.count, cellConfiguration.radiusLimit, cellConfiguration.organells.count, cellConfiguration.membrane.segments], (n, r, organells, segments) => {
-      const cells = [];
-      const angular = [];
-      const velocities = [];
-      const circles = generateCircles(n, Math.min(soupConfiguration.width, soupConfiguration.height) / 2, r);
-      for (let i = 0; i < n; i++) {
-        const cell = createAliveCell(segments, circles[i].radius, organells);
-        cell.object.position.set(circles[i].center.x, circles[i].center.y, 0);
-        cells.push(cell);
-        velocities.push(randomVector(0.5));
-        angular.push(0);
-      }
-      return [cells, angular, velocities];
-    });
-  }
-  function createCells(soupConfiguration, cellConfiguration) {
-    const root = new Object3D();
-    const data = generateCells(soupConfiguration, cellConfiguration);
-    data.subscribe(([cells, angular, velocities]) => {
-      root.clear();
-      for (let i = 0; i < cells.length; i++) {
-        root.add(cells[i].object);
-      }
-    });
-    return {
-      object: root,
-      tick: (time) => {
-        const [cells, angular, velocities] = data.get();
-        const n = cells.length;
-        for (let i = 0; i < n; i++) {
-          velocities[i].rotateAround(zero2, angular[i]);
-          angular[i] += (0.5 - Math.random()) * 0.1;
-          angular[i] = Math.min(-0.01, Math.max(0.01, angular[i]));
-        }
-        for (let i = 0; i < n; i++) {
-          cells[i].tick(time);
-          cells[i].object.translateX(velocities[i].x);
-          cells[i].object.translateY(velocities[i].y);
-          if (cells[i].object.position.x - cells[i].r < -100) {
-            velocities[i].x = Math.abs(velocities[i].x);
-          }
-          if (cells[i].object.position.x + cells[i].r > 100) {
-            velocities[i].x = -Math.abs(velocities[i].x);
-          }
-          if (cells[i].object.position.y - cells[i].r < -100) {
-            velocities[i].y = Math.abs(velocities[i].y);
-          }
-          if (cells[i].object.position.y + cells[i].r > 100) {
-            velocities[i].y = -Math.abs(velocities[i].y);
-          }
-        }
-        for (let i = 0; i < n; i++) {
-          for (let s = i + 1; s < n; s++) {
-            if (cells[i].r + cells[s].r < cells[i].object.position.distanceTo(cells[s].object.position)) {
-              continue;
-            }
-            const tmp2 = velocities[i];
-            velocities[i] = velocities[s];
-            velocities[s] = tmp2;
-          }
-        }
-      }
-    };
-  }
-  function createScene(configuration) {
+  function createScene(dynamic) {
     const scene = new Scene();
-    const environment = createEnvironment(configuration.soup.width, configuration.soup.height);
-    scene.add(environment);
-    const light = createLight(0, 0, 100, configuration.light);
-    scene.add(light);
-    const camera = createCamera(configuration.soup.width, configuration.soup.height);
+    const store = createConfigurationStore(dynamic);
+    const camera = createCamera(dynamic.soup.width, dynamic.soup.height);
     scene.add(camera);
-    const cell = createCells(configuration.soup, configuration.cell);
-    scene.add(cell.object);
+    let target = null;
+    store.subscribe((configuration) => {
+      scene.clear();
+      const environment = createEnvironment(configuration.soup.width, configuration.soup.height);
+      scene.add(environment);
+      const light = createLight(0, 0, 100, configuration.light);
+      scene.add(light);
+      target = createAliveMembrane(configuration.cell.membrane);
+      scene.add(target.object);
+    });
     return {
       scene,
       camera,
       tick: (time) => {
-        cell.tick(number);
+        if (target != null) {
+          target.tick(time);
+        }
       }
     };
   }
@@ -26864,9 +26815,6 @@
       }
     };
   }
-  function hasOwnFunction(obj, prop) {
-    return obj.hasOwnProperty(prop);
-  }
   function traverseObject(data, configuration, root, gui) {
     for (const [key, value] of Object.entries(data)) {
       const current = configuration != null ? configuration[key] : void 0;
@@ -26925,11 +26873,14 @@
       },
       cell: {
         membrane: {
-          segments: atom(5)
+          segments: atom(10),
+          detalization: atom(50),
+          frequency: atom(0.02),
+          radius: atom(50),
+          delta: atom(10),
+          color: atom("rgba(141, 177, 185, 0.5)")
         },
-        organells: {
-          count: atom(4)
-        },
+        organellsCount: atom(4),
         radiusLimit: atom(30)
       }
     };
@@ -26938,9 +26889,13 @@
       soup: { count: { min: 1, max: 10, step: 1 } },
       cell: {
         membrane: {
-          segments: { min: 3, max: 10, step: 1 }
+          segments: { min: 3, max: 10, step: 1 },
+          detalization: { min: 10, max: 100, step: 1 },
+          frequency: { min: 0, max: 0.1, step: 1e-4 },
+          radius: { min: 10, max: 100, step: 1 },
+          delta: { min: 1, max: 20, step: 1 }
         },
-        organells: { count: { min: 0, max: 10, step: 1 } },
+        organellsCount: { min: 0, max: 10, step: 1 },
         radiusLimit: { min: 1, max: 50, step: 1 }
       }
     });
@@ -26954,8 +26909,8 @@
       antialias: true
     });
     adjust(renderer);
-    function render() {
-      tick();
+    function render(time) {
+      tick(time);
       renderer.render(scene, camera);
       requestAnimationFrame(render);
     }

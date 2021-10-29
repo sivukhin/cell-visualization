@@ -24,11 +24,14 @@ function createConfiguration(): WorldConfiguration {
         },
         cell: {
             membrane: {
-                segments: atom<number>(5),
+                segments: atom<number>(10),
+                detalization: atom<number>(50),
+                frequency: atom<number>(0.02),
+                radius: atom<number>(50),
+                delta: atom<number>(10),
+                color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
             },
-            organells: {
-                count: atom<number>(4),
-            },
+            organellsCount: atom<number>(4),
             radiusLimit: atom<number>(30),
         },
     };
@@ -38,8 +41,12 @@ function createConfiguration(): WorldConfiguration {
         cell: {
             membrane: {
                 segments: { min: 3, max: 10, step: 1 },
+                detalization: { min: 10, max: 100, step: 1 },
+                frequency: { min: 0, max: 0.1, step: 0.0001 },
+                radius: { min: 10, max: 100, step: 1 },
+                delta: { min: 1, max: 20, step: 1 },
             },
-            organells: { count: { min: 0, max: 10, step: 1 } },
+            organellsCount: { min: 0, max: 10, step: 1 },
             radiusLimit: { min: 1, max: 50, step: 1 },
         },
     });
@@ -55,8 +62,8 @@ function initialize() {
     });
     adjust(renderer);
 
-    function render() {
-        tick();
+    function render(time: number) {
+        tick(time);
         renderer.render(scene, camera);
         requestAnimationFrame(render);
     }

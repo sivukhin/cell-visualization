@@ -1,15 +1,9 @@
 import { AmbientLight } from "three";
-import { LightConfiguration } from "./configuration";
+import { LightConfiguration, Unwrap } from "../configuration";
 
-export function createLight(x: number, y: number, z: number, configuration: LightConfiguration) {
-    const light = new AmbientLight(configuration.color.get(), configuration.intensity.get());
+export function createLight(x: number, y: number, z: number, configuration: Unwrap<LightConfiguration>) {
+    const light = new AmbientLight(configuration.color, configuration.intensity);
     light.position.set(x, y, z);
     light.lookAt(0, 0, 0);
-    configuration.color.listen((c) => {
-        light.color.set(c);
-    });
-    configuration.intensity.listen((i) => {
-        light.intensity = i;
-    });
     return light;
 }

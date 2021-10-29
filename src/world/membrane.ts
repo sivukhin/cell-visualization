@@ -1,66 +1,71 @@
 import { getRegularPolygon, tryIntersectLineCircle, zero2 } from "../utils/geometry";
-import { BufferAttribute, BufferGeometry, ColorRepresentation, DynamicDrawUsage, Line, LineBasicMaterial, Object3D, Path, Vector2 } from "three";
+import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Line, LineBasicMaterial, Object3D, Path, Vector2 } from "three";
 import { interpolate, randomFrom } from "../utils/math";
+import { MembraneConfiguration, Unwrap } from "../configuration";
 
-function generateAliveMembrane(n: number, r: number, dr: number): any {
-    const skeleton = getRegularPolygon(n, r / Math.cos(Math.PI / n));
-    const edges = [];
-    const centers = [];
-    for (let i = 0; i < n; i++) {
-        const edge = new Vector2().subVectors(skeleton[(i + 1) % n], skeleton[i]);
-        edges.push(edge);
-        centers.push(new Vector2().copy(skeleton[i]).addScaledVector(edge, 0.5));
+interface MembraneDeformation {
+    angle: number;
+    length: number;
+}
+
+interface Membrane {
+    anchors: Vector2[];
+    directions: Vector2[];
+    deformations: MembraneDeformation[];
+}
+
+function generateAliveMembrane({ segments, radius, delta, detalization }: Unwrap<MembraneConfiguration>): Membrane {
+    const skeleton = getRegularPolygon(segments, radius / Math.cos(Math.PI / segments));
+    const directions: Vector2[] = [];
+    const anchors: Vector2[] = [];
+    for (let i = 0; i < segments; i++) {
+        const direction = new Vector2().subVectors(skeleton[(i + 1) % segments], skeleton[i]);
+        directions.push(direction);
+        anchors.push(new Vector2().copy(skeleton[i]).addScaledVector(direction, 0.5));
     }
 
-    const limits = [];
+    const deformations: MembraneDeformation[] = [];
     let sign = 1;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < segments; i++) {
         const angle = ((1 + Math.random()) * Math.PI) / 6;
-        const intersectionOuter = tryIntersectLineCircle(centers[i], new Vector2().copy(edges[i]).rotateAround(zero2, -angle), zero2, r + dr);
-        const intersectionInner = tryIntersectLineCircle(centers[i], new Vector2().copy(edges[i]).rotateAround(zero2, angle), zero2, r - dr);
+        const intersectionOuter = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, -angle), zero2, radius + delta);
+        const intersectionInner = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, angle), zero2, radius - delta);
         if (intersectionOuter == null && intersectionInner == null) {
             throw new Error("invalid operation");
         }
-        const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(centers[i]);
-        const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(centers[i]);
-        limits.push({
+        const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(anchors[i]);
+        const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(anchors[i]);
+        deformations.push({
             angle: sign * angle,
-            length: Math.min(outer, inner, edges[i].length() / 2),
+            length: Math.min(outer, inner, directions[i].length() / 2),
         });
         sign = -sign;
     }
-    return [centers, edges, limits];
+    return { anchors: anchors, directions: directions, deformations: deformations };
 }
 
-function getPoints(time: number, centers: Vector2[], edges: Vector2[], limits: { angle: number; length: number }[]) {
-    const n = centers.length;
+function calculateControlPoint(anchor: Vector2, direction: Vector2, deformation: MembraneDeformation, time: number) {
+    const angle = interpolate(-deformation.angle, deformation.angle, time, 0.01 * Math.pow(deformation.length, 1 / 2));
+    return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
+}
+
+function calculateMembranePoints(membrane: Membrane, detalization: number, time: number) {
+    const n = membrane.anchors.length;
+    const controlPoints = [];
+    for (let i = 0; i < n; i++) {
+        const direction1 = membrane.directions[i];
+        const direction2 = new Vector2().copy(membrane.directions[(i + 1) % n]).negate();
+        const c1 = calculateControlPoint(membrane.anchors[i], direction1, membrane.deformations[i], time);
+        const c2 = calculateControlPoint(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], time);
+        controlPoints.push({ first: c1, second: c2 });
+    }
+
     const path = new Path();
-    path.moveTo(centers[0].x, centers[0].y);
-    const cp = [];
+    path.moveTo(membrane.anchors[0].x, membrane.anchors[0].y);
     for (let i = 0; i < n; i++) {
-        const c1 = centers[i];
-        const c2 = centers[(i + 1) % n];
-
-        const e1 = edges[i];
-        const e2 = edges[(i + 1) % n];
-
-        const a1 = interpolate(-limits[i].angle, limits[i].angle, time, 0.01 * Math.pow(limits[i].length, 1 / 2));
-        const d1 = new Vector2().copy(e1).rotateAround(zero2, -a1).setLength(limits[i].length);
-        const a2 = interpolate(-limits[(i + 1) % n].angle, limits[(i + 1) % n].angle, time, 0.01 * Math.pow(limits[(i + 1) % n].length, 1 / 2));
-        const d2 = new Vector2()
-            .copy(e2)
-            .negate()
-            .rotateAround(zero2, -a2)
-            .setLength(limits[(i + 1) % n].length);
-        cp.push({
-            first: d1.add(c1),
-            second: d2.add(c2),
-        });
+        path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
     }
-    for (let i = 0; i < n; i++) {
-        path.bezierCurveTo(cp[i].first.x, cp[i].first.y, cp[i].second.x, cp[i].second.y, centers[(i + 1) % n].x, centers[(i + 1) % n].y);
-    }
-    const points = path.getPoints(50);
+    const points = path.getPoints(detalization);
     const components = new Float32Array(points.length * 3);
     let position = 0;
     for (let point of points) {
@@ -71,25 +76,26 @@ function getPoints(time: number, centers: Vector2[], edges: Vector2[], limits: {
     return components;
 }
 
-export function createAliveMembrane(n: number, r: number, dr: number, color: ColorRepresentation) {
-    const [centers, edges, limits] = generateAliveMembrane(r, dr, n);
-
-    const positionAttribute = new BufferAttribute(getPoints(0, centers, edges, limits), 3);
+export function createAliveMembrane(configuration: Unwrap<MembraneConfiguration>) {
+    const root = new Object3D();
+    const material = new LineBasicMaterial({ color: configuration.color });
+    const membrane = generateAliveMembrane(configuration);
+    const positionAttribute = new BufferAttribute(calculateMembranePoints(membrane, configuration.detalization, 0), 3);
     positionAttribute.setUsage(DynamicDrawUsage);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", positionAttribute);
-    const material = new LineBasicMaterial({ color: color });
     const curve = new Line(geometry, material);
-
+    root.add(curve);
     const angular = randomFrom(-0.1, 0.1);
     return {
-        maxR: r + dr,
-        minR: r - dr,
-        object: curve,
+        // maxR: r + dr,
+        // minR: r - dr,
+        object: root,
         tick: (time: number) => {
-            positionAttribute.set(getPoints(time, centers, edges, limits));
+            const points = calculateMembranePoints(membrane, configuration.detalization, time * configuration.frequency);
+            positionAttribute.set(points);
             positionAttribute.needsUpdate = true;
-            curve.rotateZ(angular);
+            // root.rotateZ(angular);
         },
         attack: (position: Vector2) => {},
     };
