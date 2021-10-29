@@ -1,12 +1,18 @@
-import { computed, ReadableAtom, Store } from "nanostores";
-import { ColorRepresentation } from "three";
+import { computed, Store } from "nanostores";
+import { ColorRepresentation, Vector2 } from "three";
 import { hasOwnFunction } from "./utils/type";
-import { NodeLib } from "three/examples/jsm/nodes/core/NodeLib";
-import addKeyword = NodeLib.addKeyword;
 
 export interface LightConfiguration {
     color: Store<ColorRepresentation>;
     intensity: Store<number>;
+}
+
+export interface FlagellumConfiguration {
+    segmentLength: Store<number>;
+    amplitude: Store<number>;
+    skewLimit: Store<number>;
+    inOutRatio: Store<number>;
+    color: Store<ColorRepresentation>;
 }
 
 export interface MembraneConfiguration {
@@ -16,6 +22,8 @@ export interface MembraneConfiguration {
     delta: Store<number>;
     color: Store<ColorRepresentation>;
     detalization: Store<number>;
+    skewLimit: Store<number>;
+    angularLimit: Store<number>;
 }
 
 export interface CellConfiguration {
@@ -34,6 +42,7 @@ export interface WorldConfiguration {
     light: LightConfiguration;
     soup: SoupConfiguration;
     cell: CellConfiguration;
+    flagellum: FlagellumConfiguration;
 }
 
 export type Unwrap<T> = {

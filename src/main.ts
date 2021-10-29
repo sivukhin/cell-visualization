@@ -19,20 +19,29 @@ function createConfiguration(): WorldConfiguration {
         },
         soup: {
             count: atom<number>(3),
-            width: 300,
-            height: 300,
+            width: 800,
+            height: 800,
         },
         cell: {
             membrane: {
                 segments: atom<number>(10),
                 detalization: atom<number>(50),
-                frequency: atom<number>(0.02),
+                frequency: atom<number>(0.0003),
                 radius: atom<number>(50),
                 delta: atom<number>(10),
                 color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
+                skewLimit: atom<number>(Math.PI / 6),
+                angularLimit: atom<number>(0.01),
             },
             organellsCount: atom<number>(4),
             radiusLimit: atom<number>(30),
+        },
+        flagellum: {
+            color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
+            segmentLength: atom<number>(20),
+            amplitude: atom<number>(5),
+            skewLimit: atom<number>(Math.PI / 2),
+            inOutRatio: atom<number>(0.1),
         },
     };
     initializeGui(configuration, {
@@ -42,12 +51,20 @@ function createConfiguration(): WorldConfiguration {
             membrane: {
                 segments: { min: 3, max: 10, step: 1 },
                 detalization: { min: 10, max: 100, step: 1 },
-                frequency: { min: 0, max: 0.1, step: 0.0001 },
+                frequency: { min: 0, max: 0.01, step: 0.0001 },
                 radius: { min: 10, max: 100, step: 1 },
                 delta: { min: 1, max: 20, step: 1 },
+                skewLimit: { min: 0, max: Math.PI, step: 0.001 },
+                angularLimit: { min: 0, max: 1, step: 0.01 },
             },
             organellsCount: { min: 0, max: 10, step: 1 },
             radiusLimit: { min: 1, max: 50, step: 1 },
+        },
+        flagellum: {
+            segmentLength: { min: 2, max: 100, step: 1 },
+            amplitude: { min: 1, max: 50, step: 1 },
+            skewLimit: { min: 0, max: Math.PI, step: 0.1 },
+            inOutRation: { min: 0.01, max: 100 },
         },
     });
     return configuration;

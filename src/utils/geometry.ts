@@ -63,3 +63,7 @@ export function tryIntersectLineCircle(p: Vector2, v: Vector2, c: Vector2, r: nu
     const b = new Vector2().copy(h).addScaledVector(v, -l);
     return new Vector2().subVectors(a, p).dot(v) > 0 ? a : b;
 }
+
+export function inSector(p: Vector2, a: Vector2, b: Vector2): boolean {
+    return a.cross(p) > 0 && p.cross(b) >= 0;
+}

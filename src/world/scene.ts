@@ -7,6 +7,8 @@ import { generateCircles, getRegularPolygon, tryIntersectLineCircle, zero2 } fro
 import { interpolate, randomVector } from "../utils/math";
 import { computed, Store } from "nanostores";
 import { createAliveMembrane } from "./membrane";
+import { createFlagellum } from "./flagellum";
+import { createFlagellumTree } from "./flagellum-tree";
 
 // function createAliveCell(n: number, r: number, organellsCount: number, organellsRadius: number) {
 //     const root = new Object3D();
@@ -116,9 +118,20 @@ export function createScene(dynamic: WorldConfiguration) {
         scene.add(light);
         // const cell = createCells(configuration.soup, configuration.cell);
         // scene.add(cell.object);
-        target = createAliveMembrane(configuration.cell.membrane);
+        // target = createFlagellum({ target: new Vector2(100, 100), startIn: 0, finishIn: 1000, startOut: 2000, finishOut: 3000 }, configuration.flagellum);
+        // target = createFlagellumTree(
+        //     {
+        //         branchPoint: new Vector2(90, 0),
+        //         targets: [new Vector2(100, 50), new Vector2(100, -50)],
+        //         start: 0,
+        //         finish: 4000,
+        //     },
+        //     configuration.flagellum
+        // );
+        target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
         scene.add(target.object);
     });
+    let attacked = false;
     return {
         scene,
         camera,
@@ -126,6 +139,13 @@ export function createScene(dynamic: WorldConfiguration) {
             // cell.tick(time);
             if (target != null) {
                 target.tick(time);
+            }
+            if (time % 4000 < 1000) {
+                attacked = false;
+            }
+            if (time % 4000 > 1000 && target != null && !attacked) {
+                attacked = true;
+                target.attack([new Vector2(300, 50), new Vector2(300, 100), new Vector2(200, -100), new Vector2(-100, -200)]);
             }
         },
     };

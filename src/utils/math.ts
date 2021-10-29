@@ -1,12 +1,19 @@
 import { Vector2 } from "three";
 import { zero2 } from "./geometry";
 
-export function interpolate(l: number, r: number, time: number, scale: number): number {
-    const k = time * scale;
+export function interpolate(l: number, r: number, time: number, inScale?: number, outScale?: number): number {
+    if (inScale == undefined) {
+        inScale = 1;
+    }
+    if (outScale == undefined) {
+        outScale = inScale;
+    }
     const d = Math.abs(r - l);
-    let delta = k % (2 * d);
-    if (delta > d) {
-        delta = 2 * d - delta;
+    let delta = time % (d / inScale + d / outScale);
+    if (delta < d / inScale) {
+        delta *= inScale;
+    } else {
+        delta = d - (delta - d / inScale) * outScale;
     }
     return l + (l > r ? -1 : +1) * delta;
 }
