@@ -19,8 +19,8 @@ function createConfiguration(): WorldConfiguration {
         },
         soup: {
             count: atom<number>(3),
-            width: 800,
-            height: 800,
+            width: 1500,
+            height: 1500,
         },
         cell: {
             membrane: {

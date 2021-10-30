@@ -108,6 +108,7 @@ export function createScene(dynamic: WorldConfiguration) {
     const camera = createCamera(dynamic.soup.width, dynamic.soup.height);
     scene.add(camera);
     let target = null;
+    let target2 = null;
 
     store.subscribe((configuration) => {
         scene.clear();
@@ -130,6 +131,9 @@ export function createScene(dynamic: WorldConfiguration) {
         // );
         target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
         scene.add(target.object);
+        target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+        target2.object.position.set(500, 0, 0);
+        scene.add(target2.object);
     });
     let attacked = false;
     return {
@@ -139,6 +143,9 @@ export function createScene(dynamic: WorldConfiguration) {
             // cell.tick(time);
             if (target != null) {
                 target.tick(time);
+            }
+            if (target2 != null) {
+                target2.tick(time);
             }
             if (time % 10000 < 1000) {
                 attacked = false;

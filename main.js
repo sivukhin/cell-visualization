@@ -24580,6 +24580,7 @@
     const camera = createCamera(dynamic.soup.width, dynamic.soup.height);
     scene.add(camera);
     let target = null;
+    let target2 = null;
     store.subscribe((configuration) => {
       scene.clear();
       const environment = createEnvironment(configuration.soup.width, configuration.soup.height);
@@ -24588,6 +24589,9 @@
       scene.add(light);
       target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
       scene.add(target.object);
+      target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+      target2.object.position.set(500, 0, 0);
+      scene.add(target2.object);
     });
     let attacked = false;
     return {
@@ -24596,6 +24600,9 @@
       tick: (time) => {
         if (target != null) {
           target.tick(time);
+        }
+        if (target2 != null) {
+          target2.tick(time);
         }
         if (time % 1e4 < 1e3) {
           attacked = false;
@@ -27116,8 +27123,8 @@
       },
       soup: {
         count: atom(3),
-        width: 800,
-        height: 800
+        width: 1500,
+        height: 1500
       },
       cell: {
         membrane: {
