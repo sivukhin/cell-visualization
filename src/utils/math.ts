@@ -1,7 +1,37 @@
 import { Vector2 } from "three";
 import { zero2 } from "./geometry";
 
+export function extrapolate(l: number, r: number, time: number, target: number, inScale?: number, outScale?: number): number {
+    if (l > r) {
+        return extrapolate(r, l, time, r + (l - target), inScale, outScale);
+    }
+    if (inScale == undefined) {
+        inScale = 1;
+    }
+    if (outScale == undefined) {
+        outScale = inScale;
+    }
+    target = target - l;
+    const d = Math.abs(r - l);
+    let delta = time % (d / inScale + d / outScale);
+    if (delta < d / inScale) {
+        if (delta * inScale <= target) {
+            return time + (target - delta * inScale) / inScale;
+        }
+        return time + (d - delta * inScale) / inScale + (d - target) / outScale;
+    } else {
+        delta = d / outScale + d / inScale - delta;
+        if (target < delta * outScale) {
+            return time + (delta * outScale - target) / outScale;
+        }
+        return time + (delta * outScale) / outScale + target / inScale;
+    }
+}
+
 export function interpolate(l: number, r: number, time: number, inScale?: number, outScale?: number): number {
+    if (l == r) {
+        return l;
+    }
     if (inScale == undefined) {
         inScale = 1;
     }

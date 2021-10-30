@@ -3,22 +3,27 @@ import { Object3D, Vector2 } from "three";
 import { createFlagellum } from "./flagellum";
 
 export interface FlagellumTreeState {
+    startDirection: Vector2;
     branchPoint: Vector2;
     targets: Vector2[];
     start: number;
     finish: number;
 }
 
-export function createFlagellumTree({ branchPoint, targets, start, finish }: FlagellumTreeState, configuration: Unwrap<FlagellumConfiguration>) {
+export function createFlagellumTree({ startDirection, branchPoint, targets, start, finish }: FlagellumTreeState, configuration: Unwrap<FlagellumConfiguration>) {
     const root = new Object3D();
     const total = finish - start;
-    const startD = total / 4;
-    const branchD = total / 5;
-    const waitD = total / 20;
-    const unbranchD = total / 8;
-    const endD = (3 * total) / 8;
+    const ratios = [1, 1, 10, 4, 4];
+    const sum = ratios.reduce((a, b) => a + b, 0);
+    const startD = (ratios[0] / sum) * total;
+    const branchD = (ratios[1] / sum) * total;
+    const waitD = (ratios[2] / sum) * total;
+    const unbranchD = (ratios[3] / sum) * total;
+    const endD = (ratios[4] / sum) * total;
     const trunk = createFlagellum(
         {
+            startDirection: startDirection,
+            finishDirection: new Vector2().copy(branchPoint).negate(),
             target: branchPoint,
             startIn: start,
             finishIn: start + startD,
@@ -31,6 +36,7 @@ export function createFlagellumTree({ branchPoint, targets, start, finish }: Fla
     const branches = [];
     return {
         object: root,
+        finish: finish,
         tick: (time: number) => {
             trunk.tick(time);
             for (let i = 0; i < branches.length; i++) {
@@ -40,6 +46,8 @@ export function createFlagellumTree({ branchPoint, targets, start, finish }: Fla
                 for (let i = 0; i < targets.length; i++) {
                     let branch = createFlagellum(
                         {
+                            startDirection: branchPoint,
+                            finishDirection: new Vector2().subVectors(branchPoint, targets[i]),
                             target: new Vector2().subVectors(targets[i], branchPoint),
                             startIn: start + startD,
                             finishIn: start + startD + branchD,

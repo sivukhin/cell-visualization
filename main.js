@@ -24211,7 +24211,36 @@
   }
 
   // src/utils/math.ts
+  function extrapolate(l, r, time, target, inScale, outScale) {
+    if (l > r) {
+      return extrapolate(r, l, time, r + (l - target), inScale, outScale);
+    }
+    if (inScale == void 0) {
+      inScale = 1;
+    }
+    if (outScale == void 0) {
+      outScale = inScale;
+    }
+    target = target - l;
+    const d = Math.abs(r - l);
+    let delta = time % (d / inScale + d / outScale);
+    if (delta < d / inScale) {
+      if (delta * inScale <= target) {
+        return time + (target - delta * inScale) / inScale;
+      }
+      return time + (d - delta * inScale) / inScale + (d - target) / outScale;
+    } else {
+      delta = d / outScale + d / inScale - delta;
+      if (target < delta * outScale) {
+        return time + (delta * outScale - target) / outScale;
+      }
+      return time + delta * outScale / outScale + target / inScale;
+    }
+  }
   function interpolate(l, r, time, inScale, outScale) {
+    if (l == r) {
+      return l;
+    }
     if (inScale == void 0) {
       inScale = 1;
     }
@@ -24244,8 +24273,14 @@
   }
 
   // src/world/deformation.ts
+  function findDeformationAngleTime(deformation, time, target) {
+    return extrapolate(-deformation.angle, deformation.angle, time, target, Math.pow(deformation.length, 1 / 2));
+  }
+  function calculateDeformationAngle(deformation, time) {
+    return interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
+  }
   function calculateDeformation(anchor, direction, deformation, time) {
-    const angle = interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
+    const angle = calculateDeformationAngle(deformation, time);
     return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
   }
 
@@ -24255,34 +24290,40 @@
     const ort = new Vector2().copy(target).rotateAround(zero2, Math.PI / 2).normalize();
     const points = [new Vector2(0, 0)];
     const deformations = [];
+    let sign2 = 1;
     for (let i = 0; i <= segments; i++) {
-      const jitter = i == 0 || i == segments ? 0 : randomFrom(-amplitude, amplitude);
+      const jitter = i == 0 || i == segments ? 0 : randomFrom(0, amplitude) * sign2;
+      sign2 = -sign2;
       const point = new Vector2(0, 0).addScaledVector(target, i / segments).addScaledVector(ort, jitter);
       points.push(point);
     }
+    sign2 = 1;
     let length = 0;
     for (let i = 0; i < points.length; i++) {
       if (i > 0) {
         length += points[i].distanceTo(points[i - 1]);
       }
-      const angle = randomFrom(-skewLimit, skewLimit);
+      const angle = randomFrom(skewLimit / 2, skewLimit) * sign2;
+      sign2 = -sign2;
       const next = i == 0 ? points[i + 1] : points[i - 1];
       const distance = points[i].distanceTo(next);
-      const deformation = randomFrom(distance / 2, distance);
-      deformations.push({ angle, length: deformation });
+      deformations.push({ angle, length: distance / 2 });
     }
     return { points, length, deformations };
   }
-  function calculateFlagellumPoints({ points, length, deformations }, { inOutRatio }, time) {
+  function calculateFlagellumPoints({ points, length, deformations }, startDirection, finishDirection, { inOutRatio }, time) {
     let k = time * length;
     const path = new Path();
     path.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) {
       let current = points[i].distanceTo(points[i - 1]);
-      const direction1 = new Vector2().subVectors(points[i], points[i - 1]);
-      const direction2 = i + 1 < points.length ? new Vector2().subVectors(points[i], points[i + 1]) : new Vector2().copy(direction1).negate();
-      const c1 = calculateDeformation(points[i - 1], direction1, deformations[i - 1], time);
-      const c2 = calculateDeformation(points[i], direction2, deformations[i], time);
+      const direction1 = i == 1 ? startDirection : new Vector2().subVectors(points[i], points[i - 1]);
+      const direction2 = i == points.length - 1 ? finishDirection : new Vector2().subVectors(points[i], points[i + 1]);
+      const c = Math.pow(1 - Math.min(time, 1), 1 / 2);
+      const a1 = deformations[i - 1].angle * c;
+      const a2 = deformations[i].angle * c;
+      const c1 = calculateDeformation(points[i - 1], direction1, { ...deformations[i - 1], angle: a1 }, 0);
+      const c2 = calculateDeformation(points[i], direction2, { ...deformations[i], angle: a2 }, 0);
       if (current > k) {
         const alpha = k / current;
         const i1 = new Vector2().addScaledVector(points[i - 1], 1 - alpha).addScaledVector(c1, alpha);
@@ -24300,10 +24341,10 @@
     }
     return path.getPoints(50);
   }
-  function createFlagellum({ target, startIn, finishIn, startOut, finishOut }, configuration) {
+  function createFlagellum({ startDirection, finishDirection, target, startIn, finishIn, startOut, finishOut }, configuration) {
     const material = new LineBasicMaterial({ color: configuration.color });
     const flagellum = generateFlagellum(target, configuration);
-    let positionAttribute = new BufferAttribute(getComponents(calculateFlagellumPoints(flagellum, configuration, 0)), 3);
+    let positionAttribute = new BufferAttribute(getComponents(calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0)), 3);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", positionAttribute);
     const curve = new Line(geometry, material);
@@ -24321,7 +24362,7 @@
         } else {
           relativeTime = 1 + Math.min(time - finishIn, startOut - time) / (startOut - finishIn) * 2;
         }
-        const current = calculateFlagellumPoints(flagellum, configuration, relativeTime);
+        const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
         if (current.length === positionAttribute.count) {
           positionAttribute.set(getComponents(current));
           positionAttribute.needsUpdate = true;
@@ -24335,15 +24376,19 @@
   }
 
   // src/world/flagellum-tree.ts
-  function createFlagellumTree({ branchPoint, targets, start, finish }, configuration) {
+  function createFlagellumTree({ startDirection, branchPoint, targets, start, finish }, configuration) {
     const root = new Object3D();
     const total = finish - start;
-    const startD = total / 4;
-    const branchD = total / 5;
-    const waitD = total / 20;
-    const unbranchD = total / 8;
-    const endD = 3 * total / 8;
+    const ratios = [1, 1, 10, 4, 4];
+    const sum = ratios.reduce((a, b) => a + b, 0);
+    const startD = ratios[0] / sum * total;
+    const branchD = ratios[1] / sum * total;
+    const waitD = ratios[2] / sum * total;
+    const unbranchD = ratios[3] / sum * total;
+    const endD = ratios[4] / sum * total;
     const trunk = createFlagellum({
+      startDirection,
+      finishDirection: new Vector2().copy(branchPoint).negate(),
       target: branchPoint,
       startIn: start,
       finishIn: start + startD,
@@ -24354,6 +24399,7 @@
     const branches = [];
     return {
       object: root,
+      finish,
       tick: (time) => {
         trunk.tick(time);
         for (let i = 0; i < branches.length; i++) {
@@ -24362,6 +24408,8 @@
         if (time > start + startD && branches.length !== targets.length) {
           for (let i = 0; i < targets.length; i++) {
             let branch = createFlagellum({
+              startDirection: branchPoint,
+              finishDirection: new Vector2().subVectors(branchPoint, targets[i]),
               target: new Vector2().subVectors(targets[i], branchPoint),
               startIn: start + startD,
               finishIn: start + startD + branchD,
@@ -24383,6 +24431,12 @@
   }
 
   // src/world/membrane.ts
+  function calculateLockedTime(lock, time) {
+    if (lock != void 0 && lock.start < time && time < lock.finish) {
+      return lock.start;
+    }
+    return time;
+  }
   function generateAliveMembrane({ segments, radius, delta, skewLimit }) {
     const skeleton = getRegularPolygon(segments, radius / Math.cos(Math.PI / segments));
     const directions = [];
@@ -24393,8 +24447,10 @@
       anchors.push(new Vector2().copy(skeleton[i]).addScaledVector(direction, 0.5));
     }
     const deformations = [];
+    const locks = [];
     let sign2 = 1;
     for (let i = 0; i < segments; i++) {
+      locks.push({ in: void 0, out: void 0 });
       const angle = (1 + Math.random()) * skewLimit;
       const intersectionOuter = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, -angle), zero2, radius + delta);
       const intersectionInner = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, angle), zero2, radius - delta);
@@ -24412,6 +24468,7 @@
     return {
       anchors,
       directions,
+      locks,
       deformations,
       getSector(p) {
         for (let i = 0; i < skeleton.length; i++) {
@@ -24429,10 +24486,14 @@
     const n = membrane.anchors.length;
     const controlPoints = [];
     for (let i = 0; i < n; i++) {
+      const t1 = calculateLockedTime(membrane.locks[i].out, time);
       const direction1 = membrane.directions[i];
+      const c1 = calculateDeformation(membrane.anchors[i], direction1, membrane.deformations[i], t1);
+      const t2 = calculateLockedTime(membrane.locks[(i + 1) % n].in, time);
       const direction2 = new Vector2().copy(membrane.directions[(i + 1) % n]).negate();
-      const c1 = calculateDeformation(membrane.anchors[i], direction1, membrane.deformations[i], time);
-      const c2 = calculateDeformation(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], time);
+      const c2 = calculateDeformation(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], t2);
+      if (i == n - 1) {
+      }
       controlPoints.push({ first: c1, second: c2 });
     }
     const path = new Path();
@@ -24451,21 +24512,30 @@
     geometry.setAttribute("position", positionAttribute);
     const curve = new Line(geometry, material);
     const angular = randomFrom(-membraneConfig.angularLimit, membraneConfig.angularLimit);
-    const trees = [];
+    let trees = [];
     let lastTime = 0;
     return {
       object: curve,
       tick: (time) => {
         lastTime = time;
         for (let i = 0; i < trees.length; i++) {
+          if (trees[i].finish < time) {
+            curve.remove(trees[i].object);
+          }
+        }
+        trees = trees.filter((t2) => t2.finish > time);
+        for (let i = 0; i < trees.length; i++) {
           trees[i].tick(time);
         }
-        const points = calculateMembranePoints(membrane, membraneConfig.detalization, time * membraneConfig.frequency);
+        const t = time * membraneConfig.frequency;
+        const points = calculateMembranePoints(membrane, membraneConfig.detalization, t);
         positionAttribute.set(points);
         positionAttribute.needsUpdate = true;
       },
       attack: (targets) => {
-        for (let i = 0; i < membrane.anchors.length; i++) {
+        const t = lastTime * membraneConfig.frequency;
+        const n = membrane.anchors.length;
+        for (let i = 0; i < n; i++) {
           const group = [];
           for (let s = 0; s < targets.length; s++) {
             const anchor2 = membrane.getSector(targets[s]);
@@ -24476,15 +24546,24 @@
           if (group.length === 0) {
             continue;
           }
+          const start1 = findDeformationAngleTime(membrane.deformations[i], t, -Math.abs(membrane.deformations[i].angle));
+          const start2 = findDeformationAngleTime(membrane.deformations[i], t, Math.abs(membrane.deformations[i].angle));
+          const finish1 = findDeformationAngleTime(membrane.deformations[i], Math.max(start1, start2) + 1e3 * membraneConfig.frequency, -Math.abs(membrane.deformations[i].angle));
+          const finish2 = findDeformationAngleTime(membrane.deformations[i], Math.max(start1, start2) + 1e3 * membraneConfig.frequency, Math.abs(membrane.deformations[i].angle));
+          membrane.locks[i].out = { start: start1, finish: finish1 };
+          membrane.locks[i].in = { start: start2, finish: finish2 };
           const anchor = membrane.anchors[i];
-          const direction = new Vector2().copy(anchor).normalize();
-          const distance = group.map((p) => 3 * anchor.distanceTo(p) / 4).reduce((a, b) => Math.min(a, b), Infinity);
-          const next = new Vector2().copy(anchor).addScaledVector(direction, distance);
+          const next = new Vector2().copy(anchor);
+          for (let s = 0; s < group.length; s++) {
+            next.add(group[s]);
+          }
+          next.multiplyScalar(1 / (group.length + 1));
           const flagellum = createFlagellumTree({
+            startDirection: anchor,
             branchPoint: new Vector2().subVectors(next, anchor),
             targets: group.map((p) => new Vector2().subVectors(p, anchor)),
-            start: lastTime,
-            finish: lastTime + 2e3
+            start: Math.max(start1, start2) / membraneConfig.frequency,
+            finish: Math.max(start1, start2) / membraneConfig.frequency + 1e3
           }, flagellumConfig);
           flagellum.object.position.set(anchor.x, anchor.y, 0);
           curve.add(flagellum.object);
@@ -24518,12 +24597,16 @@
         if (target != null) {
           target.tick(time);
         }
-        if (time % 4e3 < 1e3) {
+        if (time % 1e4 < 1e3) {
           attacked = false;
         }
-        if (time % 4e3 > 1e3 && target != null && !attacked) {
+        if (time % 1e4 > 1e3 && target != null && !attacked) {
           attacked = true;
-          target.attack([new Vector2(300, 50), new Vector2(300, 100), new Vector2(200, -100), new Vector2(-100, -200)]);
+          const targets = [];
+          for (let i = 0; i < 20; i++) {
+            targets.push(new Vector2(randomFrom(200, 500), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)));
+          }
+          target.attack(targets);
         }
       }
     };
@@ -27040,9 +27123,9 @@
         membrane: {
           segments: atom(10),
           detalization: atom(50),
-          frequency: atom(3e-4),
-          radius: atom(50),
-          delta: atom(10),
+          frequency: atom(2e-4),
+          radius: atom(100),
+          delta: atom(30),
           color: atom("rgba(141, 177, 185, 0.5)"),
           skewLimit: atom(Math.PI / 6),
           angularLimit: atom(0.01)

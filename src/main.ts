@@ -26,9 +26,9 @@ function createConfiguration(): WorldConfiguration {
             membrane: {
                 segments: atom<number>(10),
                 detalization: atom<number>(50),
-                frequency: atom<number>(0.0003),
-                radius: atom<number>(50),
-                delta: atom<number>(10),
+                frequency: atom<number>(0.0002),
+                radius: atom<number>(100),
+                delta: atom<number>(30),
                 color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
                 skewLimit: atom<number>(Math.PI / 6),
                 angularLimit: atom<number>(0.01),

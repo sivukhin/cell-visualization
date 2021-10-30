@@ -19,36 +19,42 @@ function generateFlagellum(target: Vector2, { segmentLength, amplitude, skewLimi
         .normalize();
     const points = [new Vector2(0, 0)];
     const deformations = [];
+    let sign = 1;
     for (let i = 0; i <= segments; i++) {
-        const jitter = i == 0 || i == segments ? 0 : randomFrom(-amplitude, amplitude);
+        const jitter = i == 0 || i == segments ? 0 : randomFrom(0, amplitude) * sign;
+        sign = -sign;
         const point = new Vector2(0, 0).addScaledVector(target, i / segments).addScaledVector(ort, jitter);
         points.push(point);
     }
 
+    sign = 1;
     let length = 0;
     for (let i = 0; i < points.length; i++) {
         if (i > 0) {
             length += points[i].distanceTo(points[i - 1]);
         }
-        const angle = randomFrom(-skewLimit, skewLimit);
+        const angle = randomFrom(skewLimit / 2, skewLimit) * sign;
+        sign = -sign;
         const next = i == 0 ? points[i + 1] : points[i - 1];
         const distance = points[i].distanceTo(next);
-        const deformation = randomFrom(distance / 2, distance);
-        deformations.push({ angle, length: deformation });
+        deformations.push({ angle, length: distance / 2 });
     }
     return { points, length, deformations };
 }
 
-function calculateFlagellumPoints({ points, length, deformations }: Flagellum, { inOutRatio }: Unwrap<FlagellumConfiguration>, time: number) {
+function calculateFlagellumPoints({ points, length, deformations }: Flagellum, startDirection: Vector2, finishDirection: Vector2, { inOutRatio }: Unwrap<FlagellumConfiguration>, time: number) {
     let k = time * length;
     const path = new Path();
     path.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) {
         let current = points[i].distanceTo(points[i - 1]);
-        const direction1 = new Vector2().subVectors(points[i], points[i - 1]);
-        const direction2 = i + 1 < points.length ? new Vector2().subVectors(points[i], points[i + 1]) : new Vector2().copy(direction1).negate();
-        const c1 = calculateDeformation(points[i - 1], direction1, deformations[i - 1], time);
-        const c2 = calculateDeformation(points[i], direction2, deformations[i], time);
+        const direction1 = i == 1 ? startDirection : new Vector2().subVectors(points[i], points[i - 1]);
+        const direction2 = i == points.length - 1 ? finishDirection : new Vector2().subVectors(points[i], points[i + 1]);
+        const c = Math.pow(1 - Math.min(time, 1), 1 / 2);
+        const a1 = deformations[i - 1].angle * c;
+        const a2 = deformations[i].angle * c;
+        const c1 = calculateDeformation(points[i - 1], direction1, { ...deformations[i - 1], angle: a1 }, 0);
+        const c2 = calculateDeformation(points[i], direction2, { ...deformations[i], angle: a2 }, 0);
         if (current > k) {
             const alpha = k / current;
             const i1 = new Vector2().addScaledVector(points[i - 1], 1 - alpha).addScaledVector(c1, alpha);
@@ -68,6 +74,8 @@ function calculateFlagellumPoints({ points, length, deformations }: Flagellum, {
 }
 
 export interface FlagellumState {
+    startDirection: Vector2;
+    finishDirection: Vector2;
     target: Vector2;
     startIn: number;
     finishIn: number;
@@ -75,10 +83,10 @@ export interface FlagellumState {
     finishOut: number;
 }
 
-export function createFlagellum({ target, startIn, finishIn, startOut, finishOut }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>) {
+export function createFlagellum({ startDirection, finishDirection, target, startIn, finishIn, startOut, finishOut }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>) {
     const material = new LineBasicMaterial({ color: configuration.color });
     const flagellum = generateFlagellum(target, configuration);
-    let positionAttribute = new BufferAttribute(getComponents(calculateFlagellumPoints(flagellum, configuration, 0)), 3);
+    let positionAttribute = new BufferAttribute(getComponents(calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0)), 3);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", positionAttribute);
     const curve = new Line(geometry, material);
@@ -94,9 +102,9 @@ export function createFlagellum({ target, startIn, finishIn, startOut, finishOut
             } else if (time > startOut) {
                 relativeTime = 1 - (time - startOut) / (finishOut - startOut);
             } else {
-                relativeTime = 1 + Math.min(time - finishIn, startOut - time) / (startOut - finishIn) * 2;
+                relativeTime = 1 + (Math.min(time - finishIn, startOut - time) / (startOut - finishIn)) * 2;
             }
-            const current = calculateFlagellumPoints(flagellum, configuration, relativeTime);
+            const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
             if (current.length === positionAttribute.count) {
                 positionAttribute.set(getComponents(current));
                 positionAttribute.needsUpdate = true;

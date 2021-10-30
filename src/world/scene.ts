@@ -4,7 +4,7 @@ import { createCamera } from "./camera";
 import { CellConfiguration, createConfigurationStore, SoupConfiguration, WorldConfiguration } from "../configuration";
 import { createEnvironment } from "./environment";
 import { generateCircles, getRegularPolygon, tryIntersectLineCircle, zero2 } from "../utils/geometry";
-import { interpolate, randomVector } from "../utils/math";
+import { interpolate, randomFrom, randomVector } from "../utils/math";
 import { computed, Store } from "nanostores";
 import { createAliveMembrane } from "./membrane";
 import { createFlagellum } from "./flagellum";
@@ -121,10 +121,10 @@ export function createScene(dynamic: WorldConfiguration) {
         // target = createFlagellum({ target: new Vector2(100, 100), startIn: 0, finishIn: 1000, startOut: 2000, finishOut: 3000 }, configuration.flagellum);
         // target = createFlagellumTree(
         //     {
-        //         branchPoint: new Vector2(90, 0),
-        //         targets: [new Vector2(100, 50), new Vector2(100, -50)],
-        //         start: 0,
-        //         finish: 4000,
+        //         branchPoint: new Vector2(200, 0),
+        //         targets: [new Vector2(300, 100), new Vector2(300, -50)],
+        //         start: 1000,
+        //         finish: 5000,
         //     },
         //     configuration.flagellum
         // );
@@ -140,12 +140,17 @@ export function createScene(dynamic: WorldConfiguration) {
             if (target != null) {
                 target.tick(time);
             }
-            if (time % 4000 < 1000) {
+            if (time % 10000 < 1000) {
                 attacked = false;
             }
-            if (time % 4000 > 1000 && target != null && !attacked) {
+            if (time % 10000 > 1000 && target != null && !attacked) {
                 attacked = true;
-                target.attack([new Vector2(300, 50), new Vector2(300, 100), new Vector2(200, -100), new Vector2(-100, -200)]);
+                const targets = [];
+                for (let i = 0; i < 20; i++) {
+                    targets.push(new Vector2(randomFrom(200, 500), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)));
+                    // targets.push(new Vector2(500, 0));
+                }
+                target.attack(targets);
             }
         },
     };
