@@ -3,6 +3,7 @@ import { ColorRepresentation, WebGLRenderer } from "three";
 import { WorldConfiguration } from "./configuration";
 import { createScene } from "./world/scene";
 import { initializeGui } from "./utils/knobs";
+import Stats from "stats.js";
 
 function adjust(renderer) {
     const canvas = renderer.domElement;
@@ -77,14 +78,22 @@ function initialize() {
         canvas: document.getElementById("canvas"),
         antialias: true,
     });
+
     adjust(renderer);
 
+    const stats = Stats();
+
     function render(time: number) {
+        stats.begin();
         tick(time);
         renderer.render(scene, camera);
+        stats.end();
         requestAnimationFrame(render);
     }
     requestAnimationFrame(render);
+
+    stats.showPanel(0);
+    document.body.appendChild(stats.dom);
 }
 
 initialize();
