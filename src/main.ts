@@ -7,6 +7,10 @@ import Stats from "stats.js";
 
 function adjust(renderer) {
     const canvas = renderer.domElement;
+    canvas.width = 900;
+    canvas.height = 900;
+    canvas.style.width = "900px";
+    canvas.style.height = "900px";
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     renderer.setSize(width, height, false);
@@ -20,6 +24,10 @@ function createConfiguration(): WorldConfiguration {
         },
         soup: {
             count: atom<number>(3),
+            rows: atom<number>(3),
+            cols: atom<number>(3),
+            xDistance: atom<number>(250),
+            yDistance: atom<number>(250),
             width: 1500,
             height: 1500,
         },
@@ -47,14 +55,20 @@ function createConfiguration(): WorldConfiguration {
     };
     initializeGui(configuration, {
         light: { intensity: { min: 0, max: 1, step: 0.01 } },
-        soup: { count: { min: 1, max: 10, step: 1 } },
+        soup: {
+            rows: { min: 1, max: 10, step: 1 },
+            cols: { min: 1, max: 10, step: 1 },
+            xDistance: { min: 1, max: 1000 },
+            yDistance: { min: 1, max: 1000 },
+            count: { min: 1, max: 10, step: 1 },
+        },
         cell: {
             membrane: {
                 segments: { min: 3, max: 10, step: 1 },
                 detalization: { min: 10, max: 100, step: 1 },
                 frequency: { min: 0, max: 0.01, step: 0.0001 },
-                radius: { min: 10, max: 100, step: 1 },
-                delta: { min: 1, max: 20, step: 1 },
+                radius: { min: 10, max: 200, step: 1 },
+                delta: { min: 1, max: 100, step: 1 },
                 skewLimit: { min: 0, max: Math.PI, step: 0.001 },
                 angularLimit: { min: 0, max: 1, step: 0.01 },
             },

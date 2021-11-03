@@ -102,7 +102,7 @@ function calculateMembranePoints(membrane: Membrane, detalization: number, time:
     for (let i = 0; i < n; i++) {
         path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
     }
-    return getComponents([...path.getPoints(detalization));
+    return getComponents([...path.getPoints(detalization)]);
 }
 
 export function createAliveMembrane(membraneConfig: Unwrap<MembraneConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>) {

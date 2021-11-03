@@ -33,6 +33,10 @@ export interface CellConfiguration {
 }
 
 export interface SoupConfiguration {
+    rows: Store<number>;
+    cols: Store<number>;
+    xDistance: Store<number>;
+    yDistance: Store<number>;
     count: Store<number>;
     width: number;
     height: number;

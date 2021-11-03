@@ -2,8 +2,8 @@
   "name": "proctf-cell",
   "source": "index.html",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --outfile=main.js",
-    "watch": "esbuild src/main.ts --bundle --outfile=main.js --watch"
+    "build": "esbuild src/main.ts --bundle --loader:.shader=text --outfile=main.js",
+    "watch": "esbuild src/main.ts --bundle --loader:.shader=text --outfile=main.js --watch"
   },
   "devDependencies": {
     "esbuild": "^0.13.8",

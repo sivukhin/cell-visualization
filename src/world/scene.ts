@@ -1,4 +1,22 @@
-import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Line, LineBasicMaterial, Object3D, Path, Scene, Vector2 } from "three";
+import {
+    AdditiveBlending,
+    BackSide,
+    BufferAttribute,
+    BufferGeometry,
+    DynamicDrawUsage,
+    Float32BufferAttribute,
+    Line,
+    LineBasicMaterial,
+    Mesh,
+    MeshBasicMaterial,
+    MeshPhongMaterial,
+    Object3D,
+    Path,
+    PlaneGeometry,
+    Scene,
+    ShaderMaterial,
+    Vector2,
+} from "three";
 import { createLight } from "./light";
 import { createCamera } from "./camera";
 import { CellConfiguration, createConfigurationStore, SoupConfiguration, WorldConfiguration } from "../configuration";
@@ -9,6 +27,10 @@ import { computed, Store } from "nanostores";
 import { createAliveMembrane } from "./membrane";
 import { createFlagellum } from "./flagellum";
 import { createFlagellumTree } from "./flagellum-tree";
+import { getComponents } from "../utils/draw";
+
+import GlowVertexShader from "../shaders/glow-vertex.shader";
+import GlowFragmentShader from "../shaders/glow-fragment.shader";
 
 // function createAliveCell(n: number, r: number, organellsCount: number, organellsRadius: number) {
 //     const root = new Object3D();
@@ -107,11 +129,11 @@ export function createScene(dynamic: WorldConfiguration) {
     const store = createConfigurationStore(dynamic);
     const camera = createCamera(dynamic.soup.width, dynamic.soup.height);
     scene.add(camera);
-    let target = null;
-    let target2 = null;
+    let targets = [];
 
     store.subscribe((configuration) => {
         scene.clear();
+        targets = [];
 
         const environment = createEnvironment(configuration.soup.width, configuration.soup.height);
         scene.add(environment);
@@ -129,11 +151,36 @@ export function createScene(dynamic: WorldConfiguration) {
         //     },
         //     configuration.flagellum
         // );
-        target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
-        scene.add(target.object);
-        target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
-        target2.object.position.set(500, 0, 0);
-        scene.add(target2.object);
+        for (let i = 0; i < configuration.soup.rows; i++) {
+            for (let s = 0; s < configuration.soup.cols; s++) {
+                const target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+                scene.add(target.object);
+                target.object.position.set((i - configuration.soup.rows / 2) * configuration.soup.xDistance, (s - configuration.soup.cols / 2) * configuration.soup.yDistance, 0);
+                targets.push(target);
+            }
+        }
+
+        // const geometry = new BufferGeometry();
+        // const polygon = getRegularPolygon(8, 200);
+        // const positions = new BufferAttribute(getComponents([new Vector2(0, 0), ...polygon]), 3);
+        // geometry.setAttribute("position", positions);
+        // const normalsComponents = [];
+        // for (let i = 0; i < polygon.length + 1; i++) {
+        //     normalsComponents.push(...[0, 0, 1]);
+        // }
+        // const normals = new BufferAttribute(new Float32Array(normalsComponents), 3);
+        // geometry.setAttribute("normal", normals);
+        // const index = [];
+        // for (let i = 0; i < polygon.length; i++) {
+        //     index.push(...[0, i + 1, ((i + 1) % polygon.length) + 1]);
+        // }
+        // geometry.setIndex(index);
+        // const material = new ShaderMaterial({
+        //     vertexShader: GlowVertexShader,
+        //     fragmentShader: GlowFragmentShader,
+        // });
+        // const mesh = new Mesh(geometry, material);
+        // scene.add(mesh);
     });
     let attacked = false;
     return {
@@ -141,23 +188,31 @@ export function createScene(dynamic: WorldConfiguration) {
         camera,
         tick: (time: number) => {
             // cell.tick(time);
-            if (target != null) {
-                target.tick(time);
+            for (let i = 0; i < targets.length; i++) {
+                targets[i].tick(time);
             }
-            if (target2 != null) {
-                target2.tick(time);
-            }
+            // if (target != null) {
+            //     target.tick(time);
+            // }
+            // if (target2 != null) {
+            //     target2.tick(time);
+            // }
             if (time % 10000 < 1000) {
                 attacked = false;
             }
-            if (time % 10000 > 1000 && target != null && !attacked) {
+            if (time % 10000 > 1000 && !attacked) {
                 attacked = true;
-                const targets = [];
-                for (let i = 0; i < 20; i++) {
-                    targets.push(new Vector2(randomFrom(200, 500), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)));
-                    // targets.push(new Vector2(500, 0));
+                for (let i = 0; i < targets.length; i++) {
+                    const points = [];
+                    const k = randomFrom(0, 5);
+                    for (let i = 0; i < k; i++) {
+                        points.push(new Vector2(randomFrom(200, 800), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)));
+                        // targets.push(new Vector2(500, 0));
+                    }
+                    if (points.length > 0) {
+                        targets[i].attack(points);
+                    }
                 }
-                target.attack(targets);
             }
         },
     };
