@@ -24274,29 +24274,60 @@
   // src/utils/geometry.ts
   var zero2 = new Vector2(0, 0);
   var zero3 = new Vector3(0, 0, 0);
-
-  // src/utils/draw.ts
-  function getComponents(points) {
-    const components = new Float32Array(points.length * 3);
-    let position = 0;
-    for (let point of points) {
-      components[position++] = point.x;
-      components[position++] = point.y;
-      components[position++] = 0;
+  function getRegularPolygon(n, r) {
+    const points = [];
+    for (let i = 0; i < n; i++) {
+      const angle = 2 * Math.PI / n * i;
+      points.push(new Vector2(Math.cos(angle) * r, Math.sin(angle) * r));
     }
-    return components;
+    return points;
   }
-  function cutBezierCurve(start, c1, c2, end, alpha) {
-    const i1 = new Vector2().addScaledVector(start, 1 - alpha).addScaledVector(c1, alpha);
-    const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
-    const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(end, alpha);
-    const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
-    const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
-    const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
-    return { c1: i1, c2: i2, end: i3 };
+  function getH(p, a, v) {
+    const k = new Vector2().subVectors(p, a).dot(v);
+    return new Vector2().copy(v).multiplyScalar(k / v.lengthSq()).add(a);
+  }
+  function tryIntersectLineCircle(p, v, c, r) {
+    const h = getH(c, p, v);
+    const d = h.distanceToSquared(c);
+    if (d > r * r) {
+      return null;
+    }
+    const l = Math.sqrt(r * r - d) / v.length();
+    const a = new Vector2().copy(h).addScaledVector(v, l);
+    const b = new Vector2().copy(h).addScaledVector(v, -l);
+    return new Vector2().subVectors(a, p).dot(v) > 0 ? a : b;
+  }
+  function inSector(p, a, b) {
+    return a.cross(p) > 0 && p.cross(b) >= 0;
   }
 
   // src/utils/math.ts
+  function extrapolate(l, r, time, target, inScale, outScale) {
+    if (l > r) {
+      return extrapolate(r, l, time, r + (l - target), inScale, outScale);
+    }
+    if (inScale == void 0) {
+      inScale = 1;
+    }
+    if (outScale == void 0) {
+      outScale = inScale;
+    }
+    target = target - l;
+    const d = Math.abs(r - l);
+    let delta = time % (d / inScale + d / outScale);
+    if (delta < d / inScale) {
+      if (delta * inScale <= target) {
+        return time + (target - delta * inScale) / inScale;
+      }
+      return time + (d - delta * inScale) / inScale + (d - target) / outScale;
+    } else {
+      delta = d / outScale + d / inScale - delta;
+      if (target < delta * outScale) {
+        return time + (delta * outScale - target) / outScale;
+      }
+      return time + delta * outScale / outScale + target / inScale;
+    }
+  }
   function interpolate(l, r, time, inScale, outScale) {
     if (l == r) {
       return l;
@@ -24320,7 +24351,61 @@
     return Math.random() * (r - l) + l;
   }
 
+  // src/utils/draw.ts
+  function getFlatComponents3D(points) {
+    const components = new Float32Array(points.length * 3);
+    let position = 0;
+    for (let point of points) {
+      components[position++] = point.x;
+      components[position++] = point.y;
+      components[position++] = 0;
+    }
+    return components;
+  }
+  function cutBezierCurve(start, c1, c2, end, alpha) {
+    const i1 = new Vector2().addScaledVector(start, 1 - alpha).addScaledVector(c1, alpha);
+    const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
+    const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(end, alpha);
+    const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
+    const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
+    const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
+    return { c1: i1, c2: i2, end: i3 };
+  }
+  function createFigureFromPath(path, thickness) {
+    if (path.length <= 1) {
+      return { positions: new Float32Array(), normals: new Float32Array(), indices: [] };
+    }
+    const positions = [];
+    let distance = 0;
+    for (let i = 0; i < path.length; i++) {
+      if (i != 0) {
+        distance += path[i].distanceTo(path[i - 1]);
+      }
+      const v = i + 1 < path.length ? new Vector2().subVectors(path[i + 1], path[i]) : new Vector2().subVectors(path[i], path[i - 1]);
+      const u = v.rotateAround(zero2, Math.PI / 2).setLength(thickness(distance));
+      positions.push(new Vector2().addVectors(path[i], u));
+      positions.push(new Vector2().subVectors(path[i], u));
+    }
+    const normals = [];
+    for (let i = 0; i < positions.length; i++) {
+      normals.push(0, 0, 1);
+    }
+    const indices = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      indices.push(2 * i, 2 * (i + 1), 2 * i + 1);
+      indices.push(2 * i + 1, 2 * (i + 1), 2 * (i + 1) + 1);
+    }
+    return {
+      positions: getFlatComponents3D(positions),
+      normals: new Float32Array(normals),
+      indices
+    };
+  }
+
   // src/world/deformation.ts
+  function findDeformationAngleTime(deformation, time, target) {
+    return extrapolate(-deformation.angle, deformation.angle, time, target, Math.pow(deformation.length, 1 / 2));
+  }
   function calculateDeformationAngle(deformation, time) {
     return interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
   }
@@ -24333,6 +24418,22 @@
       angle: deformation.angle * angleStretch,
       length: deformation.length * lengthStretch
     };
+  }
+
+  // src/shaders/glow-vertex.shader
+  var glow_vertex_default = "attribute float thickness;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
+
+  // src/shaders/glow-fragment.shader
+  var glow_fragment_default = "uniform vec3 u_color;\r\nuniform float start;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    float current = start + (1.0 - start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));\r\n    if (v_distance >= current) {\r\n        float m = 5.0 * PI / (1.0 - current);\r\n        vec3 color = vec3(u_color);\r\n        float intensity = 1.0 - pow(smoothstep(current, 1.0, v_distance), 1.0);\r\n        color[2] += sin((v_distance - current) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);\r\n        gl_FragColor = vec4(hsl2rgb(color), intensity);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(u_color), 1);\r\n    }\r\n}\r\n";
+
+  // src/utils/timings.ts
+  function getRelativeTime({ startIn, startOut, finishIn, finishOut }, time) {
+    if (time < finishIn) {
+      return (time - startIn) / (finishIn - startIn);
+    } else if (time > startOut) {
+      return 1 - (time - startOut) / (finishOut - startOut);
+    }
+    return 1 + Math.min(time - finishIn, startOut - time) / (startOut - finishIn) * 2;
   }
 
   // src/world/flagellum.ts
@@ -24366,7 +24467,7 @@
       if (i > 0) {
         length += points[i].distanceTo(points[i - 1]);
       }
-      const angle = randomFrom(skewLimit / 2, skewLimit) * sign2;
+      const angle = i == 0 ? 0 : randomFrom(skewLimit / 2, skewLimit) * sign2;
       sign2 = -sign2;
       const next = i == 0 ? points[i + 1] : points[i - 1];
       const distance2 = points[i].distanceTo(next);
@@ -24404,36 +24505,201 @@
     }
     return path.getPoints(50);
   }
-  function createFlagellum({ startDirection, finishDirection, target, startIn, finishIn, startOut, finishOut }, configuration) {
-    const material = new LineBasicMaterial({ color: configuration.color });
+  function createFlagellum({ startDirection, finishDirection, target, timings }, configuration) {
+    const material = new MeshBasicMaterial({ color: configuration.color, side: BackSide, transparent: true });
     const flagellum = generateFlagellum(target, configuration);
-    let positionAttribute = new BufferAttribute(getComponents(calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0)), 3);
+    const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
+    const figure = createFigureFromPath(points, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 2)));
     const geometry = new BufferGeometry();
-    geometry.setAttribute("position", positionAttribute);
-    const curve = new Line(geometry, material);
+    geometry.setAttribute("position", new BufferAttribute(figure.positions, 3));
+    geometry.setAttribute("normal", new BufferAttribute(figure.normals, 3));
+    geometry.setIndex(figure.indices);
+    const curve = new Mesh(geometry, material);
     return {
       object: curve,
-      finish: finishOut,
+      finish: timings.finishOut,
       tick: (time) => {
-        if (time > finishOut) {
+        if (time > timings.finishOut) {
           return;
         }
-        let relativeTime = 0;
-        if (time < finishIn) {
-          relativeTime = (time - startIn) / (finishIn - startIn);
-        } else if (time > startOut) {
-          relativeTime = 1 - (time - startOut) / (finishOut - startOut);
-        } else {
-          relativeTime = 1 + Math.min(time - finishIn, startOut - time) / (startOut - finishIn) * 2;
-        }
+        const relativeTime = getRelativeTime(timings, time);
         const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
-        if (current.length === positionAttribute.count) {
-          positionAttribute.set(getComponents(current));
-          positionAttribute.needsUpdate = true;
-        } else {
-          const update = new BufferAttribute(getComponents(current), 3);
-          geometry.setAttribute("position", update);
-          positionAttribute = update;
+        const update = createFigureFromPath(current, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 4)));
+        geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
+        geometry.setAttribute("normal", new BufferAttribute(update.normals, 3));
+        geometry.setIndex(update.indices);
+      }
+    };
+  }
+
+  // src/world/membrane.ts
+  function calculateLockedTime(lock, time) {
+    if (lock != void 0 && lock.start < time && time < lock.finish) {
+      return lock.start;
+    }
+    return time;
+  }
+  function generateAliveMembrane({ segments, radius, delta, skewLimit }) {
+    const skeleton = getRegularPolygon(segments, radius / Math.cos(Math.PI / segments));
+    const directions = [];
+    const anchors = [];
+    for (let i = 0; i < segments; i++) {
+      const direction = new Vector2().subVectors(skeleton[(i + 1) % segments], skeleton[i]);
+      directions.push(direction);
+      anchors.push(new Vector2().copy(skeleton[i]).addScaledVector(direction, 0.5));
+    }
+    const deformations = [];
+    const locks = [];
+    let sign2 = 1;
+    for (let i = 0; i < segments; i++) {
+      locks.push({ in: void 0, out: void 0 });
+      const angle = (1 + Math.random()) * skewLimit;
+      const intersectionOuter = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, -angle), zero2, radius + delta);
+      const intersectionInner = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, angle), zero2, radius - delta);
+      if (intersectionOuter == null && intersectionInner == null) {
+        throw new Error("invalid operation");
+      }
+      const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(anchors[i]);
+      const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(anchors[i]);
+      deformations.push({
+        angle: sign2 * angle,
+        length: Math.min(outer, inner, directions[i].length() / 2)
+      });
+      sign2 = -sign2;
+    }
+    return {
+      anchors,
+      directions,
+      locks,
+      deformations,
+      getSector(p) {
+        for (let i = 0; i < skeleton.length; i++) {
+          const a = skeleton[i];
+          const b = skeleton[(i + 1) % skeleton.length];
+          if (inSector(p, a, b)) {
+            return { point: anchors[i], id: i };
+          }
+        }
+        throw new Error(`can't determine sector for point ${p.x} ${p.y}`);
+      }
+    };
+  }
+  function calculateMembranePoints(membrane, detalization, time) {
+    const n = membrane.anchors.length;
+    const controlPoints = [];
+    const pivots = [];
+    const thickness = [];
+    for (let i = 0; i < n; i++) {
+      const t1 = calculateLockedTime(membrane.locks[i].out, time);
+      const direction1 = membrane.directions[i];
+      const c1 = calculateDeformation(membrane.anchors[i], direction1, membrane.deformations[i], t1);
+      const t2 = calculateLockedTime(membrane.locks[(i + 1) % n].in, time);
+      const direction2 = new Vector2().copy(membrane.directions[(i + 1) % n]).negate();
+      const c2 = calculateDeformation(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], t2);
+      controlPoints.push({ first: c1, second: c2 });
+      const a1 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].out, time));
+      const a2 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].in, time));
+      const current = Math.max(0.3, 1 - Math.pow(Math.abs(a1 - a2), 1));
+      pivots.push(current);
+    }
+    thickness.push(pivots[0]);
+    for (let i = 0; i < n; i++) {
+      for (let s = 0; s < detalization; s++) {
+        const alpha = (s + 1) / detalization;
+        thickness.push((1 - alpha) * pivots[i] + alpha * pivots[(i + 1) % n]);
+      }
+    }
+    const path = new Path();
+    path.moveTo(membrane.anchors[0].x, membrane.anchors[0].y);
+    for (let i = 0; i < n; i++) {
+      path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
+    }
+    return { points: path.getPoints(detalization), thickness: new Float32Array([1, ...thickness]) };
+  }
+  function createAliveMembrane(membraneConfig, flagellumConfig) {
+    const membrane = generateAliveMembrane(membraneConfig);
+    const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(membrane, membraneConfig.detalization, 0);
+    console.info(initialPoints.length, initialThickness.length);
+    const n = initialPoints.length;
+    const positionAttribute = new BufferAttribute(getFlatComponents3D([new Vector2(0, 0), ...initialPoints]), 3);
+    positionAttribute.setUsage(DynamicDrawUsage);
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", positionAttribute);
+    const normals = [];
+    for (let i = 0; i < n + 1; i++) {
+      normals.push(...[0, 0, 1]);
+    }
+    geometry.setAttribute("normal", new BufferAttribute(new Float32Array(normals), 3));
+    const thicknessAttribute = new BufferAttribute(initialThickness, 1);
+    thicknessAttribute.setUsage(DynamicDrawUsage);
+    geometry.setAttribute("thickness", thicknessAttribute);
+    const index = [];
+    for (let i = 0; i < n; i++) {
+      index.push(...[0, i + 1, (i + 1) % n + 1]);
+    }
+    geometry.setIndex(index);
+    const cellColor = new Color(membraneConfig.color);
+    const cellColorHsl = { h: 0, s: 0, l: 0 };
+    cellColor.getHSL(cellColorHsl);
+    const material = new ShaderMaterial({
+      uniforms: {
+        u_color: new Uniform(new Vector3(cellColorHsl.h, cellColorHsl.s, cellColorHsl.l)),
+        start: new Uniform(membraneConfig.glowStart)
+      },
+      vertexShader: glow_vertex_default,
+      fragmentShader: glow_fragment_default,
+      transparent: true
+    });
+    const curve = new Mesh(geometry, material);
+    const angular = randomFrom(-membraneConfig.angularLimit, membraneConfig.angularLimit);
+    let trees = [];
+    let lastTime = 0;
+    return {
+      object: curve,
+      tick: (time) => {
+        lastTime = time;
+        for (let i = 0; i < trees.length; i++) {
+          if (trees[i].finish < time) {
+            curve.remove(trees[i].object);
+          }
+        }
+        trees = trees.filter((t2) => t2.finish > time);
+        for (let i = 0; i < trees.length; i++) {
+          trees[i].tick(time);
+        }
+        const t = time * membraneConfig.frequency;
+        const { points, thickness } = calculateMembranePoints(membrane, membraneConfig.detalization, t);
+        thicknessAttribute.set(thickness);
+        thicknessAttribute.needsUpdate = true;
+        positionAttribute.set(getFlatComponents3D([new Vector2(0, 0), ...points]));
+        positionAttribute.needsUpdate = true;
+      },
+      attack: (targets) => {
+        const t = lastTime * membraneConfig.frequency;
+        for (let i = 0; i < targets.length; i++) {
+          const { point, id } = membrane.getSector(targets[i]);
+          const attach = new Vector2().copy(point).multiplyScalar(0.9);
+          const start1 = findDeformationAngleTime(membrane.deformations[id], t, -Math.abs(membrane.deformations[id].angle));
+          const start2 = findDeformationAngleTime(membrane.deformations[id], t, Math.abs(membrane.deformations[id].angle));
+          const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, -Math.abs(membrane.deformations[id].angle));
+          const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, Math.abs(membrane.deformations[id].angle));
+          membrane.locks[id].out = { start: start1, finish: finish1 };
+          membrane.locks[id].in = { start: start2, finish: finish2 };
+          const start = Math.max(start1, start2);
+          const flagellum = createFlagellum({
+            startDirection: new Vector2().copy(point),
+            finishDirection: new Vector2().subVectors(targets[i], attach),
+            target: new Vector2().subVectors(targets[i], attach),
+            timings: {
+              startIn: start / membraneConfig.frequency,
+              finishIn: start / membraneConfig.frequency + 600,
+              startOut: start / membraneConfig.frequency + 1e3,
+              finishOut: start / membraneConfig.frequency + 2e3
+            }
+          }, flagellumConfig);
+          flagellum.object.position.set(attach.x, attach.y, 0);
+          curve.add(flagellum.object);
+          trees.push(flagellum);
         }
       }
     };
@@ -24453,6 +24719,14 @@
       targets = [];
       const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
       scene.add(environment);
+      for (let i = 0; i < configuration.soup.rows; i++) {
+        for (let s = 0; s < configuration.soup.cols; s++) {
+          const target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+          scene.add(target2.object);
+          target2.object.position.set(configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance, (s - configuration.soup.cols / 2) * configuration.soup.yDistance, 0);
+          targets.push(target2);
+        }
+      }
     });
     let attacked = false;
     let refreshAt = 0;
@@ -24467,25 +24741,28 @@
         if (target != null) {
           target.tick(time);
         }
-        if (target == null || time > refreshAt) {
-          scene.clear();
-          refreshAt = time + 2e3;
-          target = createFlagellum({
-            startDirection: new Vector2(1, 0),
-            finishDirection: new Vector2(1, 0),
-            startIn: time,
-            finishIn: time + 1e3,
-            startOut: time + 1500,
-            finishOut: time + 2e3,
-            target: new Vector2(500, 0)
-          }, {
-            segmentLength: store.get().flagellum.segmentLength,
-            amplitude: store.get().flagellum.amplitude,
-            skewLimit: store.get().flagellum.skewLimit,
-            color: store.get().flagellum.color,
-            minWobbling: store.get().flagellum.minWobbling
-          });
-          scene.add(target.object);
+        if (time % 1e4 < 1e3) {
+          attacked = false;
+        }
+        if (time % 1e4 > 1e3 && !attacked) {
+          attacked = true;
+          for (let i = 0; i < targets.length; i++) {
+            const points = [];
+            const k = randomFrom(0, 1.1);
+            for (let s = 0; s < k; s++) {
+              let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
+              let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
+              if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
+                a = (a + 1) % store.get().soup.rows;
+                b = (b + 1) % store.get().soup.cols;
+              }
+              const center = new Vector2(store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance, (b - store.get().soup.cols / 2) * store.get().soup.yDistance);
+              points.push(new Vector2(randomFrom(0, 50), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)).add(center).sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y)));
+            }
+            if (points.length > 0) {
+              targets[i].attack(points);
+            }
+          }
         }
       }
     };
@@ -27016,13 +27293,14 @@
           delta: atom(50),
           color: atom("rgba(84,105,125,1.0)"),
           skewLimit: atom(Math.PI / 6),
-          angularLimit: atom(0.01)
+          angularLimit: atom(0.01),
+          glowStart: atom(0.8)
         },
         organellsCount: atom(4),
         radiusLimit: atom(30)
       },
       flagellum: {
-        color: atom("rgba(141, 177, 185, 0.5)"),
+        color: atom("rgba(84,105,125,1.0)"),
         segmentLength: atom(50),
         amplitude: atom(100),
         skewLimit: atom(Math.PI),
@@ -27046,7 +27324,8 @@
           radius: { min: 10, max: 200, step: 1 },
           delta: { min: 1, max: 100, step: 1 },
           skewLimit: { min: 0, max: Math.PI, step: 1e-3 },
-          angularLimit: { min: 0, max: 1, step: 0.01 }
+          angularLimit: { min: 0, max: 1, step: 0.01 },
+          glowStart: { min: 0, max: 1, step: 0.01 }
         },
         organellsCount: { min: 0, max: 10, step: 1 },
         radiusLimit: { min: 1, max: 50, step: 1 }

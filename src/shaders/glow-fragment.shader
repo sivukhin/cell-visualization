@@ -1,6 +1,7 @@
 uniform vec3 u_color;
 uniform float start;
 varying float v_distance;
+varying float v_thickness;
 
 #define PI 3.1415
 
@@ -44,11 +45,12 @@ vec3 hsl2rgb(vec3 hsl) {
 }
 
 void main() {
-    if (v_distance >= start) {
-        float m = 5.0 * PI / (1.0 - start);
+    float current = start + (1.0 - start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));
+    if (v_distance >= current) {
+        float m = 5.0 * PI / (1.0 - current);
         vec3 color = vec3(u_color);
-        float intensity = 1.0 - pow(smoothstep(start, 1.0, v_distance), 1.0);
-        color[2] += sin((v_distance - start) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);
+        float intensity = 1.0 - pow(smoothstep(current, 1.0, v_distance), 1.0);
+        color[2] += sin((v_distance - current) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);
         gl_FragColor = vec4(hsl2rgb(color), intensity);
     } else {
         gl_FragColor = vec4(hsl2rgb(u_color), 1);

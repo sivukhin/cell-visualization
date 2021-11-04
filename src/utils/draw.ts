@@ -1,7 +1,7 @@
 import { Vector2 } from "three";
 import { zero2 } from "./geometry";
 
-export function getComponents(points: Vector2[]): Float32Array {
+export function getFlatComponents3D(points: Vector2[]): Float32Array {
     const components = new Float32Array(points.length * 3);
     let position = 0;
     for (let point of points) {
@@ -23,22 +23,38 @@ export function cutBezierCurve(start: Vector2, c1: Vector2, c2: Vector2, end: Ve
 }
 
 export interface Figure {
-    points: Float32Array;
+    positions: Float32Array;
+    normals: Float32Array;
     indices: number[];
 }
 
-export function createFigureFromPath(path: Vector2[]): Figure {
-    const points = [];
+export function createFigureFromPath(path: Vector2[], thickness: (d: number) => number): Figure {
+    if (path.length <= 1) {
+        return { positions: new Float32Array(), normals: new Float32Array(), indices: [] };
+    }
+    const positions = [];
+    let distance = 0;
     for (let i = 0; i < path.length; i++) {
-        const v = i + 1 < path.length ? new Vector2().subVectors(path[i + 1], path[i]) : new Vector2().subVectors(path[i - 1], path[i]);
-        const u = v.rotateAround(zero2, Math.PI / 2);
-        points.push(new Vector2().addVectors(points[i], u));
-        points.push(new Vector2().subVectors(points[i], u));
+        if (i != 0) {
+            distance += path[i].distanceTo(path[i - 1]);
+        }
+        const v = i + 1 < path.length ? new Vector2().subVectors(path[i + 1], path[i]) : new Vector2().subVectors(path[i], path[i - 1]);
+        const u = v.rotateAround(zero2, Math.PI / 2).setLength(thickness(distance));
+        positions.push(new Vector2().addVectors(path[i], u));
+        positions.push(new Vector2().subVectors(path[i], u));
+    }
+    const normals = [];
+    for (let i = 0; i < positions.length; i++) {
+        normals.push(0, 0, 1);
     }
     const indices = [];
     for (let i = 0; i < path.length - 1; i++) {
-        indices.push(...[2 * i, 2 * i + 1, 2 * (i + 1)]);
-        indices.push(...[2 * i, 2 * (i + 1), 2 * (i + 1) + 1]);
+        indices.push(2 * i, 2 * (i + 1), 2 * i + 1);
+        indices.push(2 * i + 1, 2 * (i + 1), 2 * (i + 1) + 1);
     }
-    return { points: new Float32Array(points), indices };
+    return {
+        positions: getFlatComponents3D(positions),
+        normals: new Float32Array(normals),
+        indices,
+    };
 }

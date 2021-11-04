@@ -1,9 +1,10 @@
-import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Line, LineBasicMaterial, Object3D, Path, Vector2 } from "three";
+import { BackSide, BufferAttribute, BufferGeometry, DynamicDrawUsage, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, Path, Vector2 } from "three";
 import { FlagellumConfiguration, Unwrap } from "../configuration";
-import { cutBezierCurve, getComponents } from "../utils/draw";
+import { createFigureFromPath, cutBezierCurve, getFlatComponents3D } from "../utils/draw";
 import { randomFrom } from "../utils/math";
 import { zero2 } from "../utils/geometry";
 import { calculateDeformation, Deformation, modifyDeformation } from "./deformation";
+import { getRelativeTime, Timings } from "../utils/timings";
 
 interface Flagellum {
     points: Vector2[];
@@ -47,7 +48,7 @@ function generateFlagellum(target: Vector2, { segmentLength, amplitude, skewLimi
         if (i > 0) {
             length += points[i].distanceTo(points[i - 1]);
         }
-        const angle = randomFrom(skewLimit / 2, skewLimit) * sign;
+        const angle = i == 0 ? 0 : randomFrom(skewLimit / 2, skewLimit) * sign;
         sign = -sign;
         const next = i == 0 ? points[i + 1] : points[i - 1];
         const distance = points[i].distanceTo(next);
@@ -97,43 +98,39 @@ export interface FlagellumState {
     startDirection: Vector2;
     finishDirection: Vector2;
     target: Vector2;
-    startIn: number;
-    finishIn: number;
-    startOut: number;
-    finishOut: number;
+    timings: Timings;
 }
 
-export function createFlagellum({ startDirection, finishDirection, target, startIn, finishIn, startOut, finishOut }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>) {
-    const material = new LineBasicMaterial({ color: configuration.color });
+export function createFlagellum({ startDirection, finishDirection, target, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>) {
+    const material = new MeshBasicMaterial({ color: configuration.color, side: BackSide, transparent: true });
     const flagellum = generateFlagellum(target, configuration);
-    let positionAttribute = new BufferAttribute(getComponents(calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0)), 3);
+    const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
+    const figure = createFigureFromPath(points, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 2)));
     const geometry = new BufferGeometry();
-    geometry.setAttribute("position", positionAttribute);
-    const curve = new Line(geometry, material);
+    geometry.setAttribute("position", new BufferAttribute(figure.positions, 3));
+    geometry.setAttribute("normal", new BufferAttribute(figure.normals, 3));
+    geometry.setIndex(figure.indices);
+
+    const curve = new Mesh(geometry, material);
     return {
         object: curve,
-        finish: finishOut,
+        finish: timings.finishOut,
         tick: (time: number) => {
-            if (time > finishOut) {
+            if (time > timings.finishOut) {
                 return;
             }
-            let relativeTime = 0;
-            if (time < finishIn) {
-                relativeTime = (time - startIn) / (finishIn - startIn);
-            } else if (time > startOut) {
-                relativeTime = 1 - (time - startOut) / (finishOut - startOut);
-            } else {
-                relativeTime = 1 + (Math.min(time - finishIn, startOut - time) / (startOut - finishIn)) * 2;
-            }
+            const relativeTime = getRelativeTime(timings, time);
             const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
-            if (current.length === positionAttribute.count) {
-                positionAttribute.set(getComponents(current));
-                positionAttribute.needsUpdate = true;
-            } else {
-                const update = new BufferAttribute(getComponents(current), 3);
-                geometry.setAttribute("position", update);
-                positionAttribute = update;
-            }
+            // if (current.length === positionAttribute.count) {
+            //     positionAttribute.set(getComponents(current));
+            //     positionAttribute.needsUpdate = true;
+            // } else {
+            const update = createFigureFromPath(current, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 4)));
+            // const update = new BufferAttribute(getFlatComponents3D(current), 3);
+            geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
+            geometry.setAttribute("normal", new BufferAttribute(update.normals, 3));
+            geometry.setIndex(update.indices);
+            // }
         },
     };
 }

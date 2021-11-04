@@ -24,6 +24,7 @@ export interface MembraneConfiguration {
     detalization: Store<number>;
     skewLimit: Store<number>;
     angularLimit: Store<number>;
+    glowStart: Store<number>;
 }
 
 export interface CellConfiguration {
