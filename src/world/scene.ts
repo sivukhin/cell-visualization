@@ -27,13 +27,13 @@ import { createEnvironment } from "./environment";
 import { generateCircles, getRegularPolygon, tryIntersectLineCircle, zero2 } from "../utils/geometry";
 import { interpolate, randomFrom, randomVector } from "../utils/math";
 import { computed, Store } from "nanostores";
-import { createAliveMembrane } from "./membrane";
+import { createAliveCell, createAliveMembrane } from "./cell";
 import { createFlagellum } from "./flagellum";
 import { createFlagellumTree } from "./flagellum-tree";
 import { getFlatComponents3D } from "../utils/draw";
 
-import GlowVertexShader from "../shaders/glow-vertex.shader";
-import GlowFragmentShader from "../shaders/glow-fragment.shader";
+import GlowVertexShader from "../shaders/cell-vertex.shader";
+import GlowFragmentShader from "../shaders/cell-fragment.shader";
 
 // function createAliveCell(n: number, r: number, organellsCount: number, organellsRadius: number) {
 //     const root = new Object3D();
@@ -158,7 +158,7 @@ export function createScene(dynamic: WorldConfiguration) {
         // );
         for (let i = 0; i < configuration.soup.rows; i++) {
             for (let s = 0; s < configuration.soup.cols; s++) {
-                const target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+                const target = createAliveCell(configuration.cell, configuration.flagellum);
                 scene.add(target.object);
                 target.object.position.set(
                     configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
@@ -250,6 +250,7 @@ export function createScene(dynamic: WorldConfiguration) {
                 for (let i = 0; i < targets.length; i++) {
                     const points = [];
                     const k = randomFrom(0, 1.1);
+                    const cells = [];
                     for (let s = 0; s < k; s++) {
                         // target.object.position.set(
                         //     configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
@@ -259,7 +260,7 @@ export function createScene(dynamic: WorldConfiguration) {
 
                         let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
                         let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
-                        if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
+                        if (a == Math.ceil(target / store.get().soup.rows) && b == target % store.get().soup.cols) {
                             a = (a + 1) % store.get().soup.rows;
                             b = (b + 1) % store.get().soup.cols;
                         }
@@ -273,10 +274,13 @@ export function createScene(dynamic: WorldConfiguration) {
                                 .add(center)
                                 .sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y))
                         );
-                        // targets.push(new Vector2(500, 0));
+                        cells.push(targets[a * store.get().soup.cols + b]);
                     }
                     if (points.length > 0) {
-                        targets[i].attack(points);
+                        const timings = targets[i].attack(points);
+                        for (let k = 0; k < timings.length; k++) {
+                            cells[k].glow(timings[k]);
+                        }
                     }
                 }
             }

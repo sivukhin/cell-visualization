@@ -1,13 +1,8 @@
 import { getRegularPolygon, inSector, tryIntersectLineCircle, zero2 } from "../utils/geometry";
-import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Line, LineBasicMaterial, Mesh, Path, ShaderMaterial, Uniform, Vector2, Vector3 } from "three";
-import { extrapolate, interpolate, randomFrom } from "../utils/math";
-import { FlagellumConfiguration, MembraneConfiguration, Unwrap } from "../configuration";
+import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Path, Vector2 } from "three";
+import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
 import { calculateDeformation, calculateDeformationAngle, Deformation, findDeformationAngleTime } from "./deformation";
-import { createFlagellumTree } from "./flagellum-tree";
-import GlowVertexShader from "../shaders/glow-vertex.shader";
-import GlowFragmentShader from "../shaders/glow-fragment.shader";
-import { createFlagellum } from "./flagellum";
 
 interface DeformationLock {
     start: number;
@@ -118,28 +113,9 @@ function calculateMembranePoints(membrane: Membrane, detalization: number, time:
     return { points: path.getPoints(detalization), thickness: new Float32Array([1, ...thickness]) };
 }
 
-function calculateThickness(points: Vector2[]) {
-    const n = points.length;
-    const thickness = new Float32Array(n + 1);
-    thickness[0] = 1;
-    let maxThick = 0;
-    for (let i = 0; i < n; i++) {
-        const v = new Vector2().subVectors(points[(i + 1) % n], points[i]);
-        const r = new Vector2().copy(points[i]).normalize();
-        const thick = Math.abs(r.dot(v));
-        thickness[i + 1] = Math.pow(thick, 4);
-        maxThick = Math.max(thick, maxThick);
-    }
-    for (let i = 1; i < n + 1; i++) {
-        thickness[i] = 1 - thickness[i] / maxThick;
-    }
-    return thickness;
-}
-
-export function createAliveMembrane(membraneConfig: Unwrap<MembraneConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>) {
+export function createAliveMembrane(membraneConfig: Unwrap<MembraneConfiguration>) {
     const membrane = generateAliveMembrane(membraneConfig);
     const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(membrane, membraneConfig.detalization, 0);
-    console.info(initialPoints.length, initialThickness.length);
     const n = initialPoints.length;
     const positionAttribute = new BufferAttribute(getFlatComponents3D([new Vector2(0, 0), ...initialPoints]), 3);
     positionAttribute.setUsage(DynamicDrawUsage);
@@ -158,115 +134,16 @@ export function createAliveMembrane(membraneConfig: Unwrap<MembraneConfiguration
         index.push(...[0, i + 1, ((i + 1) % n) + 1]);
     }
     geometry.setIndex(index);
-    // const material = new LineBasicMaterial({ color: membraneConfig.color });
-
-    const cellColor = new Color(membraneConfig.color);
-    const cellColorHsl = { h: 0, s: 0, l: 0 };
-    cellColor.getHSL(cellColorHsl);
-    const material = new ShaderMaterial({
-        uniforms: {
-            u_color: new Uniform(new Vector3(cellColorHsl.h, cellColorHsl.s, cellColorHsl.l)),
-            start: new Uniform(membraneConfig.glowStart),
-        },
-        vertexShader: GlowVertexShader,
-        fragmentShader: GlowFragmentShader,
-        transparent: true,
-    });
-
-    const curve = new Mesh(geometry, material);
-    const angular = randomFrom(-membraneConfig.angularLimit, membraneConfig.angularLimit);
-    let trees = [];
-    let lastTime = 0;
     return {
-        // maxR: r + dr,
-        // minR: r - dr,
-        object: curve,
+        geometry: geometry,
+        membrane: membrane,
         tick: (time: number) => {
-            lastTime = time;
-            for (let i = 0; i < trees.length; i++) {
-                if (trees[i].finish < time) {
-                    curve.remove(trees[i].object);
-                }
-            }
-            trees = trees.filter((t) => t.finish > time);
-            for (let i = 0; i < trees.length; i++) {
-                trees[i].tick(time);
-            }
             const t = time * membraneConfig.frequency;
             const { points, thickness } = calculateMembranePoints(membrane, membraneConfig.detalization, t);
             thicknessAttribute.set(thickness);
             thicknessAttribute.needsUpdate = true;
             positionAttribute.set(getFlatComponents3D([new Vector2(0, 0), ...points]));
             positionAttribute.needsUpdate = true;
-            // curve.rotateZ(angular);
-        },
-        attack: (targets: Vector2[]) => {
-            const t = lastTime * membraneConfig.frequency;
-            for (let i = 0; i < targets.length; i++) {
-                const { point, id } = membrane.getSector(targets[i]);
-                const attach = new Vector2().copy(point).multiplyScalar(0.9);
-                const start1 = findDeformationAngleTime(membrane.deformations[id], t, -Math.abs(membrane.deformations[id].angle));
-                const start2 = findDeformationAngleTime(membrane.deformations[id], t, Math.abs(membrane.deformations[id].angle));
-                const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2000 * membraneConfig.frequency, -Math.abs(membrane.deformations[id].angle));
-                const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2000 * membraneConfig.frequency, Math.abs(membrane.deformations[id].angle));
-                membrane.locks[id].out = { start: start1, finish: finish1 };
-                membrane.locks[id].in = { start: start2, finish: finish2 };
-                const start = Math.max(start1, start2);
-                const flagellum = createFlagellum(
-                    {
-                        startDirection: new Vector2().copy(point),
-                        finishDirection: new Vector2().subVectors(targets[i], attach),
-                        target: new Vector2().subVectors(targets[i], attach),
-                        timings: {
-                            startIn: start / membraneConfig.frequency,
-                            finishIn: start / membraneConfig.frequency + 600,
-                            startOut: start / membraneConfig.frequency + 1000,
-                            finishOut: start / membraneConfig.frequency + 2000,
-                        },
-                    },
-                    flagellumConfig
-                );
-                flagellum.object.position.set(attach.x, attach.y, 0);
-                curve.add(flagellum.object);
-                trees.push(flagellum);
-            }
-            // for (let i = 0; i < n; i++) {
-            //     const group = [];
-            //     for (let s = 0; s < targets.length; s++) {
-            //         const anchor = membrane.getSector(targets[s]);
-            //         if (anchor === membrane.anchors[i]) {
-            //             group.push(targets[s]);
-            //         }
-            //     }
-            //     if (group.length === 0) {
-            //         continue;
-            //     }
-            //     const start1 = findDeformationAngleTime(membrane.deformations[i], t, -Math.abs(membrane.deformations[i].angle));
-            //     const start2 = findDeformationAngleTime(membrane.deformations[i], t, Math.abs(membrane.deformations[i].angle));
-            //     const finish1 = findDeformationAngleTime(membrane.deformations[i], Math.max(start1, start2) + 4000 * membraneConfig.frequency, -Math.abs(membrane.deformations[i].angle));
-            //     const finish2 = findDeformationAngleTime(membrane.deformations[i], Math.max(start1, start2) + 4000 * membraneConfig.frequency, Math.abs(membrane.deformations[i].angle));
-            //     membrane.locks[i].out = { start: start1, finish: finish1 };
-            //     membrane.locks[i].in = { start: start2, finish: finish2 };
-            //     const anchor = membrane.anchors[i];
-            //     const next = new Vector2().copy(anchor);
-            //     for (let s = 0; s < group.length; s++) {
-            //         next.add(group[s]);
-            //     }
-            //     next.multiplyScalar(1 / (group.length + 1));
-            //     const flagellum = createFlagellumTree(
-            //         {
-            //             startDirection: new Vector2().copy(anchor).multiplyScalar(0.1),
-            //             branchPoint: new Vector2().subVectors(next, anchor),
-            //             targets: group.map((p) => new Vector2().subVectors(p, anchor)),
-            //             start: Math.max(start1, start2) / membraneConfig.frequency,
-            //             finish: Math.max(start1, start2) / membraneConfig.frequency + 4000,
-            //         },
-            //         flagellumConfig
-            //     );
-            //     flagellum.object.position.set(anchor.x, anchor.y, 0);
-            //     curve.add(flagellum.object);
-            //     trees.push(flagellum);
-            // }
         },
     };
 }

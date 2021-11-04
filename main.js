@@ -24351,6 +24351,24 @@
     return Math.random() * (r - l) + l;
   }
 
+  // src/world/deformation.ts
+  function findDeformationAngleTime(deformation, time, target) {
+    return extrapolate(-deformation.angle, deformation.angle, time, target, Math.pow(deformation.length, 1 / 2));
+  }
+  function calculateDeformationAngle(deformation, time) {
+    return interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
+  }
+  function calculateDeformation(anchor, direction, deformation, time) {
+    const angle = calculateDeformationAngle(deformation, time);
+    return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
+  }
+  function modifyDeformation(deformation, angleStretch, lengthStretch) {
+    return {
+      angle: deformation.angle * angleStretch,
+      length: deformation.length * lengthStretch
+    };
+  }
+
   // src/utils/draw.ts
   function getFlatComponents3D(points) {
     const components = new Float32Array(points.length * 3);
@@ -24401,30 +24419,6 @@
       indices
     };
   }
-
-  // src/world/deformation.ts
-  function findDeformationAngleTime(deformation, time, target) {
-    return extrapolate(-deformation.angle, deformation.angle, time, target, Math.pow(deformation.length, 1 / 2));
-  }
-  function calculateDeformationAngle(deformation, time) {
-    return interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
-  }
-  function calculateDeformation(anchor, direction, deformation, time) {
-    const angle = calculateDeformationAngle(deformation, time);
-    return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
-  }
-  function modifyDeformation(deformation, angleStretch, lengthStretch) {
-    return {
-      angle: deformation.angle * angleStretch,
-      length: deformation.length * lengthStretch
-    };
-  }
-
-  // src/shaders/glow-vertex.shader
-  var glow_vertex_default = "attribute float thickness;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
-
-  // src/shaders/glow-fragment.shader
-  var glow_fragment_default = "uniform vec3 u_color;\r\nuniform float start;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    float current = start + (1.0 - start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));\r\n    if (v_distance >= current) {\r\n        float m = 5.0 * PI / (1.0 - current);\r\n        vec3 color = vec3(u_color);\r\n        float intensity = 1.0 - pow(smoothstep(current, 1.0, v_distance), 1.0);\r\n        color[2] += sin((v_distance - current) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);\r\n        gl_FragColor = vec4(hsl2rgb(color), intensity);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(u_color), 1);\r\n    }\r\n}\r\n";
 
   // src/utils/timings.ts
   function getRelativeTime({ startIn, startOut, finishIn, finishOut }, time) {
@@ -24616,10 +24610,9 @@
     }
     return { points: path.getPoints(detalization), thickness: new Float32Array([1, ...thickness]) };
   }
-  function createAliveMembrane(membraneConfig, flagellumConfig) {
+  function createAliveMembrane(membraneConfig) {
     const membrane = generateAliveMembrane(membraneConfig);
     const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(membrane, membraneConfig.detalization, 0);
-    console.info(initialPoints.length, initialThickness.length);
     const n = initialPoints.length;
     const positionAttribute = new BufferAttribute(getFlatComponents3D([new Vector2(0, 0), ...initialPoints]), 3);
     positionAttribute.setUsage(DynamicDrawUsage);
@@ -24638,20 +24631,100 @@
       index.push(...[0, i + 1, (i + 1) % n + 1]);
     }
     geometry.setIndex(index);
-    const cellColor = new Color(membraneConfig.color);
+    return {
+      geometry,
+      membrane,
+      tick: (time) => {
+        const t = time * membraneConfig.frequency;
+        const { points, thickness } = calculateMembranePoints(membrane, membraneConfig.detalization, t);
+        thicknessAttribute.set(thickness);
+        thicknessAttribute.needsUpdate = true;
+        positionAttribute.set(getFlatComponents3D([new Vector2(0, 0), ...points]));
+        positionAttribute.needsUpdate = true;
+      }
+    };
+  }
+
+  // src/shaders/cell-fragment.shader
+  var cell_fragment_default = "uniform vec3 u_color;\r\nuniform float start;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    float current = start + (1.0 - start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));\r\n    if (v_distance >= current) {\r\n        float m = 5.0 * PI / (1.0 - current);\r\n        vec3 color = vec3(u_color);\r\n        float intensity = 1.0 - pow(smoothstep(current, 1.0, v_distance), 1.0);\r\n        color[2] += sin((v_distance - current) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);\r\n        gl_FragColor = vec4(hsl2rgb(color), intensity);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(u_color), 1);\r\n    }\r\n}\r\n";
+
+  // src/shaders/cell-vertex.shader
+  var cell_vertex_default = "attribute float thickness;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
+
+  // src/shaders/organell-vertex.shader
+  var organell_vertex_default = "attribute float thickness;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
+
+  // src/shaders/organell-fragment.shader
+  var organell_fragment_default = "uniform vec3 u_color;\r\nuniform float u_start;\r\nuniform float u_glow;\r\n\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    vec3 color = vec3(u_color);\r\n    color[2] += 0.5 * (1.0 - color[2]) * u_glow * smoothstep(1.0, 0.0, v_distance);\r\n    color[0] *= 1.0 - u_glow;\r\n    if (v_distance >= u_start) {\r\n        color[2] *= smoothstep(1.5, 0.0, (v_distance - u_start) / (1.0 - u_start));\r\n        gl_FragColor = vec4(hsl2rgb(color), 1);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(color), 1);\r\n    }\r\n}\r\n";
+
+  // src/world/organell.ts
+  function createAliveOrganell(membraneConfig) {
+    const { geometry, tick: membraneTick } = createAliveMembrane(membraneConfig);
+    const organellColor = new Color(membraneConfig.color);
+    const organellColorHsl = { h: 0, s: 0, l: 0 };
+    organellColor.getHSL(organellColorHsl);
+    const material = new ShaderMaterial({
+      uniforms: {
+        u_color: new Uniform(new Vector3(organellColorHsl.h, organellColorHsl.s, organellColorHsl.l)),
+        u_start: new Uniform(0.9),
+        u_glow: new Uniform(0)
+      },
+      vertexShader: organell_vertex_default,
+      fragmentShader: organell_fragment_default,
+      transparent: true
+    });
+    const organell = new Mesh(geometry, material);
+    organell.renderOrder = 0;
+    let startGlow = 0;
+    let finishGlow = 0;
+    let lastTime = 0;
+    return {
+      object: organell,
+      tick: (time) => {
+        lastTime = time;
+        if (startGlow < time && time < finishGlow) {
+          const d = time - startGlow;
+          const delta = finishGlow - startGlow;
+          if (d < delta / 4) {
+            material.uniforms.u_glow.value = d / (delta / 4);
+          } else {
+            material.uniforms.u_glow.value = 1 - (d - delta / 4) / (3 * delta / 4);
+          }
+        } else if (time > finishGlow) {
+          startGlow = finishGlow = 0;
+        }
+        membraneTick(time);
+      },
+      glow: (start, finish) => {
+        if (startGlow != 0) {
+          startGlow = Math.min(startGlow, start);
+          finishGlow = Math.max(finishGlow, finish);
+        } else {
+          startGlow = start;
+          finishGlow = finish;
+        }
+      }
+    };
+  }
+
+  // src/world/cell.ts
+  function createAliveCell(cellConfig, flagellumConfig) {
+    const { geometry, membrane, tick: membraneTick } = createAliveMembrane(cellConfig.membrane);
+    const cellColor = new Color(cellConfig.membrane.color);
     const cellColorHsl = { h: 0, s: 0, l: 0 };
     cellColor.getHSL(cellColorHsl);
     const material = new ShaderMaterial({
       uniforms: {
         u_color: new Uniform(new Vector3(cellColorHsl.h, cellColorHsl.s, cellColorHsl.l)),
-        start: new Uniform(membraneConfig.glowStart)
+        start: new Uniform(cellConfig.glowStart)
       },
-      vertexShader: glow_vertex_default,
-      fragmentShader: glow_fragment_default,
+      vertexShader: cell_vertex_default,
+      fragmentShader: cell_fragment_default,
       transparent: true
     });
     const curve = new Mesh(geometry, material);
-    const angular = randomFrom(-membraneConfig.angularLimit, membraneConfig.angularLimit);
+    const organell = createAliveOrganell(cellConfig.organell);
+    curve.add(organell.object);
     let trees = [];
     let lastTime = 0;
     return {
@@ -24663,44 +24736,47 @@
             curve.remove(trees[i].object);
           }
         }
-        trees = trees.filter((t2) => t2.finish > time);
+        trees = trees.filter((t) => t.finish > time);
         for (let i = 0; i < trees.length; i++) {
           trees[i].tick(time);
         }
-        const t = time * membraneConfig.frequency;
-        const { points, thickness } = calculateMembranePoints(membrane, membraneConfig.detalization, t);
-        thicknessAttribute.set(thickness);
-        thicknessAttribute.needsUpdate = true;
-        positionAttribute.set(getFlatComponents3D([new Vector2(0, 0), ...points]));
-        positionAttribute.needsUpdate = true;
+        organell.tick(time);
+        membraneTick(time);
       },
       attack: (targets) => {
-        const t = lastTime * membraneConfig.frequency;
+        const timings = [];
+        const t = lastTime * cellConfig.membrane.frequency;
         for (let i = 0; i < targets.length; i++) {
           const { point, id } = membrane.getSector(targets[i]);
           const attach = new Vector2().copy(point).multiplyScalar(0.9);
           const start1 = findDeformationAngleTime(membrane.deformations[id], t, -Math.abs(membrane.deformations[id].angle));
           const start2 = findDeformationAngleTime(membrane.deformations[id], t, Math.abs(membrane.deformations[id].angle));
-          const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, -Math.abs(membrane.deformations[id].angle));
-          const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, Math.abs(membrane.deformations[id].angle));
+          const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * cellConfig.membrane.frequency, -Math.abs(membrane.deformations[id].angle));
+          const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * cellConfig.membrane.frequency, Math.abs(membrane.deformations[id].angle));
           membrane.locks[id].out = { start: start1, finish: finish1 };
           membrane.locks[id].in = { start: start2, finish: finish2 };
           const start = Math.max(start1, start2);
+          const timing = {
+            startIn: start / cellConfig.membrane.frequency,
+            finishIn: start / cellConfig.membrane.frequency + 600,
+            startOut: start / cellConfig.membrane.frequency + 1e3,
+            finishOut: start / cellConfig.membrane.frequency + 2e3
+          };
+          timings.push(timing);
           const flagellum = createFlagellum({
             startDirection: new Vector2().copy(point),
             finishDirection: new Vector2().subVectors(targets[i], attach),
             target: new Vector2().subVectors(targets[i], attach),
-            timings: {
-              startIn: start / membraneConfig.frequency,
-              finishIn: start / membraneConfig.frequency + 600,
-              startOut: start / membraneConfig.frequency + 1e3,
-              finishOut: start / membraneConfig.frequency + 2e3
-            }
+            timings: timing
           }, flagellumConfig);
           flagellum.object.position.set(attach.x, attach.y, 0);
           curve.add(flagellum.object);
           trees.push(flagellum);
         }
+        return timings;
+      },
+      glow: (timing) => {
+        organell.glow(timing.finishIn - 100, timing.finishOut);
       }
     };
   }
@@ -24721,7 +24797,7 @@
       scene.add(environment);
       for (let i = 0; i < configuration.soup.rows; i++) {
         for (let s = 0; s < configuration.soup.cols; s++) {
-          const target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+          const target2 = createAliveCell(configuration.cell, configuration.flagellum);
           scene.add(target2.object);
           target2.object.position.set(configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance, (s - configuration.soup.cols / 2) * configuration.soup.yDistance, 0);
           targets.push(target2);
@@ -24749,18 +24825,23 @@
           for (let i = 0; i < targets.length; i++) {
             const points = [];
             const k = randomFrom(0, 1.1);
+            const cells = [];
             for (let s = 0; s < k; s++) {
               let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
               let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
-              if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
+              if (a == Math.ceil(target / store.get().soup.rows) && b == target % store.get().soup.cols) {
                 a = (a + 1) % store.get().soup.rows;
                 b = (b + 1) % store.get().soup.cols;
               }
               const center = new Vector2(store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance, (b - store.get().soup.cols / 2) * store.get().soup.yDistance);
               points.push(new Vector2(randomFrom(0, 50), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)).add(center).sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y)));
+              cells.push(targets[a * store.get().soup.cols + b]);
             }
             if (points.length > 0) {
-              targets[i].attack(points);
+              const timings = targets[i].attack(points);
+              for (let k2 = 0; k2 < timings.length; k2++) {
+                cells[k2].glow(timings[k2]);
+              }
             }
           }
         }
@@ -27277,10 +27358,10 @@
       },
       soup: {
         count: atom(3),
-        rows: atom(1),
-        cols: atom(1),
-        xDistance: atom(0),
-        yDistance: atom(0),
+        rows: atom(3),
+        cols: atom(2),
+        xDistance: atom(450),
+        yDistance: atom(450),
         width: 1500,
         height: 1500
       },
@@ -27292,10 +27373,18 @@
           radius: atom(200),
           delta: atom(50),
           color: atom("rgba(84,105,125,1.0)"),
-          skewLimit: atom(Math.PI / 6),
-          angularLimit: atom(0.01),
-          glowStart: atom(0.8)
+          skewLimit: atom(Math.PI / 6)
         },
+        organell: {
+          segments: atom(3),
+          detalization: atom(20),
+          frequency: atom(5e-5),
+          radius: atom(50),
+          delta: atom(20),
+          color: atom("rgb(198, 203, 106, 1.0)"),
+          skewLimit: atom(Math.PI / 8)
+        },
+        glowStart: atom(0.8),
         organellsCount: atom(4),
         radiusLimit: atom(30)
       },

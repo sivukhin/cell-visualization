@@ -23,12 +23,12 @@ export interface MembraneConfiguration {
     color: Store<ColorRepresentation>;
     detalization: Store<number>;
     skewLimit: Store<number>;
-    angularLimit: Store<number>;
-    glowStart: Store<number>;
 }
 
 export interface CellConfiguration {
     membrane: MembraneConfiguration;
+    organell: MembraneConfiguration;
+    glowStart: Store<number>;
     organellsCount: Store<number>;
     radiusLimit: Store<number>;
 }
