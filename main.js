@@ -24216,14 +24216,6 @@
     }
   }
 
-  // src/world/light.ts
-  function createLight(x, y, z, configuration) {
-    const light = new AmbientLight(configuration.color, configuration.intensity);
-    light.position.set(x, y, z);
-    light.lookAt(0, 0, 0);
-    return light;
-  }
-
   // src/world/camera.ts
   function createCamera(width, height) {
     const camera = new OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2);
@@ -24269,10 +24261,10 @@
   }
 
   // src/world/environment.ts
-  function createEnvironment(width, height) {
+  function createEnvironment(width, height, color) {
     const planeGeometry = new PlaneGeometry(width, height);
-    const planeMaterial = new MeshLambertMaterial({
-      color: 16777215
+    const planeMaterial = new MeshBasicMaterial({
+      color
     });
     const planeMesh = new Mesh(planeGeometry, planeMaterial);
     planeMesh.position.set(0, 0, -10);
@@ -24383,20 +24375,37 @@
     return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
   }
 
+  // src/shaders/glow-vertex.shader
+  var glow_vertex_default = "varying float v_distance;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
+
+  // src/shaders/glow-fragment.shader
+  var glow_fragment_default = "uniform vec3 u_color;\r\nuniform float start;\r\nvarying float v_distance;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    if (v_distance >= start) {\r\n        float m = 5.0 * PI / (1.0 - start);\r\n        vec3 color = vec3(u_color);\r\n        float intensity = 1.0 - pow(smoothstep(start, 1.0, v_distance), 1.0);\r\n        color[2] += sin((v_distance - start) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);\r\n        gl_FragColor = vec4(hsl2rgb(color), intensity);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(u_color), 1);\r\n    }\r\n}\r\n";
+
   // src/world/flagellum.ts
   function generateFlagellum(target, { segmentLength, amplitude, skewLimit }) {
-    const segments = Math.max(1, Math.ceil(target.length() / segmentLength));
+    const ratios = [];
+    const distance = target.length();
+    let remainder = distance;
+    while (remainder >= 0) {
+      const ratio = randomFrom(0, segmentLength);
+      ratios.push(Math.min(ratio, remainder) / distance);
+      remainder -= ratio;
+    }
+    ratios.sort((a, b) => b - a);
+    const segments = ratios.length;
     const ort = new Vector2().copy(target).rotateAround(zero2, Math.PI / 2).normalize();
     const points = [new Vector2(0, 0)];
-    const deformations = [];
-    let sign2 = 1;
-    for (let i = 0; i <= segments; i++) {
-      const jitter = i == 0 || i == segments ? 0 : randomFrom(0, amplitude) * sign2;
+    const jitters = [new Vector2(0, 0)];
+    let sign2 = Math.sign(randomFrom(-1, 1));
+    for (let i = 0; i < segments; i++) {
+      const jitter = i == segments - 1 ? 0 : randomFrom(0, amplitude) * sign2;
       sign2 = -sign2;
-      const point = new Vector2(0, 0).addScaledVector(target, i / segments).addScaledVector(ort, jitter);
+      const point = new Vector2().copy(points[i]).addScaledVector(target, ratios[i]);
       points.push(point);
+      jitters.push(new Vector2().copy(ort).multiplyScalar(jitter));
     }
-    sign2 = 1;
+    const deformations = [];
+    sign2 = Math.sign(randomFrom(-1, 1));
     let length = 0;
     for (let i = 0; i < points.length; i++) {
       if (i > 0) {
@@ -24405,37 +24414,46 @@
       const angle = randomFrom(skewLimit / 2, skewLimit) * sign2;
       sign2 = -sign2;
       const next = i == 0 ? points[i + 1] : points[i - 1];
-      const distance = points[i].distanceTo(next);
-      deformations.push({ angle, length: distance / 2 });
+      const distance2 = points[i].distanceTo(next);
+      deformations.push({ angle, length: randomFrom(distance2, 2 * distance2) });
     }
-    return { points, length, deformations };
+    return { points, length, deformations, jitters };
   }
-  function calculateFlagellumPoints({ points, length, deformations }, startDirection, finishDirection, { inOutRatio }, time) {
+  function calculateFlagellumPoints({ points, length, deformations, jitters }, startDirection, finishDirection, { inOutRatio }, time) {
     let k = time * length;
     const path = new Path();
     path.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      let current = points[i].distanceTo(points[i - 1]);
-      const direction1 = i == 1 ? startDirection : new Vector2().subVectors(points[i], points[i - 1]);
-      const direction2 = i == points.length - 1 ? finishDirection : new Vector2().subVectors(points[i], points[i + 1]);
-      const c = Math.pow(1 - Math.min(time, 1), 1 / 2);
-      const a1 = deformations[i - 1].angle * c;
-      const a2 = deformations[i].angle * c;
-      const c1 = calculateDeformation(points[i - 1], direction1, { ...deformations[i - 1], angle: a1 }, 0);
-      const c2 = calculateDeformation(points[i], direction2, { ...deformations[i], angle: a2 }, 0);
-      if (current > k) {
-        const alpha = k / current;
-        const i1 = new Vector2().addScaledVector(points[i - 1], 1 - alpha).addScaledVector(c1, alpha);
-        const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
-        const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(points[i], alpha);
-        const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
-        const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
-        const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
-        path.bezierCurveTo(i1.x, i1.y, i2.x, i2.y, i3.x, i3.y);
-        break;
-      } else {
-        path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, points[i].x, points[i].y);
-        k -= current;
+    let jittered = [];
+    for (let i = 0; i < points.length; i++) {
+      const ttt = Math.cos(2 * Math.PI * time) * (1 - Math.min(1, time));
+      jittered.push(new Vector2().copy(points[i]).addScaledVector(jitters[i], ttt));
+    }
+    if (time > 0) {
+      for (let i = 1; i < jittered.length; i++) {
+        let current = jittered[i].distanceTo(jittered[i - 1]);
+        const direction1 = i == 1 ? startDirection : new Vector2().subVectors(jittered[i], jittered[i - 1]);
+        const direction2 = i == jittered.length - 1 ? finishDirection : new Vector2().subVectors(jittered[i], jittered[i + 1]);
+        const c = 0.1 + 0.9 * Math.max(0, 1 - time);
+        const l1 = deformations[i - 1].length * c;
+        const l2 = deformations[i].length * c;
+        const a1 = deformations[i - 1].angle * c * Math.cos(Math.PI * time + i - 1);
+        const a2 = deformations[i].angle * c * Math.cos(Math.PI * time + i);
+        const c1 = calculateDeformation(jittered[i - 1], direction1, { angle: a1, length: l1 }, 0);
+        const c2 = calculateDeformation(jittered[i], direction2, { angle: a2, length: l2 }, 0);
+        if (current > k) {
+          const alpha = k / current;
+          const i1 = new Vector2().addScaledVector(jittered[i - 1], 1 - alpha).addScaledVector(c1, alpha);
+          const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
+          const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(jittered[i], alpha);
+          const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
+          const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
+          const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
+          path.bezierCurveTo(i1.x, i1.y, i2.x, i2.y, i3.x, i3.y);
+          break;
+        } else {
+          path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, jittered[i].x, jittered[i].y);
+          k -= current;
+        }
       }
     }
     return path.getPoints(50);
@@ -24449,6 +24467,7 @@
     const curve = new Line(geometry, material);
     return {
       object: curve,
+      finish: finishOut,
       tick: (time) => {
         if (time > finishOut) {
           return;
@@ -24469,61 +24488,6 @@
           const update = new BufferAttribute(getComponents(current), 3);
           geometry.setAttribute("position", update);
           positionAttribute = update;
-        }
-      }
-    };
-  }
-
-  // src/world/flagellum-tree.ts
-  function createFlagellumTree({ startDirection, branchPoint, targets, start, finish }, configuration) {
-    const root = new Object3D();
-    const total = finish - start;
-    const ratios = [1, 1, 10, 4, 4];
-    const sum = ratios.reduce((a, b) => a + b, 0);
-    const startD = ratios[0] / sum * total;
-    const branchD = ratios[1] / sum * total;
-    const waitD = ratios[2] / sum * total;
-    const unbranchD = ratios[3] / sum * total;
-    const endD = ratios[4] / sum * total;
-    const trunk = createFlagellum({
-      startDirection,
-      finishDirection: new Vector2().copy(branchPoint).negate(),
-      target: branchPoint,
-      startIn: start,
-      finishIn: start + startD,
-      startOut: finish - endD,
-      finishOut: finish
-    }, configuration);
-    root.add(trunk.object);
-    const branches = [];
-    return {
-      object: root,
-      finish,
-      tick: (time) => {
-        trunk.tick(time);
-        for (let i = 0; i < branches.length; i++) {
-          branches[i].tick(time);
-        }
-        if (time > start + startD && branches.length !== targets.length) {
-          for (let i = 0; i < targets.length; i++) {
-            let branch = createFlagellum({
-              startDirection: branchPoint,
-              finishDirection: new Vector2().subVectors(branchPoint, targets[i]),
-              target: new Vector2().subVectors(targets[i], branchPoint),
-              startIn: start + startD,
-              finishIn: start + startD + branchD,
-              startOut: start + startD + branchD + waitD,
-              finishOut: start + startD + branchD + waitD + unbranchD
-            }, configuration);
-            branch.object.position.set(branchPoint.x, branchPoint.y, 0);
-            root.add(branch.object);
-            branches.push(branch);
-          }
-        }
-        if (time > finish - endD && branches.length > 0) {
-          for (let i = 0; i < branches.length; i++) {
-            root.remove(branches[i].object);
-          }
         }
       }
     };
@@ -24574,7 +24538,7 @@
           const a = skeleton[i];
           const b = skeleton[(i + 1) % skeleton.length];
           if (inSector(p, a, b)) {
-            return anchors[i];
+            return { point: anchors[i], id: i };
           }
         }
         throw new Error(`can't determine sector for point ${p.x} ${p.y}`);
@@ -24600,16 +24564,39 @@
     for (let i = 0; i < n; i++) {
       path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
     }
-    return getComponents([...path.getPoints(detalization)]);
+    return [new Vector2(0, 0), ...path.getPoints(detalization)];
   }
   function createAliveMembrane(membraneConfig, flagellumConfig) {
-    const material = new LineBasicMaterial({ color: membraneConfig.color });
     const membrane = generateAliveMembrane(membraneConfig);
-    const positionAttribute = new BufferAttribute(calculateMembranePoints(membrane, membraneConfig.detalization, 0), 3);
+    const initialPoints = calculateMembranePoints(membrane, membraneConfig.detalization, 0);
+    const n = initialPoints.length - 1;
+    const positionAttribute = new BufferAttribute(getComponents(initialPoints), 3);
     positionAttribute.setUsage(DynamicDrawUsage);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", positionAttribute);
-    const curve = new Line(geometry, material);
+    const normals = [];
+    for (let i = 0; i < initialPoints.length; i++) {
+      normals.push(...[0, 0, 1]);
+    }
+    geometry.setAttribute("normal", new BufferAttribute(new Float32Array(normals), 3));
+    const index = [];
+    for (let i = 0; i < n; i++) {
+      index.push(...[0, i + 1, (i + 1) % n + 1]);
+    }
+    geometry.setIndex(index);
+    const cellColor = new Color(membraneConfig.color);
+    const cellColorHsl = { h: 0, s: 0, l: 0 };
+    cellColor.getHSL(cellColorHsl);
+    const material = new ShaderMaterial({
+      uniforms: {
+        u_color: new Uniform(new Vector3(cellColorHsl.h, cellColorHsl.s, cellColorHsl.l)),
+        start: new Uniform(0.8)
+      },
+      vertexShader: glow_vertex_default,
+      fragmentShader: glow_fragment_default,
+      transparent: true
+    });
+    const curve = new Mesh(geometry, material);
     const angular = randomFrom(-membraneConfig.angularLimit, membraneConfig.angularLimit);
     let trees = [];
     let lastTime = 0;
@@ -24628,43 +24615,30 @@
         }
         const t = time * membraneConfig.frequency;
         const points = calculateMembranePoints(membrane, membraneConfig.detalization, t);
-        positionAttribute.set(points);
+        positionAttribute.set(getComponents(points));
         positionAttribute.needsUpdate = true;
       },
       attack: (targets) => {
         const t = lastTime * membraneConfig.frequency;
-        const n = membrane.anchors.length;
-        for (let i = 0; i < n; i++) {
-          const group = [];
-          for (let s = 0; s < targets.length; s++) {
-            const anchor2 = membrane.getSector(targets[s]);
-            if (anchor2 === membrane.anchors[i]) {
-              group.push(targets[s]);
-            }
-          }
-          if (group.length === 0) {
-            continue;
-          }
-          const start1 = findDeformationAngleTime(membrane.deformations[i], t, -Math.abs(membrane.deformations[i].angle));
-          const start2 = findDeformationAngleTime(membrane.deformations[i], t, Math.abs(membrane.deformations[i].angle));
-          const finish1 = findDeformationAngleTime(membrane.deformations[i], Math.max(start1, start2) + 1e3 * membraneConfig.frequency, -Math.abs(membrane.deformations[i].angle));
-          const finish2 = findDeformationAngleTime(membrane.deformations[i], Math.max(start1, start2) + 1e3 * membraneConfig.frequency, Math.abs(membrane.deformations[i].angle));
-          membrane.locks[i].out = { start: start1, finish: finish1 };
-          membrane.locks[i].in = { start: start2, finish: finish2 };
-          const anchor = membrane.anchors[i];
-          const next = new Vector2().copy(anchor);
-          for (let s = 0; s < group.length; s++) {
-            next.add(group[s]);
-          }
-          next.multiplyScalar(1 / (group.length + 1));
-          const flagellum = createFlagellumTree({
-            startDirection: anchor,
-            branchPoint: new Vector2().subVectors(next, anchor),
-            targets: group.map((p) => new Vector2().subVectors(p, anchor)),
-            start: Math.max(start1, start2) / membraneConfig.frequency,
-            finish: Math.max(start1, start2) / membraneConfig.frequency + 1e3
+        const n2 = membrane.anchors.length;
+        for (let i = 0; i < targets.length; i++) {
+          const { point, id } = membrane.getSector(targets[i]);
+          const start1 = findDeformationAngleTime(membrane.deformations[id], t, -Math.abs(membrane.deformations[id].angle));
+          const start2 = findDeformationAngleTime(membrane.deformations[id], t, Math.abs(membrane.deformations[id].angle));
+          const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, -Math.abs(membrane.deformations[id].angle));
+          const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, Math.abs(membrane.deformations[id].angle));
+          membrane.locks[id].out = { start: start1, finish: finish1 };
+          membrane.locks[id].in = { start: start2, finish: finish2 };
+          const flagellum = createFlagellum({
+            startDirection: new Vector2().copy(point),
+            finishDirection: new Vector2().subVectors(targets[i], point),
+            startIn: start1 / membraneConfig.frequency,
+            finishIn: start1 / membraneConfig.frequency + 600,
+            startOut: start1 / membraneConfig.frequency + 1e3,
+            finishOut: Math.max(start1, start2) / membraneConfig.frequency + 2e3,
+            target: new Vector2().subVectors(targets[i], point)
           }, flagellumConfig);
-          flagellum.object.position.set(anchor.x, anchor.y, 0);
+          flagellum.object.position.set(point.x, point.y, 0);
           curve.add(flagellum.object);
           trees.push(flagellum);
         }
@@ -24679,40 +24653,53 @@
     const camera = createCamera(dynamic.soup.width, dynamic.soup.height);
     scene.add(camera);
     let targets = [];
+    let target = null;
+    let lastTime = 0;
     store.subscribe((configuration) => {
       scene.clear();
       targets = [];
-      const environment = createEnvironment(configuration.soup.width, configuration.soup.height);
+      const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
       scene.add(environment);
-      const light = createLight(0, 0, 100, configuration.light);
-      scene.add(light);
       for (let i = 0; i < configuration.soup.rows; i++) {
         for (let s = 0; s < configuration.soup.cols; s++) {
-          const target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
-          scene.add(target.object);
-          target.object.position.set((i - configuration.soup.rows / 2) * configuration.soup.xDistance, (s - configuration.soup.cols / 2) * configuration.soup.yDistance, 0);
-          targets.push(target);
+          const target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+          scene.add(target2.object);
+          target2.object.position.set(configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance, (s - configuration.soup.cols / 2) * configuration.soup.yDistance, 0);
+          targets.push(target2);
         }
       }
     });
     let attacked = false;
+    let refreshAt = 0;
     return {
       scene,
       camera,
       tick: (time) => {
+        lastTime = time;
         for (let i = 0; i < targets.length; i++) {
           targets[i].tick(time);
         }
-        if (time % 1e4 < 1e3) {
+        if (target != null) {
+          target.tick(time);
+        }
+        if (time % 5e3 < 1e3) {
           attacked = false;
         }
-        if (time % 1e4 > 1e3 && !attacked) {
+        if (time % 5e3 > 1e3 && !attacked) {
           attacked = true;
           for (let i = 0; i < targets.length; i++) {
             const points = [];
-            const k = randomFrom(0, 5);
-            for (let i2 = 0; i2 < k; i2++) {
-              points.push(new Vector2(randomFrom(200, 800), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)));
+            const k = randomFrom(0, 1.1);
+            for (let s = 0; s < k; s++) {
+              let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
+              let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
+              if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
+                a = (a + 1) % store.get().soup.rows;
+                b = (b + 1) % store.get().soup.cols;
+              }
+              const center = new Vector2(store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance, (b - store.get().soup.cols / 2) * store.get().soup.yDistance);
+              console.info(center);
+              points.push(new Vector2(randomFrom(0, 50), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)).add(center).sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y)));
             }
             if (points.length > 0) {
               targets[i].attack(points);
@@ -25252,16 +25239,16 @@
     }
     return call && (typeof call === "object" || typeof call === "function") ? call : self2;
   };
-  var Color2 = function() {
-    function Color3() {
-      classCallCheck(this, Color3);
+  var Color3 = function() {
+    function Color4() {
+      classCallCheck(this, Color4);
       this.__state = interpret.apply(this, arguments);
       if (this.__state === false) {
         throw new Error("Failed to interpret color arguments");
       }
       this.__state.a = this.__state.a || 1;
     }
-    createClass(Color3, [{
+    createClass(Color4, [{
       key: "toString",
       value: function toString() {
         return colorToString(this);
@@ -25277,7 +25264,7 @@
         return this.__state.conversion.write(this);
       }
     }]);
-    return Color3;
+    return Color4;
   }();
   function defineRGBComponent(target, component, componentHexIndex) {
     Object.defineProperty(target, component, {
@@ -25285,12 +25272,12 @@
         if (this.__state.space === "RGB") {
           return this.__state[component];
         }
-        Color2.recalculateRGB(this, component, componentHexIndex);
+        Color3.recalculateRGB(this, component, componentHexIndex);
         return this.__state[component];
       },
       set: function set$$13(v) {
         if (this.__state.space !== "RGB") {
-          Color2.recalculateRGB(this, component, componentHexIndex);
+          Color3.recalculateRGB(this, component, componentHexIndex);
           this.__state.space = "RGB";
         }
         this.__state[component] = v;
@@ -25303,19 +25290,19 @@
         if (this.__state.space === "HSV") {
           return this.__state[component];
         }
-        Color2.recalculateHSV(this);
+        Color3.recalculateHSV(this);
         return this.__state[component];
       },
       set: function set$$13(v) {
         if (this.__state.space !== "HSV") {
-          Color2.recalculateHSV(this);
+          Color3.recalculateHSV(this);
           this.__state.space = "HSV";
         }
         this.__state[component] = v;
       }
     });
   }
-  Color2.recalculateRGB = function(color, component, componentHexIndex) {
+  Color3.recalculateRGB = function(color, component, componentHexIndex) {
     if (color.__state.space === "HEX") {
       color.__state[component] = ColorMath.component_from_hex(color.__state.hex, componentHexIndex);
     } else if (color.__state.space === "HSV") {
@@ -25324,7 +25311,7 @@
       throw new Error("Corrupted color state");
     }
   };
-  Color2.recalculateHSV = function(color) {
+  Color3.recalculateHSV = function(color) {
     var result2 = ColorMath.rgb_to_hsv(color.r, color.g, color.b);
     Common.extend(color.__state, {
       s: result2.s,
@@ -25336,14 +25323,14 @@
       color.__state.h = 0;
     }
   };
-  Color2.COMPONENTS = ["r", "g", "b", "h", "s", "v", "hex", "a"];
-  defineRGBComponent(Color2.prototype, "r", 2);
-  defineRGBComponent(Color2.prototype, "g", 1);
-  defineRGBComponent(Color2.prototype, "b", 0);
-  defineHSVComponent(Color2.prototype, "h");
-  defineHSVComponent(Color2.prototype, "s");
-  defineHSVComponent(Color2.prototype, "v");
-  Object.defineProperty(Color2.prototype, "a", {
+  Color3.COMPONENTS = ["r", "g", "b", "h", "s", "v", "hex", "a"];
+  defineRGBComponent(Color3.prototype, "r", 2);
+  defineRGBComponent(Color3.prototype, "g", 1);
+  defineRGBComponent(Color3.prototype, "b", 0);
+  defineHSVComponent(Color3.prototype, "h");
+  defineHSVComponent(Color3.prototype, "s");
+  defineHSVComponent(Color3.prototype, "v");
+  Object.defineProperty(Color3.prototype, "a", {
     get: function get$$1() {
       return this.__state.a;
     },
@@ -25351,7 +25338,7 @@
       this.__state.a = v;
     }
   });
-  Object.defineProperty(Color2.prototype, "hex", {
+  Object.defineProperty(Color3.prototype, "hex", {
     get: function get$$12() {
       if (this.__state.space !== "HEX") {
         this.__state.hex = ColorMath.rgb_to_hex(this.r, this.g, this.b);
@@ -25945,8 +25932,8 @@
     function ColorController2(object, property) {
       classCallCheck(this, ColorController2);
       var _this2 = possibleConstructorReturn(this, (ColorController2.__proto__ || Object.getPrototypeOf(ColorController2)).call(this, object, property));
-      _this2.__color = new Color2(_this2.getValue());
-      _this2.__temp = new Color2(0);
+      _this2.__color = new Color3(_this2.getValue());
+      _this2.__temp = new Color3(0);
       var _this = _this2;
       _this2.domElement = document.createElement("div");
       dom.makeSelectable(_this2.domElement, false);
@@ -26139,7 +26126,7 @@
         var i = interpret(this.getValue());
         if (i !== false) {
           var mismatch = false;
-          Common.each(Color2.COMPONENTS, function(component) {
+          Common.each(Color3.COMPONENTS, function(component) {
             if (!Common.isUndefined(i[component]) && !Common.isUndefined(this.__color.__state[component]) && i[component] !== this.__color.__state[component]) {
               mismatch = true;
               return {};
@@ -27227,15 +27214,15 @@
   function createConfiguration() {
     const configuration = {
       light: {
-        color: atom("#ffffff"),
+        color: atom("rgb(43, 50, 71)"),
         intensity: atom(1)
       },
       soup: {
         count: atom(3),
-        rows: atom(3),
-        cols: atom(3),
-        xDistance: atom(250),
-        yDistance: atom(250),
+        rows: atom(1),
+        cols: atom(1),
+        xDistance: atom(0),
+        yDistance: atom(0),
         width: 1500,
         height: 1500
       },
@@ -27243,10 +27230,10 @@
         membrane: {
           segments: atom(10),
           detalization: atom(50),
-          frequency: atom(2e-4),
-          radius: atom(100),
-          delta: atom(30),
-          color: atom("rgba(141, 177, 185, 0.5)"),
+          frequency: atom(1e-4),
+          radius: atom(200),
+          delta: atom(50),
+          color: atom("rgba(84,105,125,1.0)"),
           skewLimit: atom(Math.PI / 6),
           angularLimit: atom(0.01)
         },
@@ -27255,9 +27242,9 @@
       },
       flagellum: {
         color: atom("rgba(141, 177, 185, 0.5)"),
-        segmentLength: atom(20),
-        amplitude: atom(5),
-        skewLimit: atom(Math.PI / 2),
+        segmentLength: atom(50),
+        amplitude: atom(70),
+        skewLimit: atom(Math.PI),
         inOutRatio: atom(0.1)
       }
     };
@@ -27297,7 +27284,8 @@
     const { scene, camera, tick } = createScene(configuration);
     const renderer = new WebGLRenderer({
       canvas: document.getElementById("canvas"),
-      antialias: true
+      antialias: true,
+      alpha: true
     });
     adjust(renderer);
     const stats = (0, import_stats.default)();

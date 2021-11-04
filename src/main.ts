@@ -19,15 +19,15 @@ function adjust(renderer) {
 function createConfiguration(): WorldConfiguration {
     const configuration: WorldConfiguration = {
         light: {
-            color: atom<ColorRepresentation>("#ffffff"),
+            color: atom<ColorRepresentation>("rgb(43, 50, 71)"),
             intensity: atom<number>(1),
         },
         soup: {
             count: atom<number>(3),
-            rows: atom<number>(3),
-            cols: atom<number>(3),
-            xDistance: atom<number>(250),
-            yDistance: atom<number>(250),
+            rows: atom<number>(1),
+            cols: atom<number>(1),
+            xDistance: atom<number>(0),
+            yDistance: atom<number>(0),
             width: 1500,
             height: 1500,
         },
@@ -35,10 +35,10 @@ function createConfiguration(): WorldConfiguration {
             membrane: {
                 segments: atom<number>(10),
                 detalization: atom<number>(50),
-                frequency: atom<number>(0.0002),
-                radius: atom<number>(100),
-                delta: atom<number>(30),
-                color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
+                frequency: atom<number>(0.0001),
+                radius: atom<number>(200),
+                delta: atom<number>(50),
+                color: atom<ColorRepresentation>("rgba(84,105,125,1.0)"),
                 skewLimit: atom<number>(Math.PI / 6),
                 angularLimit: atom<number>(0.01),
             },
@@ -47,9 +47,9 @@ function createConfiguration(): WorldConfiguration {
         },
         flagellum: {
             color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
-            segmentLength: atom<number>(20),
-            amplitude: atom<number>(5),
-            skewLimit: atom<number>(Math.PI / 2),
+            segmentLength: atom<number>(50),
+            amplitude: atom<number>(70),
+            skewLimit: atom<number>(Math.PI),
             inOutRatio: atom<number>(0.1),
         },
     };
@@ -91,6 +91,7 @@ function initialize() {
     const renderer = new WebGLRenderer({
         canvas: document.getElementById("canvas"),
         antialias: true,
+        alpha: true,
     });
 
     adjust(renderer);
