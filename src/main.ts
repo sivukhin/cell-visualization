@@ -47,7 +47,7 @@ function createConfiguration(): WorldConfiguration {
                 frequency: atom<number>(0.00005),
                 radius: atom<number>(50),
                 delta: atom<number>(20),
-                color: atom<ColorRepresentation>("rgb(198, 203, 106, 1.0)"),
+                color: atom<ColorRepresentation>("rgba(198, 203, 106, 1.0)"),
                 skewLimit: atom<number>(Math.PI / 8),
             },
             glowStart: atom<number>(0.8),

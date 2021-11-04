@@ -27381,7 +27381,7 @@
           frequency: atom(5e-5),
           radius: atom(50),
           delta: atom(20),
-          color: atom("rgb(198, 203, 106, 1.0)"),
+          color: atom("rgba(198, 203, 106, 1.0)"),
           skewLimit: atom(Math.PI / 8)
         },
         glowStart: atom(0.8),
