@@ -12,6 +12,16 @@ export function getComponents(points: Vector2[]): Float32Array {
     return components;
 }
 
+export function cutBezierCurve(start: Vector2, c1: Vector2, c2: Vector2, end: Vector2, alpha: number) {
+    const i1 = new Vector2().addScaledVector(start, 1 - alpha).addScaledVector(c1, alpha);
+    const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
+    const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(end, alpha);
+    const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
+    const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
+    const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
+    return { c1: i1, c2: i2, end: i3 };
+}
+
 export interface Figure {
     points: Float32Array;
     indices: number[];

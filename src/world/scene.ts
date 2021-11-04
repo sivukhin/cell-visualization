@@ -156,18 +156,18 @@ export function createScene(dynamic: WorldConfiguration) {
         //     },
         //     configuration.flagellum
         // );
-        for (let i = 0; i < configuration.soup.rows; i++) {
-            for (let s = 0; s < configuration.soup.cols; s++) {
-                const target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
-                scene.add(target.object);
-                target.object.position.set(
-                    configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
-                    (s - configuration.soup.cols / 2) * configuration.soup.yDistance,
-                    0
-                );
-                targets.push(target);
-            }
-        }
+        // for (let i = 0; i < configuration.soup.rows; i++) {
+        //     for (let s = 0; s < configuration.soup.cols; s++) {
+        //         const target = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
+        //         scene.add(target.object);
+        //         target.object.position.set(
+        //             configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
+        //             (s - configuration.soup.cols / 2) * configuration.soup.yDistance,
+        //             0
+        //         );
+        //         targets.push(target);
+        //     }
+        // }
 
         // const geometry = new BufferGeometry();
         // const polygon = getRegularPolygon(8, 200);
@@ -214,71 +214,71 @@ export function createScene(dynamic: WorldConfiguration) {
             if (target != null) {
                 target.tick(time);
             }
-            // if (target == null || time > refreshAt) {
-            //     scene.clear();
-            //     refreshAt = time + 2000;
-            //     target = createFlagellum(
-            //         {
-            //             startDirection: new Vector2(1, 0),
-            //             finishDirection: new Vector2(1, 0),
-            //             startIn: time,
-            //             finishIn: time + 1000,
-            //             startOut: time + 1500,
-            //             finishOut: time + 2000,
-            //             target: new Vector2(500, 0),
-            //         },
-            //         {
-            //             segmentLength: store.get().flagellum.segmentLength,
-            //             amplitude: store.get().flagellum.amplitude,
-            //             inOutRatio: store.get().flagellum.inOutRatio,
-            //             skewLimit: store.get().flagellum.skewLimit,
-            //             color: store.get().flagellum.color,
-            //         }
-            //     );
-            //     scene.add(target.object);
-            // }
+            if (target == null || time > refreshAt) {
+                scene.clear();
+                refreshAt = time + 2000;
+                target = createFlagellum(
+                    {
+                        startDirection: new Vector2(1, 0),
+                        finishDirection: new Vector2(1, 0),
+                        startIn: time,
+                        finishIn: time + 1000,
+                        startOut: time + 1500,
+                        finishOut: time + 2000,
+                        target: new Vector2(500, 0),
+                    },
+                    {
+                        segmentLength: store.get().flagellum.segmentLength,
+                        amplitude: store.get().flagellum.amplitude,
+                        skewLimit: store.get().flagellum.skewLimit,
+                        color: store.get().flagellum.color,
+                        minWobbling: store.get().flagellum.minWobbling,
+                    }
+                );
+                scene.add(target.object);
+            }
             // if (target2 != null) {
             //     target2.tick(time);
             // }
-            if (time % 5000 < 1000) {
-                attacked = false;
-            }
-            if (time % 5000 > 1000 && !attacked) {
-                attacked = true;
-                for (let i = 0; i < targets.length; i++) {
-                    const points = [];
-                    const k = randomFrom(0, 1.1);
-                    for (let s = 0; s < k; s++) {
-                        // target.object.position.set(
-                        //     configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
-                        //     (s - configuration.soup.cols / 2) * configuration.soup.yDistance,
-                        //     0
-                        // );
-
-                        let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
-                        let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
-                        if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
-                            a = (a + 1) % store.get().soup.rows;
-                            b = (b + 1) % store.get().soup.cols;
-                        }
-                        const center = new Vector2(
-                            store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance,
-                            (b - store.get().soup.cols / 2) * store.get().soup.yDistance
-                        );
-                        console.info(center);
-                        points.push(
-                            new Vector2(randomFrom(0, 50), 0)
-                                .rotateAround(zero2, randomFrom(0, Math.PI * 2))
-                                .add(center)
-                                .sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y))
-                        );
-                        // targets.push(new Vector2(500, 0));
-                    }
-                    if (points.length > 0) {
-                        targets[i].attack(points);
-                    }
-                }
-            }
+            // if (time % 5000 < 1000) {
+            //     attacked = false;
+            // }
+            // if (time % 5000 > 1000 && !attacked) {
+            //     attacked = true;
+            //     for (let i = 0; i < targets.length; i++) {
+            //         const points = [];
+            //         const k = randomFrom(0, 1.1);
+            //         for (let s = 0; s < k; s++) {
+            //             // target.object.position.set(
+            //             //     configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
+            //             //     (s - configuration.soup.cols / 2) * configuration.soup.yDistance,
+            //             //     0
+            //             // );
+            //
+            //             let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
+            //             let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
+            //             if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
+            //                 a = (a + 1) % store.get().soup.rows;
+            //                 b = (b + 1) % store.get().soup.cols;
+            //             }
+            //             const center = new Vector2(
+            //                 store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance,
+            //                 (b - store.get().soup.cols / 2) * store.get().soup.yDistance
+            //             );
+            //             console.info(center);
+            //             points.push(
+            //                 new Vector2(randomFrom(0, 50), 0)
+            //                     .rotateAround(zero2, randomFrom(0, Math.PI * 2))
+            //                     .add(center)
+            //                     .sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y))
+            //             );
+            //             // targets.push(new Vector2(500, 0));
+            //         }
+            //         if (points.length > 0) {
+            //             targets[i].attack(points);
+            //         }
+            //     }
+            // }
         },
     };
 }

@@ -11,7 +11,7 @@ export interface FlagellumConfiguration {
     segmentLength: Store<number>;
     amplitude: Store<number>;
     skewLimit: Store<number>;
-    inOutRatio: Store<number>;
+    minWobbling: Store<number>;
     color: Store<ColorRepresentation>;
 }
 

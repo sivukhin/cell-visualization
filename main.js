@@ -24274,60 +24274,29 @@
   // src/utils/geometry.ts
   var zero2 = new Vector2(0, 0);
   var zero3 = new Vector3(0, 0, 0);
-  function getRegularPolygon(n, r) {
-    const points = [];
-    for (let i = 0; i < n; i++) {
-      const angle = 2 * Math.PI / n * i;
-      points.push(new Vector2(Math.cos(angle) * r, Math.sin(angle) * r));
+
+  // src/utils/draw.ts
+  function getComponents(points) {
+    const components = new Float32Array(points.length * 3);
+    let position = 0;
+    for (let point of points) {
+      components[position++] = point.x;
+      components[position++] = point.y;
+      components[position++] = 0;
     }
-    return points;
+    return components;
   }
-  function getH(p, a, v) {
-    const k = new Vector2().subVectors(p, a).dot(v);
-    return new Vector2().copy(v).multiplyScalar(k / v.lengthSq()).add(a);
-  }
-  function tryIntersectLineCircle(p, v, c, r) {
-    const h = getH(c, p, v);
-    const d = h.distanceToSquared(c);
-    if (d > r * r) {
-      return null;
-    }
-    const l = Math.sqrt(r * r - d) / v.length();
-    const a = new Vector2().copy(h).addScaledVector(v, l);
-    const b = new Vector2().copy(h).addScaledVector(v, -l);
-    return new Vector2().subVectors(a, p).dot(v) > 0 ? a : b;
-  }
-  function inSector(p, a, b) {
-    return a.cross(p) > 0 && p.cross(b) >= 0;
+  function cutBezierCurve(start, c1, c2, end, alpha) {
+    const i1 = new Vector2().addScaledVector(start, 1 - alpha).addScaledVector(c1, alpha);
+    const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
+    const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(end, alpha);
+    const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
+    const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
+    const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
+    return { c1: i1, c2: i2, end: i3 };
   }
 
   // src/utils/math.ts
-  function extrapolate(l, r, time, target, inScale, outScale) {
-    if (l > r) {
-      return extrapolate(r, l, time, r + (l - target), inScale, outScale);
-    }
-    if (inScale == void 0) {
-      inScale = 1;
-    }
-    if (outScale == void 0) {
-      outScale = inScale;
-    }
-    target = target - l;
-    const d = Math.abs(r - l);
-    let delta = time % (d / inScale + d / outScale);
-    if (delta < d / inScale) {
-      if (delta * inScale <= target) {
-        return time + (target - delta * inScale) / inScale;
-      }
-      return time + (d - delta * inScale) / inScale + (d - target) / outScale;
-    } else {
-      delta = d / outScale + d / inScale - delta;
-      if (target < delta * outScale) {
-        return time + (delta * outScale - target) / outScale;
-      }
-      return time + delta * outScale / outScale + target / inScale;
-    }
-  }
   function interpolate(l, r, time, inScale, outScale) {
     if (l == r) {
       return l;
@@ -24351,22 +24320,7 @@
     return Math.random() * (r - l) + l;
   }
 
-  // src/utils/draw.ts
-  function getComponents(points) {
-    const components = new Float32Array(points.length * 3);
-    let position = 0;
-    for (let point of points) {
-      components[position++] = point.x;
-      components[position++] = point.y;
-      components[position++] = 0;
-    }
-    return components;
-  }
-
   // src/world/deformation.ts
-  function findDeformationAngleTime(deformation, time, target) {
-    return extrapolate(-deformation.angle, deformation.angle, time, target, Math.pow(deformation.length, 1 / 2));
-  }
   function calculateDeformationAngle(deformation, time) {
     return interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
   }
@@ -24374,12 +24328,12 @@
     const angle = calculateDeformationAngle(deformation, time);
     return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
   }
-
-  // src/shaders/glow-vertex.shader
-  var glow_vertex_default = "varying float v_distance;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
-
-  // src/shaders/glow-fragment.shader
-  var glow_fragment_default = "uniform vec3 u_color;\r\nuniform float start;\r\nvarying float v_distance;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    if (v_distance >= start) {\r\n        float m = 5.0 * PI / (1.0 - start);\r\n        vec3 color = vec3(u_color);\r\n        float intensity = 1.0 - pow(smoothstep(start, 1.0, v_distance), 1.0);\r\n        color[2] += sin((v_distance - start) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);\r\n        gl_FragColor = vec4(hsl2rgb(color), intensity);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(u_color), 1);\r\n    }\r\n}\r\n";
+  function modifyDeformation(deformation, angleStretch, lengthStretch) {
+    return {
+      angle: deformation.angle * angleStretch,
+      length: deformation.length * lengthStretch
+    };
+  }
 
   // src/world/flagellum.ts
   function generateFlagellum(target, { segmentLength, amplitude, skewLimit }) {
@@ -24398,7 +24352,8 @@
     const jitters = [new Vector2(0, 0)];
     let sign2 = Math.sign(randomFrom(-1, 1));
     for (let i = 0; i < segments; i++) {
-      const jitter = i == segments - 1 ? 0 : randomFrom(0, amplitude) * sign2;
+      const current = amplitude / (i + 1);
+      const jitter = i == segments - 1 ? 0 : randomFrom(current / 2, current) * sign2;
       sign2 = -sign2;
       const point = new Vector2().copy(points[i]).addScaledVector(target, ratios[i]);
       points.push(point);
@@ -24419,42 +24374,33 @@
     }
     return { points, length, deformations, jitters };
   }
-  function calculateFlagellumPoints({ points, length, deformations, jitters }, startDirection, finishDirection, { inOutRatio }, time) {
+  function calculateFlagellumPoints({ points, length, deformations, jitters }, startDirection, finishDirection, { minWobbling }, time) {
     let k = time * length;
     const path = new Path();
     path.moveTo(points[0].x, points[0].y);
     let jittered = [];
     for (let i = 0; i < points.length; i++) {
-      const ttt = Math.cos(2 * Math.PI * time) * (1 - Math.min(1, time));
-      jittered.push(new Vector2().copy(points[i]).addScaledVector(jitters[i], ttt));
+      const intensity = Math.cos(2 * Math.PI * time) * (1 - Math.min(1, time));
+      jittered.push(new Vector2().copy(points[i]).addScaledVector(jitters[i], intensity));
     }
-    if (time > 0) {
-      for (let i = 1; i < jittered.length; i++) {
-        let current = jittered[i].distanceTo(jittered[i - 1]);
-        const direction1 = i == 1 ? startDirection : new Vector2().subVectors(jittered[i], jittered[i - 1]);
-        const direction2 = i == jittered.length - 1 ? finishDirection : new Vector2().subVectors(jittered[i], jittered[i + 1]);
-        const c = 0.1 + 0.9 * Math.max(0, 1 - time);
-        const l1 = deformations[i - 1].length * c;
-        const l2 = deformations[i].length * c;
-        const a1 = deformations[i - 1].angle * c * Math.cos(Math.PI * time + i - 1);
-        const a2 = deformations[i].angle * c * Math.cos(Math.PI * time + i);
-        const c1 = calculateDeformation(jittered[i - 1], direction1, { angle: a1, length: l1 }, 0);
-        const c2 = calculateDeformation(jittered[i], direction2, { angle: a2, length: l2 }, 0);
-        if (current > k) {
-          const alpha = k / current;
-          const i1 = new Vector2().addScaledVector(jittered[i - 1], 1 - alpha).addScaledVector(c1, alpha);
-          const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
-          const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(jittered[i], alpha);
-          const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
-          const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
-          const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
-          path.bezierCurveTo(i1.x, i1.y, i2.x, i2.y, i3.x, i3.y);
-          break;
-        } else {
-          path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, jittered[i].x, jittered[i].y);
-          k -= current;
-        }
+    for (let i = 1; i < jittered.length && k > 0; i++) {
+      let current = jittered[i].distanceTo(jittered[i - 1]);
+      const direction1 = i == 1 ? startDirection : new Vector2().subVectors(jittered[i], jittered[i - 1]);
+      const direction2 = i == jittered.length - 1 ? finishDirection : new Vector2().subVectors(jittered[i], jittered[i + 1]);
+      const lengthStretch = minWobbling + (1 - minWobbling) * Math.max(0, 1 - time);
+      const angleStretch1 = lengthStretch * Math.cos(Math.PI * time + i - 1);
+      const angleStretch2 = lengthStretch * Math.cos(Math.PI * time + i);
+      const d1 = modifyDeformation(deformations[i - 1], angleStretch1, lengthStretch);
+      const d2 = modifyDeformation(deformations[i], angleStretch2, lengthStretch);
+      const c1 = calculateDeformation(jittered[i - 1], direction1, d1, 0);
+      const c2 = calculateDeformation(jittered[i], direction2, d2, 0);
+      if (current > k) {
+        const cut = cutBezierCurve(jittered[i - 1], c1, c2, jittered[i], k / current);
+        path.bezierCurveTo(cut.c1.x, cut.c1.y, cut.c2.x, cut.c2.y, cut.end.x, cut.end.y);
+      } else {
+        path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, jittered[i].x, jittered[i].y);
       }
+      k -= current;
     }
     return path.getPoints(50);
   }
@@ -24493,159 +24439,6 @@
     };
   }
 
-  // src/world/membrane.ts
-  function calculateLockedTime(lock, time) {
-    if (lock != void 0 && lock.start < time && time < lock.finish) {
-      return lock.start;
-    }
-    return time;
-  }
-  function generateAliveMembrane({ segments, radius, delta, skewLimit }) {
-    const skeleton = getRegularPolygon(segments, radius / Math.cos(Math.PI / segments));
-    const directions = [];
-    const anchors = [];
-    for (let i = 0; i < segments; i++) {
-      const direction = new Vector2().subVectors(skeleton[(i + 1) % segments], skeleton[i]);
-      directions.push(direction);
-      anchors.push(new Vector2().copy(skeleton[i]).addScaledVector(direction, 0.5));
-    }
-    const deformations = [];
-    const locks = [];
-    let sign2 = 1;
-    for (let i = 0; i < segments; i++) {
-      locks.push({ in: void 0, out: void 0 });
-      const angle = (1 + Math.random()) * skewLimit;
-      const intersectionOuter = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, -angle), zero2, radius + delta);
-      const intersectionInner = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, angle), zero2, radius - delta);
-      if (intersectionOuter == null && intersectionInner == null) {
-        throw new Error("invalid operation");
-      }
-      const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(anchors[i]);
-      const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(anchors[i]);
-      deformations.push({
-        angle: sign2 * angle,
-        length: Math.min(outer, inner, directions[i].length() / 2)
-      });
-      sign2 = -sign2;
-    }
-    return {
-      anchors,
-      directions,
-      locks,
-      deformations,
-      getSector(p) {
-        for (let i = 0; i < skeleton.length; i++) {
-          const a = skeleton[i];
-          const b = skeleton[(i + 1) % skeleton.length];
-          if (inSector(p, a, b)) {
-            return { point: anchors[i], id: i };
-          }
-        }
-        throw new Error(`can't determine sector for point ${p.x} ${p.y}`);
-      }
-    };
-  }
-  function calculateMembranePoints(membrane, detalization, time) {
-    const n = membrane.anchors.length;
-    const controlPoints = [];
-    for (let i = 0; i < n; i++) {
-      const t1 = calculateLockedTime(membrane.locks[i].out, time);
-      const direction1 = membrane.directions[i];
-      const c1 = calculateDeformation(membrane.anchors[i], direction1, membrane.deformations[i], t1);
-      const t2 = calculateLockedTime(membrane.locks[(i + 1) % n].in, time);
-      const direction2 = new Vector2().copy(membrane.directions[(i + 1) % n]).negate();
-      const c2 = calculateDeformation(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], t2);
-      if (i == n - 1) {
-      }
-      controlPoints.push({ first: c1, second: c2 });
-    }
-    const path = new Path();
-    path.moveTo(membrane.anchors[0].x, membrane.anchors[0].y);
-    for (let i = 0; i < n; i++) {
-      path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
-    }
-    return [new Vector2(0, 0), ...path.getPoints(detalization)];
-  }
-  function createAliveMembrane(membraneConfig, flagellumConfig) {
-    const membrane = generateAliveMembrane(membraneConfig);
-    const initialPoints = calculateMembranePoints(membrane, membraneConfig.detalization, 0);
-    const n = initialPoints.length - 1;
-    const positionAttribute = new BufferAttribute(getComponents(initialPoints), 3);
-    positionAttribute.setUsage(DynamicDrawUsage);
-    const geometry = new BufferGeometry();
-    geometry.setAttribute("position", positionAttribute);
-    const normals = [];
-    for (let i = 0; i < initialPoints.length; i++) {
-      normals.push(...[0, 0, 1]);
-    }
-    geometry.setAttribute("normal", new BufferAttribute(new Float32Array(normals), 3));
-    const index = [];
-    for (let i = 0; i < n; i++) {
-      index.push(...[0, i + 1, (i + 1) % n + 1]);
-    }
-    geometry.setIndex(index);
-    const cellColor = new Color(membraneConfig.color);
-    const cellColorHsl = { h: 0, s: 0, l: 0 };
-    cellColor.getHSL(cellColorHsl);
-    const material = new ShaderMaterial({
-      uniforms: {
-        u_color: new Uniform(new Vector3(cellColorHsl.h, cellColorHsl.s, cellColorHsl.l)),
-        start: new Uniform(0.8)
-      },
-      vertexShader: glow_vertex_default,
-      fragmentShader: glow_fragment_default,
-      transparent: true
-    });
-    const curve = new Mesh(geometry, material);
-    const angular = randomFrom(-membraneConfig.angularLimit, membraneConfig.angularLimit);
-    let trees = [];
-    let lastTime = 0;
-    return {
-      object: curve,
-      tick: (time) => {
-        lastTime = time;
-        for (let i = 0; i < trees.length; i++) {
-          if (trees[i].finish < time) {
-            curve.remove(trees[i].object);
-          }
-        }
-        trees = trees.filter((t2) => t2.finish > time);
-        for (let i = 0; i < trees.length; i++) {
-          trees[i].tick(time);
-        }
-        const t = time * membraneConfig.frequency;
-        const points = calculateMembranePoints(membrane, membraneConfig.detalization, t);
-        positionAttribute.set(getComponents(points));
-        positionAttribute.needsUpdate = true;
-      },
-      attack: (targets) => {
-        const t = lastTime * membraneConfig.frequency;
-        const n2 = membrane.anchors.length;
-        for (let i = 0; i < targets.length; i++) {
-          const { point, id } = membrane.getSector(targets[i]);
-          const start1 = findDeformationAngleTime(membrane.deformations[id], t, -Math.abs(membrane.deformations[id].angle));
-          const start2 = findDeformationAngleTime(membrane.deformations[id], t, Math.abs(membrane.deformations[id].angle));
-          const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, -Math.abs(membrane.deformations[id].angle));
-          const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + 2e3 * membraneConfig.frequency, Math.abs(membrane.deformations[id].angle));
-          membrane.locks[id].out = { start: start1, finish: finish1 };
-          membrane.locks[id].in = { start: start2, finish: finish2 };
-          const flagellum = createFlagellum({
-            startDirection: new Vector2().copy(point),
-            finishDirection: new Vector2().subVectors(targets[i], point),
-            startIn: start1 / membraneConfig.frequency,
-            finishIn: start1 / membraneConfig.frequency + 600,
-            startOut: start1 / membraneConfig.frequency + 1e3,
-            finishOut: Math.max(start1, start2) / membraneConfig.frequency + 2e3,
-            target: new Vector2().subVectors(targets[i], point)
-          }, flagellumConfig);
-          flagellum.object.position.set(point.x, point.y, 0);
-          curve.add(flagellum.object);
-          trees.push(flagellum);
-        }
-      }
-    };
-  }
-
   // src/world/scene.ts
   function createScene(dynamic) {
     const scene = new Scene();
@@ -24660,14 +24453,6 @@
       targets = [];
       const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
       scene.add(environment);
-      for (let i = 0; i < configuration.soup.rows; i++) {
-        for (let s = 0; s < configuration.soup.cols; s++) {
-          const target2 = createAliveMembrane(configuration.cell.membrane, configuration.flagellum);
-          scene.add(target2.object);
-          target2.object.position.set(configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance, (s - configuration.soup.cols / 2) * configuration.soup.yDistance, 0);
-          targets.push(target2);
-        }
-      }
     });
     let attacked = false;
     let refreshAt = 0;
@@ -24682,29 +24467,25 @@
         if (target != null) {
           target.tick(time);
         }
-        if (time % 5e3 < 1e3) {
-          attacked = false;
-        }
-        if (time % 5e3 > 1e3 && !attacked) {
-          attacked = true;
-          for (let i = 0; i < targets.length; i++) {
-            const points = [];
-            const k = randomFrom(0, 1.1);
-            for (let s = 0; s < k; s++) {
-              let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
-              let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
-              if (a == target / store.get().soup.rows && b == target % store.get().soup.cols) {
-                a = (a + 1) % store.get().soup.rows;
-                b = (b + 1) % store.get().soup.cols;
-              }
-              const center = new Vector2(store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance, (b - store.get().soup.cols / 2) * store.get().soup.yDistance);
-              console.info(center);
-              points.push(new Vector2(randomFrom(0, 50), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)).add(center).sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y)));
-            }
-            if (points.length > 0) {
-              targets[i].attack(points);
-            }
-          }
+        if (target == null || time > refreshAt) {
+          scene.clear();
+          refreshAt = time + 2e3;
+          target = createFlagellum({
+            startDirection: new Vector2(1, 0),
+            finishDirection: new Vector2(1, 0),
+            startIn: time,
+            finishIn: time + 1e3,
+            startOut: time + 1500,
+            finishOut: time + 2e3,
+            target: new Vector2(500, 0)
+          }, {
+            segmentLength: store.get().flagellum.segmentLength,
+            amplitude: store.get().flagellum.amplitude,
+            skewLimit: store.get().flagellum.skewLimit,
+            color: store.get().flagellum.color,
+            minWobbling: store.get().flagellum.minWobbling
+          });
+          scene.add(target.object);
         }
       }
     };
@@ -27243,9 +27024,9 @@
       flagellum: {
         color: atom("rgba(141, 177, 185, 0.5)"),
         segmentLength: atom(50),
-        amplitude: atom(70),
+        amplitude: atom(100),
         skewLimit: atom(Math.PI),
-        inOutRatio: atom(0.1)
+        minWobbling: atom(0.1)
       }
     };
     initializeGui(configuration, {
@@ -27272,9 +27053,9 @@
       },
       flagellum: {
         segmentLength: { min: 2, max: 100, step: 1 },
-        amplitude: { min: 1, max: 50, step: 1 },
+        amplitude: { min: 1, max: 200, step: 1 },
         skewLimit: { min: 0, max: Math.PI, step: 0.1 },
-        inOutRation: { min: 0.01, max: 100 }
+        minWobbling: { min: 0, max: 1, step: 0.05 }
       }
     });
     return configuration;

@@ -48,9 +48,9 @@ function createConfiguration(): WorldConfiguration {
         flagellum: {
             color: atom<ColorRepresentation>("rgba(141, 177, 185, 0.5)"),
             segmentLength: atom<number>(50),
-            amplitude: atom<number>(70),
+            amplitude: atom<number>(100),
             skewLimit: atom<number>(Math.PI),
-            inOutRatio: atom<number>(0.1),
+            minWobbling: atom<number>(0.1),
         },
     };
     initializeGui(configuration, {
@@ -77,9 +77,9 @@ function createConfiguration(): WorldConfiguration {
         },
         flagellum: {
             segmentLength: { min: 2, max: 100, step: 1 },
-            amplitude: { min: 1, max: 50, step: 1 },
+            amplitude: { min: 1, max: 200, step: 1 },
             skewLimit: { min: 0, max: Math.PI, step: 0.1 },
-            inOutRation: { min: 0.01, max: 100 },
+            minWobbling: { min: 0, max: 1, step: 0.05 },
         },
     });
     return configuration;

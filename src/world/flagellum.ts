@@ -1,9 +1,9 @@
 import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Line, LineBasicMaterial, Object3D, Path, Vector2 } from "three";
 import { FlagellumConfiguration, Unwrap } from "../configuration";
-import { getComponents } from "../utils/draw";
+import { cutBezierCurve, getComponents } from "../utils/draw";
 import { randomFrom } from "../utils/math";
 import { zero2 } from "../utils/geometry";
-import { calculateDeformation, Deformation } from "./deformation";
+import { calculateDeformation, Deformation, modifyDeformation } from "./deformation";
 
 interface Flagellum {
     points: Vector2[];
@@ -32,7 +32,8 @@ function generateFlagellum(target: Vector2, { segmentLength, amplitude, skewLimi
     const jitters = [new Vector2(0, 0)];
     let sign = Math.sign(randomFrom(-1, 1));
     for (let i = 0; i < segments; i++) {
-        const jitter = i == segments - 1 ? 0 : randomFrom(0, amplitude) * sign;
+        const current = amplitude / (i + 1);
+        const jitter = i == segments - 1 ? 0 : randomFrom(current / 2, current) * sign;
         sign = -sign;
         const point = new Vector2().copy(points[i]).addScaledVector(target, ratios[i]);
         points.push(point);
@@ -59,7 +60,7 @@ function calculateFlagellumPoints(
     { points, length, deformations, jitters }: Flagellum,
     startDirection: Vector2,
     finishDirection: Vector2,
-    { inOutRatio }: Unwrap<FlagellumConfiguration>,
+    { minWobbling }: Unwrap<FlagellumConfiguration>,
     time: number
 ) {
     let k = time * length;
@@ -67,37 +68,27 @@ function calculateFlagellumPoints(
     path.moveTo(points[0].x, points[0].y);
     let jittered = [];
     for (let i = 0; i < points.length; i++) {
-        const ttt = Math.cos(2 * Math.PI * time) * (1 - Math.min(1, time));
-        jittered.push(new Vector2().copy(points[i]).addScaledVector(jitters[i], ttt));
+        const intensity = Math.cos(2 * Math.PI * time) * (1 - Math.min(1, time));
+        jittered.push(new Vector2().copy(points[i]).addScaledVector(jitters[i], intensity));
     }
-    if (time > 0) {
-        for (let i = 1; i < jittered.length; i++) {
-            let current = jittered[i].distanceTo(jittered[i - 1]);
-            const direction1 = i == 1 ? startDirection : new Vector2().subVectors(jittered[i], jittered[i - 1]);
-            const direction2 = i == jittered.length - 1 ? finishDirection : new Vector2().subVectors(jittered[i], jittered[i + 1]);
-            const c = 0.1 + 0.9 * Math.max(0, 1 - time);
-            const l1 = deformations[i - 1].length * c;
-            const l2 = deformations[i].length * c;
-
-            const a1 = deformations[i - 1].angle * c * Math.cos(Math.PI * time + i - 1);
-            const a2 = deformations[i].angle * c * Math.cos(Math.PI * time + i);
-            const c1 = calculateDeformation(jittered[i - 1], direction1, { angle: a1, length: l1 }, 0);
-            const c2 = calculateDeformation(jittered[i], direction2, { angle: a2, length: l2 }, 0);
-            if (current > k) {
-                const alpha = k / current;
-                const i1 = new Vector2().addScaledVector(jittered[i - 1], 1 - alpha).addScaledVector(c1, alpha);
-                const j1 = new Vector2().addScaledVector(c1, 1 - alpha).addScaledVector(c2, alpha);
-                const k1 = new Vector2().addScaledVector(c2, 1 - alpha).addScaledVector(jittered[i], alpha);
-                const i2 = new Vector2().addScaledVector(i1, 1 - alpha).addScaledVector(j1, alpha);
-                const j2 = new Vector2().addScaledVector(j1, 1 - alpha).addScaledVector(k1, alpha);
-                const i3 = new Vector2().addScaledVector(i2, 1 - alpha).addScaledVector(j2, alpha);
-                path.bezierCurveTo(i1.x, i1.y, i2.x, i2.y, i3.x, i3.y);
-                break;
-            } else {
-                path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, jittered[i].x, jittered[i].y);
-                k -= current;
-            }
+    for (let i = 1; i < jittered.length && k > 0; i++) {
+        let current = jittered[i].distanceTo(jittered[i - 1]);
+        const direction1 = i == 1 ? startDirection : new Vector2().subVectors(jittered[i], jittered[i - 1]);
+        const direction2 = i == jittered.length - 1 ? finishDirection : new Vector2().subVectors(jittered[i], jittered[i + 1]);
+        const lengthStretch = minWobbling + (1 - minWobbling) * Math.max(0, 1 - time);
+        const angleStretch1 = lengthStretch * Math.cos(Math.PI * time + i - 1);
+        const angleStretch2 = lengthStretch * Math.cos(Math.PI * time + i);
+        const d1 = modifyDeformation(deformations[i - 1], angleStretch1, lengthStretch);
+        const d2 = modifyDeformation(deformations[i], angleStretch2, lengthStretch);
+        const c1 = calculateDeformation(jittered[i - 1], direction1, d1, 0);
+        const c2 = calculateDeformation(jittered[i], direction2, d2, 0);
+        if (current > k) {
+            const cut = cutBezierCurve(jittered[i - 1], c1, c2, jittered[i], k / current);
+            path.bezierCurveTo(cut.c1.x, cut.c1.y, cut.c2.x, cut.c2.y, cut.end.x, cut.end.y);
+        } else {
+            path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, jittered[i].x, jittered[i].y);
         }
+        k -= current;
     }
     return path.getPoints(50);
 }

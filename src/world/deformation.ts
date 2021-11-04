@@ -19,3 +19,10 @@ export function calculateDeformation(anchor: Vector2, direction: Vector2, deform
     const angle = calculateDeformationAngle(deformation, time);
     return new Vector2().copy(direction).rotateAround(zero2, -angle).setLength(deformation.length).add(anchor);
 }
+
+export function modifyDeformation(deformation: Deformation, angleStretch: number, lengthStretch: number) {
+    return {
+        angle: deformation.angle * angleStretch,
+        length: deformation.length * lengthStretch,
+    };
+}
