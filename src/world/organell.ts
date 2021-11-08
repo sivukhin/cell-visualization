@@ -6,14 +6,16 @@ import OrganellFragmentShader from "../shaders/organell-fragment.shader";
 import {interpolate, randomChoice, randomFrom} from "../utils/math";
 import { zero3 } from "../utils/geometry";
 
+const loader = new TextureLoader();
 const textures = [
-    new TextureLoader().load("src/assets/org-texture-01.png"),
-    new TextureLoader().load("src/assets/org-texture-02.png"),
-    new TextureLoader().load("src/assets/org-texture-03.png"),
-    new TextureLoader().load("src/assets/org-texture-04.png"),
-    new TextureLoader().load("src/assets/org-texture-05.png"),
-    new TextureLoader().load("src/assets/org-texture-06.png")
+    loader.load("src/assets/org-texture-01.png"),
+    loader.load("src/assets/org-texture-02.png"),
+    loader.load("src/assets/org-texture-03.png"),
+    loader.load("src/assets/org-texture-04.png"),
+    loader.load("src/assets/org-texture-05.png"),
+    loader.load("src/assets/org-texture-06.png")
 ];
+const checker = loader.load("src/assets/checker-texture.jpg");
 export function createAliveOrganell(membraneConfig: Unwrap<MembraneConfiguration>) {
     const { geometry, tick: membraneTick } = createAliveMembrane(membraneConfig);
 

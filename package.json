@@ -2,8 +2,9 @@
   "name": "proctf-cell",
   "source": "index.html",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --outfile=main.js",
-    "watch": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --outfile=main.js --watch"
+    "build": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --outfile=dist/main.js",
+    "watch": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --outfile=dist/main.js --watch",
+    "serve": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --servedir=. --outdir=www/js"
   },
   "devDependencies": {
     "esbuild": "^0.13.8",

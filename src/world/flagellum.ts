@@ -125,7 +125,7 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
             //     positionAttribute.set(getComponents(current));
             //     positionAttribute.needsUpdate = true;
             // } else {
-            const update = createFigureFromPath(current, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 4)));
+            const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
             // const update = new BufferAttribute(getFlatComponents3D(current), 3);
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
             geometry.setAttribute("normal", new BufferAttribute(update.normals, 3));

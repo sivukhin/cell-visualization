@@ -7,16 +7,12 @@ import Stats from "stats.js";
 
 function adjust(renderer) {
     const canvas = renderer.domElement;
-    canvas.width = 900;
-    canvas.height = 900;
-    canvas.style.width = "900px";
-    canvas.style.height = "900px";
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     renderer.setSize(width, height, false);
 }
 
-function createConfiguration(): WorldConfiguration {
+function createConfiguration(canvas): WorldConfiguration {
     const configuration: WorldConfiguration = {
         light: {
             color: atom<ColorRepresentation>("rgb(43, 50, 71)"),
@@ -26,26 +22,26 @@ function createConfiguration(): WorldConfiguration {
             count: atom<number>(3),
             rows: atom<number>(3),
             cols: atom<number>(2),
-            xDistance: atom<number>(450),
-            yDistance: atom<number>(450),
-            width: 1500,
-            height: 1500,
+            xDistance: atom<number>(300),
+            yDistance: atom<number>(300),
+            width: canvas.clientWidth,
+            height: canvas.clientHeight,
         },
         cell: {
             membrane: {
                 segments: atom<number>(10),
                 detalization: atom<number>(50),
                 frequency: atom<number>(0.0001),
-                radius: atom<number>(200),
-                delta: atom<number>(50),
+                radius: atom<number>(100),
+                delta: atom<number>(15),
                 color: atom<ColorRepresentation>("rgba(84,105,125,1.0)"),
-                skewLimit: atom<number>(Math.PI / 6),
+                skewLimit: atom<number>(Math.PI / 10),
             },
             organell: {
                 segments: atom<number>(3),
                 detalization: atom<number>(20),
                 frequency: atom<number>(0.00005),
-                radius: atom<number>(50),
+                radius: atom<number>(20),
                 delta: atom<number>(20),
                 color: atom<ColorRepresentation>("rgba(198, 203, 106, 1.0)"),
                 skewLimit: atom<number>(Math.PI / 8),
@@ -96,13 +92,13 @@ function createConfiguration(): WorldConfiguration {
 }
 
 function initialize() {
-    const configuration = createConfiguration();
-    const { scene, camera, tick } = createScene(configuration);
     const renderer = new WebGLRenderer({
         canvas: document.getElementById("canvas"),
         antialias: true,
         alpha: true,
     });
+    const configuration = createConfiguration(renderer.domElement);
+    const { scene, camera, tick } = createScene(configuration);
 
     adjust(renderer);
 
