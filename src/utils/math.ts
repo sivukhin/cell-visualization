@@ -52,6 +52,11 @@ export function randomFrom(l: number, r: number) {
     return Math.random() * (r - l) + l;
 }
 
+export function randomChoice<T>(array: T[]): T {
+    const id = Math.min(array.length - 1, Math.ceil(randomFrom(0, array.length)));
+    return array[id];
+}
+
 export function randomVector(length: number): Vector2 {
     const angle = Math.random() * Math.PI * 2;
     return new Vector2(length, 0).rotateAround(zero2, angle);

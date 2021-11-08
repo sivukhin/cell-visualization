@@ -33,6 +33,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         // maxR: r + dr,
         // minR: r - dr,
         object: curve,
+        organell: organell,
         tick: (time: number) => {
             lastTime = time;
             for (let i = 0; i < trees.length; i++) {

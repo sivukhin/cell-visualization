@@ -94,7 +94,7 @@ function calculateMembranePoints(membrane: Membrane, detalization: number, time:
 
         const a1 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].out, time));
         const a2 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].in, time));
-        const current = Math.max(0.3, 1 - Math.pow(Math.abs(a1 - a2), 1));
+        const current = 0.1 + 0.9 * Math.exp(-Math.pow(Math.abs(a1 - a2), 2));
         pivots.push(current);
     }
     thickness.push(pivots[0]);

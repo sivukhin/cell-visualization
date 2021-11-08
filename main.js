@@ -4464,7 +4464,7 @@
       if (isRootObject) {
         const geometries = extractFromCache(meta.geometries);
         const materials = extractFromCache(meta.materials);
-        const textures = extractFromCache(meta.textures);
+        const textures2 = extractFromCache(meta.textures);
         const images = extractFromCache(meta.images);
         const shapes = extractFromCache(meta.shapes);
         const skeletons = extractFromCache(meta.skeletons);
@@ -4473,8 +4473,8 @@
           output.geometries = geometries;
         if (materials.length > 0)
           output.materials = materials;
-        if (textures.length > 0)
-          output.textures = textures;
+        if (textures2.length > 0)
+          output.textures = textures2;
         if (images.length > 0)
           output.images = images;
         if (shapes.length > 0)
@@ -4993,10 +4993,10 @@
         return values;
       }
       if (isRoot) {
-        const textures = extractFromCache(meta.textures);
+        const textures2 = extractFromCache(meta.textures);
         const images = extractFromCache(meta.images);
-        if (textures.length > 0)
-          data.textures = textures;
+        if (textures2.length > 0)
+          data.textures = textures2;
         if (images.length > 0)
           data.images = images;
       }
@@ -10011,7 +10011,7 @@
       console.error("THREE.WebGLMorphtargets: Unsupported morph attribute data type: ", array);
     morph.divideScalar(denominator);
   }
-  function WebGLMorphtargets(gl, capabilities, textures) {
+  function WebGLMorphtargets(gl, capabilities, textures2) {
     const influencesList = {};
     const morphInfluences = new Float32Array(8);
     const morphTextures = new WeakMap();
@@ -10082,7 +10082,7 @@
         const morphBaseInfluence = geometry.morphTargetsRelative ? 1 : 1 - morphInfluencesSum;
         program.getUniforms().setValue(gl, "morphTargetBaseInfluence", morphBaseInfluence);
         program.getUniforms().setValue(gl, "morphTargetInfluences", objectInfluences);
-        program.getUniforms().setValue(gl, "morphTargetsTexture", entry.texture, textures);
+        program.getUniforms().setValue(gl, "morphTargetsTexture", entry.texture, textures2);
         program.getUniforms().setValue(gl, "morphTargetsTextureSize", entry.size);
       } else {
         const length = objectInfluences === void 0 ? 0 : objectInfluences.length;
@@ -10237,14 +10237,14 @@
       a[i] = b[i];
     }
   }
-  function allocTexUnits(textures, n) {
+  function allocTexUnits(textures2, n) {
     let r = arrayCacheI32[n];
     if (r === void 0) {
       r = new Int32Array(n);
       arrayCacheI32[n] = r;
     }
     for (let i = 0; i !== n; ++i) {
-      r[i] = textures.allocateTextureUnit();
+      r[i] = textures2.allocateTextureUnit();
     }
     return r;
   }
@@ -10414,41 +10414,41 @@
     gl.uniform4uiv(this.addr, v);
     copyArray(cache, v);
   }
-  function setValueT1(gl, v, textures) {
+  function setValueT1(gl, v, textures2) {
     const cache = this.cache;
-    const unit = textures.allocateTextureUnit();
+    const unit = textures2.allocateTextureUnit();
     if (cache[0] !== unit) {
       gl.uniform1i(this.addr, unit);
       cache[0] = unit;
     }
-    textures.safeSetTexture2D(v || emptyTexture, unit);
+    textures2.safeSetTexture2D(v || emptyTexture, unit);
   }
-  function setValueT3D1(gl, v, textures) {
+  function setValueT3D1(gl, v, textures2) {
     const cache = this.cache;
-    const unit = textures.allocateTextureUnit();
+    const unit = textures2.allocateTextureUnit();
     if (cache[0] !== unit) {
       gl.uniform1i(this.addr, unit);
       cache[0] = unit;
     }
-    textures.setTexture3D(v || emptyTexture3d, unit);
+    textures2.setTexture3D(v || emptyTexture3d, unit);
   }
-  function setValueT6(gl, v, textures) {
+  function setValueT6(gl, v, textures2) {
     const cache = this.cache;
-    const unit = textures.allocateTextureUnit();
+    const unit = textures2.allocateTextureUnit();
     if (cache[0] !== unit) {
       gl.uniform1i(this.addr, unit);
       cache[0] = unit;
     }
-    textures.safeSetTextureCube(v || emptyCubeTexture, unit);
+    textures2.safeSetTextureCube(v || emptyCubeTexture, unit);
   }
-  function setValueT2DArray1(gl, v, textures) {
+  function setValueT2DArray1(gl, v, textures2) {
     const cache = this.cache;
-    const unit = textures.allocateTextureUnit();
+    const unit = textures2.allocateTextureUnit();
     if (cache[0] !== unit) {
       gl.uniform1i(this.addr, unit);
       cache[0] = unit;
     }
-    textures.setTexture2DArray(v || emptyTexture2dArray, unit);
+    textures2.setTexture2DArray(v || emptyTexture2dArray, unit);
   }
   function getSingularSetter(type) {
     switch (type) {
@@ -10559,20 +10559,20 @@
   function setValueV4uiArray(gl, v) {
     gl.uniform4uiv(this.addr, v);
   }
-  function setValueT1Array(gl, v, textures) {
+  function setValueT1Array(gl, v, textures2) {
     const n = v.length;
-    const units = allocTexUnits(textures, n);
+    const units = allocTexUnits(textures2, n);
     gl.uniform1iv(this.addr, units);
     for (let i = 0; i !== n; ++i) {
-      textures.safeSetTexture2D(v[i] || emptyTexture, units[i]);
+      textures2.safeSetTexture2D(v[i] || emptyTexture, units[i]);
     }
   }
-  function setValueT6Array(gl, v, textures) {
+  function setValueT6Array(gl, v, textures2) {
     const n = v.length;
-    const units = allocTexUnits(textures, n);
+    const units = allocTexUnits(textures2, n);
     gl.uniform1iv(this.addr, units);
     for (let i = 0; i !== n; ++i) {
-      textures.safeSetTextureCube(v[i] || emptyCubeTexture, units[i]);
+      textures2.safeSetTextureCube(v[i] || emptyCubeTexture, units[i]);
     }
   }
   function getPureArraySetter(type) {
@@ -10649,11 +10649,11 @@
     this.seq = [];
     this.map = {};
   }
-  StructuredUniform.prototype.setValue = function(gl, value, textures) {
+  StructuredUniform.prototype.setValue = function(gl, value, textures2) {
     const seq = this.seq;
     for (let i = 0, n = seq.length; i !== n; ++i) {
       const u = seq[i];
-      u.setValue(gl, value[u.id], textures);
+      u.setValue(gl, value[u.id], textures2);
     }
   };
   var RePathPart = /(\w+)(\])?(\[|\.)?/g;
@@ -10693,21 +10693,21 @@
       parseUniform(info, addr, this);
     }
   }
-  WebGLUniforms.prototype.setValue = function(gl, name, value, textures) {
+  WebGLUniforms.prototype.setValue = function(gl, name, value, textures2) {
     const u = this.map[name];
     if (u !== void 0)
-      u.setValue(gl, value, textures);
+      u.setValue(gl, value, textures2);
   };
   WebGLUniforms.prototype.setOptional = function(gl, object, name) {
     const v = object[name];
     if (v !== void 0)
       this.setValue(gl, name, v);
   };
-  WebGLUniforms.upload = function(gl, seq, values, textures) {
+  WebGLUniforms.upload = function(gl, seq, values, textures2) {
     for (let i = 0, n = seq.length; i !== n; ++i) {
       const u = seq[i], v = values[u.id];
       if (v.needsUpdate !== false) {
-        u.setValue(gl, v.value, textures);
+        u.setValue(gl, v.value, textures2);
       }
     }
   };
@@ -13598,9 +13598,9 @@
         renderTargetProperties.__webglFramebuffer = _gl.createFramebuffer();
         if (isMultipleRenderTargets) {
           if (capabilities.drawBuffers) {
-            const textures = renderTarget.texture;
-            for (let i = 0, il = textures.length; i < il; i++) {
-              const attachmentProperties = properties.get(textures[i]);
+            const textures2 = renderTarget.texture;
+            for (let i = 0, il = textures2.length; i < il; i++) {
+              const attachmentProperties = properties.get(textures2[i]);
               if (attachmentProperties.__webglTexture === void 0) {
                 attachmentProperties.__webglTexture = _gl.createTexture();
                 info.memory.textures++;
@@ -13643,9 +13643,9 @@
         }
         state.unbindTexture();
       } else if (isMultipleRenderTargets) {
-        const textures = renderTarget.texture;
-        for (let i = 0, il = textures.length; i < il; i++) {
-          const attachment = textures[i];
+        const textures2 = renderTarget.texture;
+        for (let i = 0, il = textures2.length; i < il; i++) {
+          const attachment = textures2[i];
           const attachmentProperties = properties.get(attachment);
           state.bindTexture(3553, attachmentProperties.__webglTexture);
           setTextureParameters(3553, attachment, supportsMips);
@@ -13679,9 +13679,9 @@
     }
     function updateRenderTargetMipmap(renderTarget) {
       const supportsMips = isPowerOfTwo$1(renderTarget) || isWebGL2;
-      const textures = renderTarget.isWebGLMultipleRenderTargets === true ? renderTarget.texture : [renderTarget.texture];
-      for (let i = 0, il = textures.length; i < il; i++) {
-        const texture = textures[i];
+      const textures2 = renderTarget.isWebGLMultipleRenderTargets === true ? renderTarget.texture : [renderTarget.texture];
+      for (let i = 0, il = textures2.length; i < il; i++) {
+        const texture = textures2[i];
         if (textureNeedsGenerateMipmaps(texture, supportsMips)) {
           const target = renderTarget.isWebGLCubeRenderTarget ? 34067 : 3553;
           const webglTexture = properties.get(texture).__webglTexture;
@@ -14987,7 +14987,7 @@
       throw error;
     }
     let extensions, capabilities, state, info;
-    let properties, textures, cubemaps, cubeuvmaps, attributes, geometries, objects;
+    let properties, textures2, cubemaps, cubeuvmaps, attributes, geometries, objects;
     let programCache, materials, renderLists, renderStates, clipping, shadowMap;
     let background, morphtargets, bufferRenderer, indexedBufferRenderer;
     let utils, bindingStates;
@@ -15000,14 +15000,14 @@
       _currentDrawBuffers[0] = 1029;
       info = new WebGLInfo(_gl);
       properties = new WebGLProperties();
-      textures = new WebGLTextures(_gl, extensions, state, properties, capabilities, utils, info);
+      textures2 = new WebGLTextures(_gl, extensions, state, properties, capabilities, utils, info);
       cubemaps = new WebGLCubeMaps(_this);
       cubeuvmaps = new WebGLCubeUVMaps(_this);
       attributes = new WebGLAttributes(_gl, capabilities);
       bindingStates = new WebGLBindingStates(_gl, extensions, attributes, capabilities);
       geometries = new WebGLGeometries(_gl, attributes, info, bindingStates);
       objects = new WebGLObjects(_gl, geometries, attributes, info);
-      morphtargets = new WebGLMorphtargets(_gl, capabilities, textures);
+      morphtargets = new WebGLMorphtargets(_gl, capabilities, textures2);
       clipping = new WebGLClipping(properties);
       programCache = new WebGLPrograms(_this, cubemaps, cubeuvmaps, extensions, capabilities, bindingStates, clipping);
       materials = new WebGLMaterials(properties);
@@ -15426,8 +15426,8 @@
         renderScene(currentRenderList, scene, camera);
       }
       if (_currentRenderTarget !== null) {
-        textures.updateMultisampleRenderTarget(_currentRenderTarget);
-        textures.updateRenderTargetMipmap(_currentRenderTarget);
+        textures2.updateMultisampleRenderTarget(_currentRenderTarget);
+        textures2.updateRenderTargetMipmap(_currentRenderTarget);
       }
       if (scene.isScene === true)
         scene.onAfterRender(_this, scene, camera);
@@ -15551,8 +15551,8 @@
       _this.toneMapping = NoToneMapping;
       renderObjects(opaqueObjects, scene, camera);
       _this.toneMapping = currentToneMapping;
-      textures.updateMultisampleRenderTarget(_transmissionRenderTarget);
-      textures.updateRenderTargetMipmap(_transmissionRenderTarget);
+      textures2.updateMultisampleRenderTarget(_transmissionRenderTarget);
+      textures2.updateRenderTargetMipmap(_transmissionRenderTarget);
       _this.setRenderTarget(currentRenderTarget);
     }
     function renderObjects(renderList, scene, camera) {
@@ -15674,7 +15674,7 @@
     function setProgram(camera, scene, geometry, material, object) {
       if (scene.isScene !== true)
         scene = _emptyScene;
-      textures.resetTextureUnits();
+      textures2.resetTextureUnits();
       const fog = scene.fog;
       const environment = material.isMeshStandardMaterial ? scene.environment : null;
       const encoding = _currentRenderTarget === null ? _this.outputEncoding : _currentRenderTarget.texture.encoding;
@@ -15775,7 +15775,7 @@
           if (capabilities.floatVertexTextures) {
             if (skeleton.boneTexture === null)
               skeleton.computeBoneTexture();
-            p_uniforms.setValue(_gl, "boneTexture", skeleton.boneTexture, textures);
+            p_uniforms.setValue(_gl, "boneTexture", skeleton.boneTexture, textures2);
             p_uniforms.setValue(_gl, "boneTextureSize", skeleton.boneTextureSize);
           } else {
             p_uniforms.setOptional(_gl, skeleton, "boneMatrices");
@@ -15798,10 +15798,10 @@
           materials.refreshFogUniforms(m_uniforms, fog);
         }
         materials.refreshMaterialUniforms(m_uniforms, material, _pixelRatio, _height, _transmissionRenderTarget);
-        WebGLUniforms.upload(_gl, materialProperties.uniformsList, m_uniforms, textures);
+        WebGLUniforms.upload(_gl, materialProperties.uniformsList, m_uniforms, textures2);
       }
       if (material.isShaderMaterial && material.uniformsNeedUpdate === true) {
-        WebGLUniforms.upload(_gl, materialProperties.uniformsList, m_uniforms, textures);
+        WebGLUniforms.upload(_gl, materialProperties.uniformsList, m_uniforms, textures2);
         material.uniformsNeedUpdate = false;
       }
       if (material.isSpriteMaterial) {
@@ -15841,7 +15841,7 @@
       _currentActiveCubeFace = activeCubeFace;
       _currentActiveMipmapLevel = activeMipmapLevel;
       if (renderTarget && properties.get(renderTarget).__webglFramebuffer === void 0) {
-        textures.setupRenderTarget(renderTarget);
+        textures2.setupRenderTarget(renderTarget);
       }
       let framebuffer = null;
       let isCube = false;
@@ -15873,12 +15873,12 @@
         let needsUpdate = false;
         if (renderTarget) {
           if (renderTarget.isWebGLMultipleRenderTargets) {
-            const textures2 = renderTarget.texture;
-            if (_currentDrawBuffers.length !== textures2.length || _currentDrawBuffers[0] !== 36064) {
-              for (let i = 0, il = textures2.length; i < il; i++) {
+            const textures3 = renderTarget.texture;
+            if (_currentDrawBuffers.length !== textures3.length || _currentDrawBuffers[0] !== 36064) {
+              for (let i = 0, il = textures3.length; i < il; i++) {
                 _currentDrawBuffers[i] = 36064 + i;
               }
-              _currentDrawBuffers.length = textures2.length;
+              _currentDrawBuffers.length = textures3.length;
               needsUpdate = true;
             }
           } else {
@@ -15964,7 +15964,7 @@
         if (glFormat === 6408)
           glFormat = 32856;
       }
-      textures.setTexture2D(texture, 0);
+      textures2.setTexture2D(texture, 0);
       _gl.copyTexImage2D(3553, level, glFormat, position.x, position.y, width, height, 0);
       state.unbindTexture();
     };
@@ -15973,7 +15973,7 @@
       const height = srcTexture.image.height;
       const glFormat = utils.convert(dstTexture.format);
       const glType = utils.convert(dstTexture.type);
-      textures.setTexture2D(dstTexture, 0);
+      textures2.setTexture2D(dstTexture, 0);
       _gl.pixelStorei(37440, dstTexture.flipY);
       _gl.pixelStorei(37441, dstTexture.premultiplyAlpha);
       _gl.pixelStorei(3317, dstTexture.unpackAlignment);
@@ -16002,10 +16002,10 @@
       const glType = utils.convert(dstTexture.type);
       let glTarget;
       if (dstTexture.isDataTexture3D) {
-        textures.setTexture3D(dstTexture, 0);
+        textures2.setTexture3D(dstTexture, 0);
         glTarget = 32879;
       } else if (dstTexture.isDataTexture2DArray) {
-        textures.setTexture2DArray(dstTexture, 0);
+        textures2.setTexture2DArray(dstTexture, 0);
         glTarget = 35866;
       } else {
         console.warn("THREE.WebGLRenderer.copyTextureToTexture3D: only supports THREE.DataTexture3D and THREE.DataTexture2DArray.");
@@ -16045,7 +16045,7 @@
       state.unbindTexture();
     };
     this.initTexture = function(texture) {
-      textures.setTexture2D(texture, 0);
+      textures2.setTexture2D(texture, 0);
       state.unbindTexture();
     };
     this.resetState = function() {
@@ -24350,6 +24350,10 @@
   function randomFrom(l, r) {
     return Math.random() * (r - l) + l;
   }
+  function randomChoice(array) {
+    const id = Math.min(array.length - 1, Math.ceil(randomFrom(0, array.length)));
+    return array[id];
+  }
 
   // src/world/deformation.ts
   function findDeformationAngleTime(deformation, time, target) {
@@ -24593,7 +24597,7 @@
       controlPoints.push({ first: c1, second: c2 });
       const a1 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].out, time));
       const a2 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].in, time));
-      const current = Math.max(0.3, 1 - Math.pow(Math.abs(a1 - a2), 1));
+      const current = 0.1 + 0.9 * Math.exp(-Math.pow(Math.abs(a1 - a2), 2));
       pivots.push(current);
     }
     thickness.push(pivots[0]);
@@ -24652,19 +24656,42 @@
   var cell_vertex_default = "attribute float thickness;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
 
   // src/shaders/organell-vertex.shader
-  var organell_vertex_default = "attribute float thickness;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\nvoid main() {\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
+  var organell_vertex_default = "attribute float thickness;\r\n\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\nvarying vec2 v_uv;\r\n\r\nvoid main() {\r\n    v_uv = uv;\r\n    vec4 worldPosition = modelMatrix * vec4(position, 1.0);\r\n    v_thickness = thickness;\r\n    if (length(position) > 0.1) {\r\n        v_distance = 1.0;\r\n    } else {\r\n        v_distance = 0.0;\r\n    }\r\n    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}\r\n";
 
   // src/shaders/organell-fragment.shader
-  var organell_fragment_default = "uniform vec3 u_color;\r\nuniform float u_start;\r\nuniform float u_glow;\r\n\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    vec3 color = vec3(u_color);\r\n    color[2] += 0.5 * (1.0 - color[2]) * u_glow * smoothstep(1.0, 0.0, v_distance);\r\n    color[0] *= 1.0 - u_glow;\r\n    if (v_distance >= u_start) {\r\n        color[2] *= smoothstep(1.5, 0.0, (v_distance - u_start) / (1.0 - u_start));\r\n        gl_FragColor = vec4(hsl2rgb(color), 1);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(color), 1);\r\n    }\r\n}\r\n";
+  var organell_fragment_default = "uniform vec3 u_color;\r\nuniform float u_start;\r\nuniform float u_glow;\r\nuniform sampler2D u_texture;\r\n\r\nvarying vec2 v_uv;\r\nvarying float v_distance;\r\nvarying float v_thickness;\r\n\r\n#define PI 3.1415\r\n\r\nfloat hue2rgb(float f1, float f2, float hue) {\r\n    if (hue < 0.0)\r\n        hue += 1.0;\r\n    else if (hue > 1.0)\r\n        hue -= 1.0;\r\n    float res;\r\n    if ((6.0 * hue) < 1.0)\r\n        res = f1 + (f2 - f1) * 6.0 * hue;\r\n    else if ((2.0 * hue) < 1.0)\r\n        res = f2;\r\n    else if ((3.0 * hue) < 2.0)\r\n        res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\r\n    else\r\n        res = f1;\r\n    return res;\r\n}\r\n\r\nvec3 hsl2rgb(vec3 hsl) {\r\n    vec3 rgb;\r\n\r\n    if (hsl.y == 0.0) {\r\n        rgb = vec3(hsl.z); // Luminance\r\n    } else {\r\n        float f2;\r\n\r\n        if (hsl.z < 0.5)\r\n        f2 = hsl.z * (1.0 + hsl.y);\r\n        else\r\n        f2 = hsl.z + hsl.y - hsl.y * hsl.z;\r\n\r\n        float f1 = 2.0 * hsl.z - f2;\r\n\r\n        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));\r\n        rgb.g = hue2rgb(f1, f2, hsl.x);\r\n        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));\r\n    }\r\n    return rgb;\r\n}\r\n\r\nvoid main() {\r\n    float b = texture(u_texture, v_uv)[0];\r\n    vec3 color = vec3(u_color);\r\n    color[2] *= b;\r\n    color[2] += 0.5 * (1.0 - color[2]) * u_glow * smoothstep(1.0, 0.0, v_distance);\r\n    color[0] *= 1.0 - u_glow;\r\n    if (v_distance >= u_start) {\r\n        color[2] *= smoothstep(1.5, 0.0, (v_distance - u_start) / (1.0 - u_start));\r\n        gl_FragColor = vec4(hsl2rgb(color), 1);\r\n    } else {\r\n        gl_FragColor = vec4(hsl2rgb(color), 1);\r\n    }\r\n}\r\n";
 
   // src/world/organell.ts
+  var textures = [
+    new TextureLoader().load("src/assets/org-texture-01.png"),
+    new TextureLoader().load("src/assets/org-texture-02.png"),
+    new TextureLoader().load("src/assets/org-texture-03.png"),
+    new TextureLoader().load("src/assets/org-texture-04.png"),
+    new TextureLoader().load("src/assets/org-texture-05.png"),
+    new TextureLoader().load("src/assets/org-texture-06.png")
+  ];
   function createAliveOrganell(membraneConfig) {
     const { geometry, tick: membraneTick } = createAliveMembrane(membraneConfig);
+    geometry.computeBoundingBox();
+    const bbox = geometry.boundingBox;
+    if (bbox != null) {
+      bbox.expandByScalar(10);
+      const uv = [];
+      const dimensions = new Vector3();
+      bbox.getSize(dimensions);
+      for (let i = 0; i < geometry.attributes.position.count; i++) {
+        const current = new Vector3(geometry.attributes.position.array[3 * i], geometry.attributes.position.array[3 * i + 1], geometry.attributes.position.array[3 * i + 2]);
+        current.sub(bbox.min);
+        uv.push(current.x / dimensions.x, current.y / dimensions.y);
+      }
+      geometry.setAttribute("uv", new BufferAttribute(new Float32Array(uv), 2));
+    }
     const organellColor = new Color(membraneConfig.color);
     const organellColorHsl = { h: 0, s: 0, l: 0 };
     organellColor.getHSL(organellColorHsl);
     const material = new ShaderMaterial({
       uniforms: {
+        u_texture: new Uniform(randomChoice(textures)),
         u_color: new Uniform(new Vector3(organellColorHsl.h, organellColorHsl.s, organellColorHsl.l)),
         u_start: new Uniform(0.9),
         u_glow: new Uniform(0)
@@ -24674,12 +24701,15 @@
       transparent: true
     });
     const organell = new Mesh(geometry, material);
+    const position = new Vector2(randomFrom(-50, 50), randomFrom(-50, 50));
+    organell.position.set(position.x, position.y, 0);
     organell.renderOrder = 0;
     let startGlow = 0;
     let finishGlow = 0;
     let lastTime = 0;
     return {
       object: organell,
+      position,
       tick: (time) => {
         lastTime = time;
         if (startGlow < time && time < finishGlow) {
@@ -24729,6 +24759,7 @@
     let lastTime = 0;
     return {
       object: curve,
+      organell,
       tick: (time) => {
         lastTime = time;
         for (let i = 0; i < trees.length; i++) {
@@ -24833,8 +24864,9 @@
                 a = (a + 1) % store.get().soup.rows;
                 b = (b + 1) % store.get().soup.cols;
               }
-              const center = new Vector2(store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance, (b - store.get().soup.cols / 2) * store.get().soup.yDistance);
-              points.push(new Vector2(randomFrom(0, 50), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)).add(center).sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y)));
+              const attack = targets[a * store.get().soup.cols + b];
+              const center = new Vector2(attack.object.position.x, attack.object.position.y).add(attack.organell.position);
+              points.push(new Vector2(randomFrom(0, 10), 0).rotateAround(zero2, randomFrom(0, Math.PI * 2)).add(center).sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y)));
               cells.push(targets[a * store.get().soup.cols + b]);
             }
             if (points.length > 0) {

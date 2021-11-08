@@ -1,7 +1,9 @@
 uniform vec3 u_color;
 uniform float u_start;
 uniform float u_glow;
+uniform sampler2D u_texture;
 
+varying vec2 v_uv;
 varying float v_distance;
 varying float v_thickness;
 
@@ -47,7 +49,9 @@ vec3 hsl2rgb(vec3 hsl) {
 }
 
 void main() {
+    float b = texture(u_texture, v_uv)[0];
     vec3 color = vec3(u_color);
+    color[2] *= b;
     color[2] += 0.5 * (1.0 - color[2]) * u_glow * smoothstep(1.0, 0.0, v_distance);
     color[0] *= 1.0 - u_glow;
     if (v_distance >= u_start) {

@@ -264,12 +264,10 @@ export function createScene(dynamic: WorldConfiguration) {
                             a = (a + 1) % store.get().soup.rows;
                             b = (b + 1) % store.get().soup.cols;
                         }
-                        const center = new Vector2(
-                            store.get().cell.membrane.radius + (a - store.get().soup.rows / 2) * store.get().soup.xDistance,
-                            (b - store.get().soup.cols / 2) * store.get().soup.yDistance
-                        );
+                        const attack = targets[a * store.get().soup.cols + b];
+                        const center = new Vector2(attack.object.position.x, attack.object.position.y).add(attack.organell.position);
                         points.push(
-                            new Vector2(randomFrom(0, 50), 0)
+                            new Vector2(randomFrom(0, 10), 0)
                                 .rotateAround(zero2, randomFrom(0, Math.PI * 2))
                                 .add(center)
                                 .sub(new Vector2(targets[i].object.position.x, targets[i].object.position.y))
