@@ -53,9 +53,10 @@ function generateAliveMembrane({ segments, radius, delta, skewLimit }: Unwrap<Me
         }
         const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(anchors[i]);
         const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(anchors[i]);
+        const next = anchors[i].distanceTo(anchors[(i + 1) % segments]);
         deformations.push({
             angle: sign * angle,
-            length: Math.min(outer, inner, directions[i].length() / 2),
+            length: next / 3,
         });
         sign = -sign;
     }
@@ -77,7 +78,7 @@ function generateAliveMembrane({ segments, radius, delta, skewLimit }: Unwrap<Me
     };
 }
 
-function calculateMembranePoints(membrane: Membrane, detalization: number, time: number) {
+function calculateMembranePoints(membrane: Membrane, detalization: number, time: number, spline: boolean) {
     const n = membrane.anchors.length;
     const controlPoints = [];
     const pivots = [];
@@ -97,18 +98,33 @@ function calculateMembranePoints(membrane: Membrane, detalization: number, time:
         const current = 0.1 + 0.9 * Math.exp(-Math.pow(Math.abs(a1 - a2), 5));
         pivots.push(current);
     }
-    thickness.push(pivots[0]);
-    for (let i = 0; i < n; i++) {
-        for (let s = 0; s < detalization; s++) {
-            const alpha = (s + 1) / detalization;
-            thickness.push((1 - alpha) * pivots[i] + alpha * pivots[(i + 1) % n]);
-        }
-    }
 
     const path = new Path();
     path.moveTo(membrane.anchors[0].x, membrane.anchors[0].y);
+    let pathDetalization = detalization;
+    if (spline) {
+        pathDetalization = 4 * detalization;
+        for (let i = 0; i < n; i++) {
+            path.splineThru([controlPoints[i].first, controlPoints[i].second, membrane.anchors[(i + 1) % n]]);
+        }
+    } else {
+        for (let i = 0; i < n; i++) {
+            path.bezierCurveTo(
+                controlPoints[i].first.x,
+                controlPoints[i].first.y,
+                controlPoints[i].second.x,
+                controlPoints[i].second.y,
+                membrane.anchors[(i + 1) % n].x,
+                membrane.anchors[(i + 1) % n].y
+            );
+        }
+    }
+    thickness.push(pivots[0]);
     for (let i = 0; i < n; i++) {
-        path.bezierCurveTo(controlPoints[i].first.x, controlPoints[i].first.y, controlPoints[i].second.x, controlPoints[i].second.y, membrane.anchors[(i + 1) % n].x, membrane.anchors[(i + 1) % n].y);
+        for (let s = 0; s < pathDetalization; s++) {
+            const alpha = (s + 1) / pathDetalization;
+            thickness.push((1 - alpha) * pivots[i] + alpha * pivots[(i + 1) % n]);
+        }
     }
     return { points: path.getPoints(detalization), thickness: new Float32Array([1, ...thickness]) };
 }

@@ -16,6 +16,7 @@ export interface FlagellumConfiguration {
 }
 
 export interface MembraneConfiguration {
+    spline: Store<boolean>;
     segments: Store<number>;
     frequency: Store<number>;
     radius: Store<number>;

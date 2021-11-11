@@ -1,9 +1,9 @@
 import { createAliveMembrane } from "./membrane";
 import { MembraneConfiguration, Unwrap } from "../configuration";
-import { Color, Mesh, ShaderMaterial, Uniform, Vector3, TextureLoader, BufferAttribute, Vector2 } from "three";
+import { Color, Mesh, ShaderMaterial, Uniform, Vector3, TextureLoader, BufferAttribute, Vector2, MeshBasicMaterial } from "three";
 import OrganellVertexShader from "../shaders/organell-vertex.shader";
 import OrganellFragmentShader from "../shaders/organell-fragment.shader";
-import {interpolate, randomChoice, randomFrom} from "../utils/math";
+import { interpolate, randomChoice, randomFrom } from "../utils/math";
 import { zero3 } from "../utils/geometry";
 
 const loader = new TextureLoader();
@@ -13,7 +13,7 @@ const textures = [
     loader.load("assets/org-texture-03.png"),
     loader.load("assets/org-texture-04.png"),
     loader.load("assets/org-texture-05.png"),
-    loader.load("assets/org-texture-06.png")
+    loader.load("assets/org-texture-06.png"),
 ];
 const checker = loader.load("src/assets/checker-texture.jpg");
 export function createAliveOrganell(membraneConfig: Unwrap<MembraneConfiguration>) {
@@ -49,6 +49,7 @@ export function createAliveOrganell(membraneConfig: Unwrap<MembraneConfiguration
         fragmentShader: OrganellFragmentShader,
         transparent: true,
     });
+    // const material = new MeshBasicMaterial({ color: "red" });
 
     const organell = new Mesh(geometry, material);
     const position = new Vector2(randomFrom(-50, 50), randomFrom(-50, 50));
@@ -65,11 +66,11 @@ export function createAliveOrganell(membraneConfig: Unwrap<MembraneConfiguration
             if (startGlow < time && time < finishGlow) {
                 const d = time - startGlow;
                 const delta = finishGlow - startGlow;
-                if (d < delta / 4) {
-                    material.uniforms.u_glow.value = d / (delta / 4);
-                } else {
-                    material.uniforms.u_glow.value = 1 - (d - delta / 4) / ((3 * delta) / 4);
-                }
+                // if (d < delta / 4) {
+                //     material.uniforms.u_glow.value = d / (delta / 4);
+                // } else {
+                //     material.uniforms.u_glow.value = 1 - (d - delta / 4) / ((3 * delta) / 4);
+                // }
             } else if (time > finishGlow) {
                 startGlow = finishGlow = 0;
             }

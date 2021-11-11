@@ -1,4 +1,4 @@
-import { Color, Mesh, ShaderMaterial, Uniform, Vector2, Vector3 } from "three";
+import { Color, LineSegments, Mesh, MeshBasicMaterial, ShaderMaterial, Uniform, Vector2, Vector3, WireframeGeometry } from "three";
 import { CellConfiguration, FlagellumConfiguration, Unwrap } from "../configuration";
 import { findDeformationAngleTime } from "./deformation";
 import { createFlagellum } from "./flagellum";

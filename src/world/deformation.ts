@@ -12,7 +12,11 @@ export function findDeformationAngleTime(deformation: Deformation, time: number,
 }
 
 export function calculateDeformationAngle(deformation: Deformation, time: number) {
-    return interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
+    const angle = interpolate(-deformation.angle, deformation.angle, time, Math.pow(deformation.length, 1 / 2));
+    const normalizator = Math.sign(angle) * Math.abs(deformation.angle);
+    const value = angle / normalizator;
+    return angle;
+    return Math.min(1, Math.max(0, value)) * normalizator;
 }
 
 export function calculateDeformation(anchor: Vector2, direction: Vector2, deformation: Deformation, time: number) {
