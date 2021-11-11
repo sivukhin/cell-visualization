@@ -1,8 +1,9 @@
 import { getRegularPolygon, inSector, tryIntersectLineCircle, zero2 } from "../utils/geometry";
-import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Path, Vector2 } from "three";
+import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Path, Vector2 } from "three";
 import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
-import { calculateDeformation, calculateDeformationAngle, Deformation, findDeformationAngleTime } from "./deformation";
+import { calculateDeformation, calculateDeformationAngle, Deformation } from "./deformation";
+import { randomFrom } from "../utils/math";
 
 interface DeformationLock {
     start: number;
@@ -14,12 +15,21 @@ interface VertexLock {
     in?: DeformationLock;
 }
 
-interface Membrane {
+interface Sector {
+    point: Vector2;
+    id: number;
+}
+
+interface MembraneSkeleton {
     anchors: Vector2[];
     directions: Vector2[];
     deformations: Deformation[];
     locks: VertexLock[];
-    getSector(p: Vector2): { point: Vector2; id: number };
+    getSector(p: Vector2): Sector;
+}
+
+interface Membrane {
+    radius: number;
 }
 
 function calculateLockedTime(lock: DeformationLock | undefined, time: number): number {
@@ -29,7 +39,7 @@ function calculateLockedTime(lock: DeformationLock | undefined, time: number): n
     return time;
 }
 
-function generateAliveMembrane({ segments, radius, delta, skewLimit }: Unwrap<MembraneConfiguration>): Membrane {
+function generateAliveMembrane({ radius }: Membrane, { segments, wobbling, skew }: Unwrap<MembraneConfiguration>): MembraneSkeleton {
     const skeleton = getRegularPolygon(segments, radius / Math.cos(Math.PI / segments));
     const directions: Vector2[] = [];
     const anchors: Vector2[] = [];
@@ -39,26 +49,20 @@ function generateAliveMembrane({ segments, radius, delta, skewLimit }: Unwrap<Me
         anchors.push(new Vector2().copy(skeleton[i]).addScaledVector(direction, 0.5));
     }
 
-    const deformations: Deformation[] = [];
-    const locks: VertexLock[] = [];
     let sign = 1;
+    const deformations: Deformation[] = [];
     for (let i = 0; i < segments; i++) {
-        locks.push({ in: undefined, out: undefined });
-
-        const angle = (1 + Math.random()) * skewLimit;
-        const intersectionOuter = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, -angle), zero2, radius + delta);
-        const intersectionInner = tryIntersectLineCircle(anchors[i], new Vector2().copy(directions[i]).rotateAround(zero2, angle), zero2, radius - delta);
-        if (intersectionOuter == null && intersectionInner == null) {
-            throw new Error("invalid operation");
-        }
-        const outer = intersectionOuter == null ? Infinity : intersectionOuter.distanceTo(anchors[i]);
-        const inner = intersectionInner == null ? Infinity : intersectionInner.distanceTo(anchors[i]);
-        const next = anchors[i].distanceTo(anchors[(i + 1) % segments]);
+        const angle = skew * randomFrom(0.5, 1);
         deformations.push({
             angle: sign * angle,
-            length: next / 3,
+            length: radius * wobbling,
         });
         sign = -sign;
+    }
+
+    const locks: VertexLock[] = [];
+    for (let i = 0; i < segments; i++) {
+        locks.push({ in: undefined, out: undefined });
     }
     return {
         anchors: anchors,
@@ -78,11 +82,9 @@ function generateAliveMembrane({ segments, radius, delta, skewLimit }: Unwrap<Me
     };
 }
 
-function calculateMembranePoints(membrane: Membrane, detalization: number, time: number, spline: boolean) {
+function calculateMembranePoints(membrane: MembraneSkeleton, config: Unwrap<MembraneConfiguration>, time: number) {
     const n = membrane.anchors.length;
     const controlPoints = [];
-    const pivots = [];
-    const thickness = [];
     for (let i = 0; i < n; i++) {
         const t1 = calculateLockedTime(membrane.locks[i].out, time);
         const direction1 = membrane.directions[i];
@@ -92,18 +94,13 @@ function calculateMembranePoints(membrane: Membrane, detalization: number, time:
         const direction2 = new Vector2().copy(membrane.directions[(i + 1) % n]).negate();
         const c2 = calculateDeformation(membrane.anchors[(i + 1) % n], direction2, membrane.deformations[(i + 1) % n], t2);
         controlPoints.push({ first: c1, second: c2 });
-
-        const a1 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].out, time));
-        const a2 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].in, time));
-        const current = 0.1 + 0.9 * Math.exp(-Math.pow(Math.abs(a1 - a2), 5));
-        pivots.push(current);
     }
 
     const path = new Path();
     path.moveTo(membrane.anchors[0].x, membrane.anchors[0].y);
-    let pathDetalization = detalization;
-    if (spline) {
-        pathDetalization = 4 * detalization;
+    let pathDetalization = config.detalization;
+    if (config.spline) {
+        pathDetalization = 4 * config.detalization;
         for (let i = 0; i < n; i++) {
             path.splineThru([controlPoints[i].first, controlPoints[i].second, membrane.anchors[(i + 1) % n]]);
         }
@@ -119,46 +116,49 @@ function calculateMembranePoints(membrane: Membrane, detalization: number, time:
             );
         }
     }
-    thickness.push(pivots[0]);
+
+    const pivots = [];
+    for (let i = 0; i < n; i++) {
+        const a1 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].out, time));
+        const a2 = calculateDeformationAngle(membrane.deformations[i], calculateLockedTime(membrane.locks[i].in, time));
+        const current = config.thorness + (1 - config.thorness) * Math.min(1, Math.pow(2, 5 * (a1 - a2) - 1));
+        pivots.push(current);
+    }
+    const thickness = [pivots[0]];
     for (let i = 0; i < n; i++) {
         for (let s = 0; s < pathDetalization; s++) {
             const alpha = (s + 1) / pathDetalization;
             thickness.push((1 - alpha) * pivots[i] + alpha * pivots[(i + 1) % n]);
         }
     }
-    return { points: path.getPoints(detalization), thickness: new Float32Array([1, ...thickness]) };
+    return { points: path.getPoints(config.detalization), thickness: thickness };
 }
 
-export function createAliveMembrane(membraneConfig: Unwrap<MembraneConfiguration>) {
-    const membrane = generateAliveMembrane(membraneConfig);
-    const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(membrane, membraneConfig.detalization, 0);
+export function createAliveMembrane(membrane: Membrane, config: Unwrap<MembraneConfiguration>) {
+    const skeleton = generateAliveMembrane(membrane, config);
+    const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(skeleton, config, 0);
     const n = initialPoints.length;
-    const positionAttribute = new BufferAttribute(getFlatComponents3D([new Vector2(0, 0), ...initialPoints]), 3);
+    const positionAttribute = new BufferAttribute(getFlatComponents3D([zero2, ...initialPoints]), 3);
     positionAttribute.setUsage(DynamicDrawUsage);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", positionAttribute);
-    const normals = [];
-    for (let i = 0; i < n + 1; i++) {
-        normals.push(...[0, 0, 1]);
-    }
-    geometry.setAttribute("normal", new BufferAttribute(new Float32Array(normals), 3));
-    const thicknessAttribute = new BufferAttribute(initialThickness, 1);
+    const thicknessAttribute = new BufferAttribute(new Float32Array([1, ...initialThickness]), 1);
     thicknessAttribute.setUsage(DynamicDrawUsage);
     geometry.setAttribute("thickness", thicknessAttribute);
     const index = [];
     for (let i = 0; i < n; i++) {
-        index.push(...[0, i + 1, ((i + 1) % n) + 1]);
+        index.push(0, i + 1, ((i + 1) % n) + 1);
     }
     geometry.setIndex(index);
     return {
         geometry: geometry,
-        membrane: membrane,
+        membrane: skeleton,
         tick: (time: number) => {
-            const t = time * membraneConfig.frequency;
-            const { points, thickness } = calculateMembranePoints(membrane, membraneConfig.detalization, t);
-            thicknessAttribute.set(thickness);
+            const t = time * config.frequency;
+            const { points, thickness } = calculateMembranePoints(skeleton, config, t);
+            thicknessAttribute.set(new Float32Array([1, ...thickness]));
             thicknessAttribute.needsUpdate = true;
-            positionAttribute.set(getFlatComponents3D([new Vector2(0, 0), ...points]));
+            positionAttribute.set(getFlatComponents3D([zero2, ...points]));
             positionAttribute.needsUpdate = true;
         },
     };

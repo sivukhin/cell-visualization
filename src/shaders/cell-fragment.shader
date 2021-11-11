@@ -1,5 +1,6 @@
 uniform vec3 u_color;
-uniform float start;
+uniform float u_start;
+
 varying float v_distance;
 varying float v_thickness;
 
@@ -45,7 +46,7 @@ vec3 hsl2rgb(vec3 hsl) {
 }
 
 void main() {
-    float current = start + (1.0 - start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));
+    float current = u_start + (1.0 - u_start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));
     if (v_distance >= current) {
         float m = 5.0 * PI / (1.0 - current);
         vec3 color = vec3(u_color);

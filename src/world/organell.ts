@@ -1,10 +1,15 @@
 import { createAliveMembrane } from "./membrane";
-import { MembraneConfiguration, Unwrap } from "../configuration";
-import { Color, Mesh, ShaderMaterial, Uniform, Vector3, TextureLoader, BufferAttribute, Vector2, MeshBasicMaterial } from "three";
+import { OrganellConfiguration, Unwrap } from "../configuration";
+import { BufferAttribute, Color, Mesh, ShaderMaterial, TextureLoader, Uniform, Vector3 } from "three";
+import { randomChoice, randomFrom } from "../utils/math";
+import { getHSLVector } from "../utils/draw";
+import { Element } from "./types";
+
+// @ts-ignore
 import OrganellVertexShader from "../shaders/organell-vertex.shader";
+// @ts-ignore
 import OrganellFragmentShader from "../shaders/organell-fragment.shader";
-import { interpolate, randomChoice, randomFrom } from "../utils/math";
-import { zero3 } from "../utils/geometry";
+import { lastTick } from "../utils/tick";
 
 const loader = new TextureLoader();
 const textures = [
@@ -15,9 +20,38 @@ const textures = [
     loader.load("assets/org-texture-05.png"),
     loader.load("assets/org-texture-06.png"),
 ];
-const checker = loader.load("src/assets/checker-texture.jpg");
-export function createAliveOrganell(membraneConfig: Unwrap<MembraneConfiguration>) {
-    const { geometry, tick: membraneTick } = createAliveMembrane(membraneConfig);
+
+export interface Organell {
+    color: Color;
+    radius: number;
+    angular: number;
+    visibility: number;
+}
+
+export interface OrganellElement extends Element {
+    glow(start: number, finish: number): void;
+    update(data: Organell): void;
+    kill(): void;
+}
+
+function createMaterial(color: Color, texture: any, visibility: number) {
+    return new ShaderMaterial({
+        uniforms: {
+            u_texture: new Uniform(randomChoice(textures)),
+            u_color: new Uniform(getHSLVector(color)),
+            u_start: new Uniform(0.9),
+            u_glow: new Uniform(0.0),
+            u_visibility: new Uniform(visibility),
+        },
+
+        vertexShader: OrganellVertexShader,
+        fragmentShader: OrganellFragmentShader,
+        transparent: true,
+    });
+}
+
+export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellConfiguration>): OrganellElement {
+    const { geometry, tick: membraneTick } = createAliveMembrane({ radius: organell.radius }, config.membrane);
 
     geometry.computeBoundingBox();
     const bbox = geometry.boundingBox;
@@ -34,47 +68,53 @@ export function createAliveOrganell(membraneConfig: Unwrap<MembraneConfiguration
         geometry.setAttribute("uv", new BufferAttribute(new Float32Array(uv), 2));
     }
 
-    const organellColor = new Color(membraneConfig.color);
-    const organellColorHsl = { h: 0, s: 0, l: 0 };
-    organellColor.getHSL(organellColorHsl);
-    const material = new ShaderMaterial({
-        uniforms: {
-            u_texture: new Uniform(randomChoice(textures)),
-            u_color: new Uniform(new Vector3(organellColorHsl.h, organellColorHsl.s, organellColorHsl.l)),
-            u_start: new Uniform(0.9),
-            u_glow: new Uniform(0.0),
-        },
+    const texture = randomChoice(textures);
+    const skeleton = new Mesh(geometry, createMaterial(organell.color, texture, organell.visibility));
+    skeleton.renderOrder = 0;
+    skeleton.rotateZ(randomFrom(0, Math.PI * 2));
 
-        vertexShader: OrganellVertexShader,
-        fragmentShader: OrganellFragmentShader,
-        transparent: true,
-    });
-    // const material = new MeshBasicMaterial({ color: "red" });
-
-    const organell = new Mesh(geometry, material);
-    const position = new Vector2(randomFrom(-50, 50), randomFrom(-50, 50));
-    organell.position.set(position.x, position.y, 0);
-    organell.renderOrder = 0;
-    let startGlow = 0;
-    let finishGlow = 0;
-    let lastTime = 0;
+    let [startGlow, finishGlow] = [0, 0];
+    let current = organell;
+    let nextTransition = 0;
+    let next: Organell | null = null;
     return {
-        object: organell,
-        position: position,
+        object: skeleton,
+        alive: () => true,
         tick: (time: number) => {
-            lastTime = time;
+            if (next != null && (current.visibility != next.visibility || !current.color.equals(next.color))) {
+                const alpha = 1 - Math.max(0, (nextTransition - time) / config.transitionDuration);
+                const color = new Color(
+                    current.color.r * (1 - alpha) + next.color.r * alpha,
+                    current.color.g * (1 - alpha) + next.color.g * alpha,
+                    current.color.b * (1 - alpha) + next.color.b * alpha
+                );
+                skeleton.material.uniforms.u_visibility.value = current.visibility * (1 - alpha) + next.visibility * alpha;
+                skeleton.material.uniforms.u_color.value = getHSLVector(color);
+                skeleton.material.needsUpdate = true;
+                if (alpha == 1) {
+                    next = null;
+                }
+            }
             if (startGlow < time && time < finishGlow) {
                 const d = time - startGlow;
                 const delta = finishGlow - startGlow;
-                // if (d < delta / 4) {
-                //     material.uniforms.u_glow.value = d / (delta / 4);
-                // } else {
-                //     material.uniforms.u_glow.value = 1 - (d - delta / 4) / ((3 * delta) / 4);
-                // }
+                if (d < delta / 4) {
+                    skeleton.material.uniforms.u_glow.value = d / (delta / 4);
+                } else {
+                    skeleton.material.uniforms.u_glow.value = 1 - (d - delta / 4) / ((3 * delta) / 4);
+                }
             } else if (time > finishGlow) {
                 startGlow = finishGlow = 0;
             }
             membraneTick(time);
+            skeleton.rotateZ(organell.angular);
+        },
+        update(data: Organell) {
+            next = data;
+            nextTransition = lastTick() + config.transitionDuration;
+        },
+        kill() {
+            next = { ...current, visibility: 0 };
         },
         glow: (start: number, finish: number) => {
             if (startGlow != 0) {

@@ -1,131 +1,10 @@
-import {
-    AdditiveBlending,
-    BackSide,
-    BufferAttribute,
-    BufferGeometry,
-    Color,
-    DynamicDrawUsage,
-    Float32BufferAttribute,
-    Line,
-    LineBasicMaterial,
-    Mesh,
-    MeshBasicMaterial,
-    MeshPhongMaterial,
-    Object3D,
-    Path,
-    PlaneGeometry,
-    Scene,
-    ShaderMaterial,
-    Uniform,
-    Vector2,
-    Vector3,
-} from "three";
-import { createLight } from "./light";
+import { Scene } from "three";
 import { createCamera } from "./camera";
-import { CellConfiguration, createConfigurationStore, SoupConfiguration, WorldConfiguration } from "../configuration";
+import { createConfigurationStore, WorldConfiguration } from "../configuration";
 import { createEnvironment } from "./environment";
-import { generateCircles, getRegularPolygon, tryIntersectLineCircle, zero2 } from "../utils/geometry";
-import { interpolate, randomFrom, randomVector } from "../utils/math";
-import { computed, Store } from "nanostores";
-import { createAliveCell, createAliveMembrane } from "./cell";
-import { createFlagellum } from "./flagellum";
-import { createFlagellumTree } from "./flagellum-tree";
-import { getFlatComponents3D } from "../utils/draw";
-
-import GlowVertexShader from "../shaders/cell-vertex.shader";
-import GlowFragmentShader from "../shaders/cell-fragment.shader";
-
-// function createAliveCell(n: number, r: number, organellsCount: number, organellsRadius: number) {
-//     const root = new Object3D();
-//     const membrane = createAliveMembrane(n, r, 0.3 * r);
-//     const organells = [];
-//     const circles = generateCircles(organellsCount, (membrane.minR + membrane.maxR) / 2, organellsRadius);
-//     for (let i = 0; i < organellsCount; i++) {
-//         const or = circles[i].radius;
-//         const current = createAliveMembrane(Math.floor((1 + Math.random()) * 3), or, 0.3 * or);
-//         current.object.position.set(circles[i].center.x, circles[i].center.y, 0);
-//         organells.push(current);
-//         membrane.object.add(current.object);
-//     }
-//     root.add(membrane.object);
-//     return {
-//         r: r + 0.1 * r,
-//         object: root,
-//         tick: (time: number) => {
-//             membrane.tick(time);
-//             for (let i = 0; i < organells.length; i++) {
-//                 organells[i].tick(time);
-//             }
-//         },
-//     };
-// }
-//
-// function generateCells(soupConfiguration: SoupConfiguration, cellConfiguration: CellConfiguration): Store<any> {
-//     return computed([soupConfiguration.count, cellConfiguration.radiusLimit, cellConfiguration.organells.count, cellConfiguration.membrane.segments], (n, r, organells, segments) => {
-//         const cells = [];
-//         const angular = [];
-//         const velocities = [];
-//         const circles = generateCircles(n, Math.min(soupConfiguration.width, soupConfiguration.height) / 2, r);
-//         for (let i = 0; i < n; i++) {
-//             const cell = createAliveCell(segments, circles[i].radius, organells);
-//             cell.object.position.set(circles[i].center.x, circles[i].center.y, 0);
-//             cells.push(cell);
-//             velocities.push(randomVector(0.5));
-//             angular.push(0);
-//         }
-//         return [cells, angular, velocities];
-//     });
-// }
-//
-// function createCells(soupConfiguration: SoupConfiguration, cellConfiguration: CellConfiguration) {
-//     const root = new Object3D();
-//     const data = generateCells(soupConfiguration, cellConfiguration);
-//     data.subscribe(([cells, angular, velocities]) => {
-//         root.clear();
-//         for (let i = 0; i < cells.length; i++) {
-//             root.add(cells[i].object);
-//         }
-//     });
-//     return {
-//         object: root,
-//         tick: (time: number) => {
-//             const [cells, angular, velocities] = data.get();
-//             const n = cells.length;
-//             for (let i = 0; i < n; i++) {
-//                 velocities[i].rotateAround(zero2, angular[i]);
-//                 angular[i] += (0.5 - Math.random()) * 0.1;
-//                 angular[i] = Math.min(-0.01, Math.max(0.01, angular[i]));
-//             }
-//             for (let i = 0; i < n; i++) {
-//                 cells[i].tick(time);
-//                 cells[i].object.translateX(velocities[i].x);
-//                 cells[i].object.translateY(velocities[i].y);
-//                 if (cells[i].object.position.x - cells[i].r < -100) {
-//                     velocities[i].x = Math.abs(velocities[i].x);
-//                 }
-//                 if (cells[i].object.position.x + cells[i].r > 100) {
-//                     velocities[i].x = -Math.abs(velocities[i].x);
-//                 }
-//                 if (cells[i].object.position.y - cells[i].r < -100) {
-//                     velocities[i].y = Math.abs(velocities[i].y);
-//                 }
-//                 if (cells[i].object.position.y + cells[i].r > 100) {
-//                     velocities[i].y = -Math.abs(velocities[i].y);
-//                 }
-//             }
-//             for (let i = 0; i < n; i++) {
-//                 for (let s = i + 1; s < n; s++) {
-//                     if (cells[i].r + cells[s].r < cells[i].object.position.distanceTo(cells[s].object.position)) {
-//                         continue;
-//                     }
-//                     const tmp = velocities[i];
-//                     velocities[i] = velocities[s];
-//                     velocities[s] = tmp;
-//                 }
-//             }
-//         },
-//     };
-// }
+import { createWorld, WorldElement } from "./world";
+import { setLastTick } from "../utils/tick";
+import { randomFrom } from "../utils/math";
 
 export function createScene(dynamic: WorldConfiguration) {
     const scene = new Scene();
@@ -134,28 +13,19 @@ export function createScene(dynamic: WorldConfiguration) {
     scene.add(camera);
     let targets = [];
     let target = null;
-    let lastTime = 0;
+    let world: WorldElement | null = null;
 
+    let id = 0;
     store.subscribe((configuration) => {
+        id = 0;
         scene.clear();
-        targets = [];
-
         const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
         scene.add(environment);
-        // const light = createLight(0, 0, 100, configuration.light);
-        // scene.add(light);
-        // const cell = createCells(configuration.soup, configuration.cell);
-        // scene.add(cell.object);
-        // target = createFlagellum({ target: new Vector2(100, 100), startIn: 0, finishIn: 1000, startOut: 2000, finishOut: 3000 }, configuration.flagellum);
-        // target = createFlagellumTree(
-        //     {
-        //         branchPoint: new Vector2(200, 0),
-        //         targets: [new Vector2(300, 100), new Vector2(300, -50)],
-        //         start: 1000,
-        //         finish: 5000,
-        //     },
-        //     configuration.flagellum
-        // );
+        world = createWorld(configuration);
+        scene.add(world.object);
+        /*
+        targets = [];
+
         for (let i = 0; i < configuration.soup.rows; i++) {
             for (let s = 0; s < configuration.soup.cols; s++) {
                 const target = createAliveCell(configuration.cell, configuration.flagellum);
@@ -168,80 +38,45 @@ export function createScene(dynamic: WorldConfiguration) {
                 targets.push(target);
             }
         }
-
-        // const geometry = new BufferGeometry();
-        // const polygon = getRegularPolygon(8, 200);
-        // const positions = new BufferAttribute(getComponents([new Vector2(0, 0), ...polygon]), 3);
-        // geometry.setAttribute("position", positions);
-        // const normalsComponents = [];
-        // for (let i = 0; i < polygon.length + 1; i++) {
-        //     normalsComponents.push(...[0, 0, 1]);
-        // }
-        // const normals = new BufferAttribute(new Float32Array(normalsComponents), 3);
-        // geometry.setAttribute("normal", normals);
-        // const index = [];
-        // for (let i = 0; i < polygon.length; i++) {
-        //     index.push(...[0, i + 1, ((i + 1) % polygon.length) + 1]);
-        // }
-        // geometry.setIndex(index);
-        // const cellColor = new Color(configuration.cell.membrane.color);
-        // const cellColorHsl = { h: 0, s: 0, l: 0 };
-        // cellColor.getHSL(cellColorHsl);
-        //
-        // const material = new ShaderMaterial({
-        //     uniforms: {
-        //         u_color: new Uniform(new Vector3(cellColorHsl.h, cellColorHsl.s, cellColorHsl.l)),
-        //         start: new Uniform(0.7),
-        //     },
-        //     vertexShader: GlowVertexShader,
-        //     fragmentShader: GlowFragmentShader,
-        //     transparent: true,
-        // });
-        // const mesh = new Mesh(geometry, material);
-        // scene.add(mesh);
+        */
     });
     let attacked = false;
     let refreshAt = 0;
+    let lastTime = 0;
     return {
         scene,
         camera,
         tick: (time: number) => {
+            setLastTick(time);
+            world.tick(time);
+            if (id < 8 && time > lastTime + randomFrom(100, 200)) {
+                lastTime = time;
+                for (let i = 0; i < store.get().soup.count; i++) {
+                    world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
+                }
+                id++;
+            }
+            if (id == 8 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
+                lastTime = time;
+                const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
+                while (true) {
+                    const targetCell = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
+                    if (targetCell === source) {
+                        continue;
+                    }
+                    const targetOrganell = Math.min(id - 1, Math.floor(randomFrom(0, id)));
+                    world.attack(source, { cell: targetCell, organell: targetOrganell });
+                    break;
+                }
+            }
+            /*
             lastTime = time;
-            // cell.tick(time);
             for (let i = 0; i < targets.length; i++) {
                 targets[i].tick(time);
             }
             if (target != null) {
                 target.tick(time);
             }
-            // if (target == null || time > refreshAt) {
-            //     scene.clear();
-            //     refreshAt = time + 2000;
-            //     target = createFlagellum(
-            //         {
-            //             startDirection: new Vector2(1, 0),
-            //             finishDirection: new Vector2(1, 0),
-            //             target: new Vector2(500, 0),
-            //             timings: {
-            //                 startIn: time,
-            //                 finishIn: time + 1000,
-            //                 startOut: time + 1500,
-            //                 finishOut: time + 2000,
-            //             },
-            //         },
-            //         {
-            //             segmentLength: store.get().flagellum.segmentLength,
-            //             amplitude: store.get().flagellum.amplitude,
-            //             skewLimit: store.get().flagellum.skewLimit,
-            //             color: store.get().flagellum.color,
-            //             minWobbling: store.get().flagellum.minWobbling,
-            //         }
-            //     );
-            //     scene.add(target.object);
-            // }
-            // if (target2 != null) {
-            //     target2.tick(time);
-            // }
             if (time % 10000 < 1000) {
                 attacked = false;
             }
@@ -252,12 +87,6 @@ export function createScene(dynamic: WorldConfiguration) {
                     const k = randomFrom(0, 1.1);
                     const cells = [];
                     for (let s = 0; s < k; s++) {
-                        // target.object.position.set(
-                        //     configuration.cell.membrane.radius + (i - configuration.soup.rows / 2) * configuration.soup.xDistance,
-                        //     (s - configuration.soup.cols / 2) * configuration.soup.yDistance,
-                        //     0
-                        // );
-
                         let a = Math.ceil(randomFrom(0, store.get().soup.rows)) % store.get().soup.rows;
                         let b = Math.ceil(randomFrom(0, store.get().soup.cols)) % store.get().soup.cols;
                         if (a == Math.ceil(target / store.get().soup.rows) && b == target % store.get().soup.cols) {
@@ -282,6 +111,7 @@ export function createScene(dynamic: WorldConfiguration) {
                     }
                 }
             }
+             */
         },
     };
 }

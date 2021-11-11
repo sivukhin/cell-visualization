@@ -13,7 +13,7 @@ interface Flagellum {
     length: number;
 }
 
-function generateFlagellum(target: Vector2, { segmentLength, amplitude, skewLimit }: Unwrap<FlagellumConfiguration>) {
+function generateFlagellum(target: Vector2, { segmentLength, amplitude, skew }: Unwrap<FlagellumConfiguration>) {
     const ratios = [];
     const distance = target.length();
     let remainder = distance;
@@ -48,7 +48,7 @@ function generateFlagellum(target: Vector2, { segmentLength, amplitude, skewLimi
         if (i > 0) {
             length += points[i].distanceTo(points[i - 1]);
         }
-        const angle = i == 0 ? 0 : randomFrom(skewLimit / 2, skewLimit) * sign;
+        const angle = i == 0 ? 0 : randomFrom(skew / 2, skew) * sign;
         sign = -sign;
         const next = i == 0 ? points[i + 1] : points[i - 1];
         const distance = points[i].distanceTo(next);
@@ -57,13 +57,7 @@ function generateFlagellum(target: Vector2, { segmentLength, amplitude, skewLimi
     return { points, length, deformations, jitters };
 }
 
-function calculateFlagellumPoints(
-    { points, length, deformations, jitters }: Flagellum,
-    startDirection: Vector2,
-    finishDirection: Vector2,
-    { minWobbling }: Unwrap<FlagellumConfiguration>,
-    time: number
-) {
+function calculateFlagellumPoints({ points, length, deformations, jitters }: Flagellum, startDirection: Vector2, finishDirection: Vector2, { wobbling }: Unwrap<FlagellumConfiguration>, time: number) {
     let k = time * length;
     const path = new Path();
     path.moveTo(points[0].x, points[0].y);
@@ -76,7 +70,7 @@ function calculateFlagellumPoints(
         let current = jittered[i].distanceTo(jittered[i - 1]);
         const direction1 = i == 1 ? startDirection : new Vector2().subVectors(jittered[i], jittered[i - 1]);
         const direction2 = i == jittered.length - 1 ? finishDirection : new Vector2().subVectors(jittered[i], jittered[i + 1]);
-        const lengthStretch = minWobbling + (1 - minWobbling) * Math.max(0, 1 - time);
+        const lengthStretch = wobbling + (1 - wobbling) * Math.max(0, 1 - time);
         const angleStretch1 = lengthStretch * Math.cos(Math.PI * time + i - 1);
         const angleStretch2 = lengthStretch * Math.cos(Math.PI * time + i);
         const d1 = modifyDeformation(deformations[i - 1], angleStretch1, lengthStretch);
@@ -112,10 +106,12 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
     geometry.setIndex(figure.indices);
 
     const curve = new Mesh(geometry, material);
+    let alive = true;
     return {
         object: curve,
-        finish: timings.finishOut,
+        alive: () => alive,
         tick: (time: number) => {
+            alive = time <= timings.finishOut;
             if (time > timings.finishOut) {
                 return;
             }

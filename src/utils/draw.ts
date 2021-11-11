@@ -1,4 +1,4 @@
-import { Vector2 } from "three";
+import { Color, ColorRepresentation, Vector2, Vector3 } from "three";
 import { zero2 } from "./geometry";
 
 export function getFlatComponents3D(points: Vector2[]): Float32Array {
@@ -58,3 +58,16 @@ export function createFigureFromPath(path: Vector2[], thickness: (d: number) => 
         indices,
     };
 }
+
+export function getHSL(repr: ColorRepresentation): { h: number; s: number; l: number } {
+    const color = new Color(repr);
+    const hsl = { h: 0, s: 0, l: 0 };
+    color.getHSL(hsl);
+    return hsl;
+}
+
+export function getHSLVector(repr: ColorRepresentation): Vector3 {
+    const hsl = getHSL(repr);
+    return new Vector3(hsl.h, hsl.s, hsl.l)
+}
+

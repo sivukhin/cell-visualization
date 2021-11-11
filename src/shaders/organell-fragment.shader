@@ -1,6 +1,7 @@
 uniform vec3 u_color;
 uniform float u_start;
 uniform float u_glow;
+uniform float u_visibility;
 uniform sampler2D u_texture;
 
 varying vec2 v_uv;
@@ -51,13 +52,13 @@ vec3 hsl2rgb(vec3 hsl) {
 void main() {
     float b = texture(u_texture, v_uv)[0];
     vec3 color = vec3(u_color);
-    color[2] *= b;
+    color[2] *= 1.0 - pow(((1.0 - b) / 2.0), 1.0);
     color[2] += 0.5 * (1.0 - color[2]) * u_glow * smoothstep(1.0, 0.0, v_distance);
     color[0] *= 1.0 - u_glow;
     if (v_distance >= u_start) {
         color[2] *= smoothstep(1.5, 0.0, (v_distance - u_start) / (1.0 - u_start));
-        gl_FragColor = vec4(hsl2rgb(color), 1);
+        gl_FragColor = vec4(hsl2rgb(color), u_visibility);
     } else {
-        gl_FragColor = vec4(hsl2rgb(color), 1);
+        gl_FragColor = vec4(hsl2rgb(color), u_visibility);
     }
 }

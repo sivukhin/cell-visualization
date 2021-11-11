@@ -10,8 +10,8 @@ export interface LightConfiguration {
 export interface FlagellumConfiguration {
     segmentLength: Store<number>;
     amplitude: Store<number>;
-    skewLimit: Store<number>;
-    minWobbling: Store<number>;
+    skew: Store<number>;
+    wobbling: Store<number>;
     color: Store<ColorRepresentation>;
 }
 
@@ -19,26 +19,33 @@ export interface MembraneConfiguration {
     spline: Store<boolean>;
     segments: Store<number>;
     frequency: Store<number>;
-    radius: Store<number>;
-    delta: Store<number>;
-    color: Store<ColorRepresentation>;
     detalization: Store<number>;
-    skewLimit: Store<number>;
+    skew: Store<number>;
+    thorness: Store<number>;
+    wobbling: Store<number>;
+}
+
+export interface OrganellConfiguration {
+    membrane: MembraneConfiguration;
+    transitionDuration: Store<number>;
+    colors: {
+        color0: Store<ColorRepresentation>;
+        color1: Store<ColorRepresentation>;
+        color2: Store<ColorRepresentation>;
+        color3: Store<ColorRepresentation>;
+        color4: Store<ColorRepresentation>;
+    };
 }
 
 export interface CellConfiguration {
+    color: Store<ColorRepresentation>;
+    glowing: Store<number>;
+    radius: Store<number>;
     membrane: MembraneConfiguration;
-    organell: MembraneConfiguration;
-    glowStart: Store<number>;
-    organellsCount: Store<number>;
-    radiusLimit: Store<number>;
+    organell: OrganellConfiguration;
 }
 
 export interface SoupConfiguration {
-    rows: Store<number>;
-    cols: Store<number>;
-    xDistance: Store<number>;
-    yDistance: Store<number>;
     count: Store<number>;
     width: number;
     height: number;
@@ -49,6 +56,7 @@ export interface WorldConfiguration {
     soup: SoupConfiguration;
     cell: CellConfiguration;
     flagellum: FlagellumConfiguration;
+    roundDuration: Store<number>;
 }
 
 export type Unwrap<T> = {
