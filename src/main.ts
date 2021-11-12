@@ -106,7 +106,7 @@ function createConfiguration(canvas): WorldConfiguration {
 
 function initialize() {
     const renderer = new WebGLRenderer({
-        canvas: document.getElementById("canvas"),
+        canvas: document.getElementById("microcosmos"),
         antialias: true,
         alpha: true,
     });

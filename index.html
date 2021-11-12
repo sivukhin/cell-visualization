@@ -1,23 +1,139 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
+        <meta charset="UTF-8" />
         <style>
+            @font-face {
+                font-family: "JetBrains Mono";
+                src: url(./assets/JetBrainsMono-Regular.ttf) format("truetype");
+            }
             body {
                 margin: 0;
                 padding: 0;
                 background: #fff;
             }
-            #canvas {
+            #microcosmos {
+                position: absolute;
                 display: block;
                 width: 100vw;
                 height: 100vh;
                 margin: 0;
                 padding: 0;
             }
+            #microscope {
+                color: white;
+                position: relative;
+                display: block;
+                width: 100vw;
+                height: 100vh;
+                margin: 0;
+                padding: 0;
+                font-family: "JetBrains Mono", monospace;
+            }
+            .bottom {
+                position: absolute;
+                bottom: 16px;
+            }
+            .right {
+                position: absolute;
+                right: 16px;
+            }
+            .left {
+                position: absolute;
+                left: 16px;
+            }
+            .top {
+                position: absolute;
+                top: 16px;
+            }
+            .block > * {
+                display: inline-block;
+            }
+            .block > *:not(:first-child) {
+                margin-left: 56px;
+            }
+            .left.ruler-container {
+                width: 160px;
+                height: 80vh;
+                top: 10vh;
+            }
+            .top.ruler-container {
+                height: 16px;
+                width: 80vw;
+                left: 10vw;
+            }
+            .ruler {
+                width: 100%;
+                height: 100%;
+            }
         </style>
     </head>
     <body>
-        <canvas id="canvas"></canvas>
+        <canvas id="microcosmos"></canvas>
+        <div id="microscope">
+            <div class="left ruler-container">
+                <canvas class="ruler"></canvas>
+            </div>
+            <div class="top ruler-container">
+                <canvas class="ruler"></canvas>
+            </div>
+            <div class="top left block">
+                <span>25 µm</span>
+            </div>
+            <div class="bottom left block">
+                <div>
+                    <div>CTF_NANO</div>
+                    <div>10.0[KV]</div>
+                </div>
+                <span>SP=8.0</span>
+                <span>WD=7.9</span>
+                <span>×10.0k</span>
+                <span>25[um]</span>
+                <span>HV</span>
+                <span>SEI</span>
+            </div>
+            <div class="bottom right block">
+                <span id="time"></span>
+                <span id="date"></span>
+            </div>
+        </div>
+        <script>
+            function pad(number) {
+                return number < 10 ? `0${number}` : `${number}`;
+            }
+            function updateTime() {
+                const now = new Date();
+                document.getElementById("date").textContent = `${pad(now.getUTCDay())}/${pad(now.getUTCMonth())}/${now.getUTCFullYear()}`;
+                document.getElementById("time").textContent = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`;
+            }
+            function drawRuler(ruler) {
+                ruler.width = ruler.clientWidth;
+                ruler.height = ruler.clientHeight;
+                const context = ruler.getContext("2d");
+                context.beginPath();
+                context.strokeStyle = "white";
+                let position = 1;
+                let id = 0;
+                while (position < Math.max(ruler.height, ruler.width)) {
+                    let shift = id % 5 === 2 ? 0 : 6;
+                    if (ruler.height > ruler.width) {
+                        context.moveTo(shift, position);
+                        context.lineTo(16 - shift, position);
+                    } else {
+                        context.moveTo(position, shift);
+                        context.lineTo(position, 16 - shift);
+                    }
+                    position += 16;
+                    id += 1;
+                }
+                context.stroke();
+            }
+            const rulers = document.getElementsByClassName("ruler");
+            for (const ruler of rulers) {
+                drawRuler(ruler);
+            }
+            setInterval(updateTime, 1_000);
+        </script>
         <script src="dist/main.js"></script>
     </body>
 </html>
