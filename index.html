@@ -78,7 +78,7 @@
                 <canvas class="ruler"></canvas>
             </div>
             <div class="top left block">
-                <span>25 µm</span>
+                <span> <span class="magnification">25</span> µm </span>
             </div>
             <div class="bottom left block">
                 <div>
@@ -88,7 +88,7 @@
                 <span>SP=8.0</span>
                 <span>WD=7.9</span>
                 <span>×10.0k</span>
-                <span>25[um]</span>
+                <span><span class="magnification">25</span>[um]</span>
                 <span>HV</span>
                 <span>SEI</span>
             </div>
@@ -97,43 +97,6 @@
                 <span id="date"></span>
             </div>
         </div>
-        <script>
-            function pad(number) {
-                return number < 10 ? `0${number}` : `${number}`;
-            }
-            function updateTime() {
-                const now = new Date();
-                document.getElementById("date").textContent = `${pad(now.getUTCDay())}/${pad(now.getUTCMonth())}/${now.getUTCFullYear()}`;
-                document.getElementById("time").textContent = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`;
-            }
-            function drawRuler(ruler) {
-                ruler.width = ruler.clientWidth;
-                ruler.height = ruler.clientHeight;
-                const context = ruler.getContext("2d");
-                context.beginPath();
-                context.strokeStyle = "white";
-                let position = 1;
-                let id = 0;
-                while (position < Math.max(ruler.height, ruler.width)) {
-                    let shift = id % 5 === 2 ? 0 : 6;
-                    if (ruler.height > ruler.width) {
-                        context.moveTo(shift, position);
-                        context.lineTo(16 - shift, position);
-                    } else {
-                        context.moveTo(position, shift);
-                        context.lineTo(position, 16 - shift);
-                    }
-                    position += 16;
-                    id += 1;
-                }
-                context.stroke();
-            }
-            const rulers = document.getElementsByClassName("ruler");
-            for (const ruler of rulers) {
-                drawRuler(ruler);
-            }
-            setInterval(updateTime, 1_000);
-        </script>
         <script src="dist/main.js"></script>
     </body>
 </html>

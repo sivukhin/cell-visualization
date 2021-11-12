@@ -4,6 +4,8 @@ import { WorldConfiguration } from "./configuration";
 import { createScene } from "./world/scene";
 import { initializeGui } from "./utils/knobs";
 import Stats from "stats.js";
+import "./time";
+import { rollXY } from "./ruler";
 
 function adjust(renderer) {
     const canvas = renderer.domElement;
@@ -104,6 +106,7 @@ function createConfiguration(canvas): WorldConfiguration {
     return configuration;
 }
 
+let scene = null;
 function initialize() {
     const renderer = new WebGLRenderer({
         canvas: document.getElementById("microcosmos"),
@@ -111,7 +114,7 @@ function initialize() {
         alpha: true,
     });
     const configuration = createConfiguration(renderer.domElement);
-    const { scene, camera, tick } = createScene(configuration);
+    scene = createScene(configuration);
 
     adjust(renderer);
 
@@ -119,15 +122,41 @@ function initialize() {
 
     function render(time: number) {
         stats.begin();
-        tick(time);
-        renderer.render(scene, camera);
+        scene.tick(time);
+        renderer.render(scene.scene, scene.camera.camera);
         stats.end();
         requestAnimationFrame(render);
     }
     requestAnimationFrame(render);
 
     stats.showPanel(0);
-    document.body.appendChild(stats.dom);
+    // document.body.appendChild(stats.dom);
 }
 
 initialize();
+
+let dragging = false;
+let start = [0, 0];
+document.body.addEventListener("mousedown", (ev) => {
+    if (ev.button === 1) {
+        dragging = true;
+        start = [ev.clientX, ev.clientY];
+    }
+});
+document.body.addEventListener("mouseup", (ev) => {
+    dragging = false;
+});
+document.body.addEventListener("mousemove", (ev) => {
+    if (dragging) {
+        const delta = [ev.movementX, -ev.movementY];
+        scene.camera.move(delta[0], delta[1]);
+        rollXY(delta[0], delta[1]);
+    }
+});
+document.body.addEventListener("wheel", (ev) => {
+    scene.camera.zoom(-ev.deltaY);
+    const magnifications = document.getElementsByClassName("magnification");
+    for (let i = 0; i < magnifications.length; i++) {
+        magnifications[i].textContent = `${Math.round(25 * scene.camera.magnification())}`;
+    }
+});
