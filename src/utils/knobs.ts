@@ -46,7 +46,7 @@ function traverseObject(data: any, configuration: any, root: any, gui: Lazy<any>
                     },
                 }
             );
-            if (key.includes("color")) {
+            if (key.toLowerCase().includes("color")) {
                 gui.get().addColor(root[key], "value").name(key);
             } else {
                 const min = current != null ? current.min : undefined;

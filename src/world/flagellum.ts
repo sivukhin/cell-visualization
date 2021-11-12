@@ -102,7 +102,6 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
     const figure = createFigureFromPath(points, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 2)));
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(figure.positions, 3));
-    geometry.setAttribute("normal", new BufferAttribute(figure.normals, 3));
     geometry.setIndex(figure.indices);
 
     const curve = new Mesh(geometry, material);
@@ -124,7 +123,6 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
             const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
             // const update = new BufferAttribute(getFlatComponents3D(current), 3);
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
-            geometry.setAttribute("normal", new BufferAttribute(update.normals, 3));
             geometry.setIndex(update.indices);
             // }
         },

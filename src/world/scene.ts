@@ -1,4 +1,4 @@
-import { Scene } from "three";
+import { Color, Scene } from "three";
 import { createCamera } from "./camera";
 import { createConfigurationStore, WorldConfiguration } from "../configuration";
 import { createEnvironment } from "./environment";
@@ -49,6 +49,7 @@ export function createScene(dynamic: WorldConfiguration) {
         tick: (time: number) => {
             setLastTick(time);
             world.tick(time);
+
             if (id < 8 && time > lastTime + randomFrom(100, 200)) {
                 lastTime = time;
                 for (let i = 0; i < store.get().soup.count; i++) {
@@ -56,17 +57,19 @@ export function createScene(dynamic: WorldConfiguration) {
                 }
                 id++;
             }
-            if (id == 8 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
+            if (id == 8 && time > lastTime + randomFrom(5000, 8000) && store.get().soup.count > 1) {
                 lastTime = time;
                 const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
-                while (true) {
-                    const targetCell = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
-                    if (targetCell === source) {
-                        continue;
+                for (let i = 0; i < 2; i++) {
+                    while (true) {
+                        const targetCell = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
+                        if (targetCell === source) {
+                            continue;
+                        }
+                        const targetOrganell = Math.min(id - 1, Math.floor(randomFrom(0, id)));
+                        world.attack(source, { cell: targetCell, organell: targetOrganell });
+                        break;
                     }
-                    const targetOrganell = Math.min(id - 1, Math.floor(randomFrom(0, id)));
-                    world.attack(source, { cell: targetCell, organell: targetOrganell });
-                    break;
                 }
             }
             /*

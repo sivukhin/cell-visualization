@@ -24,13 +24,12 @@ export function cutBezierCurve(start: Vector2, c1: Vector2, c2: Vector2, end: Ve
 
 export interface Figure {
     positions: Float32Array;
-    normals: Float32Array;
     indices: number[];
 }
 
 export function createFigureFromPath(path: Vector2[], thickness: (d: number) => number): Figure {
     if (path.length <= 1) {
-        return { positions: new Float32Array(), normals: new Float32Array(), indices: [] };
+        return { positions: new Float32Array(), indices: [] };
     }
     const positions = [];
     let distance = 0;
@@ -43,10 +42,6 @@ export function createFigureFromPath(path: Vector2[], thickness: (d: number) => 
         positions.push(new Vector2().addVectors(path[i], u));
         positions.push(new Vector2().subVectors(path[i], u));
     }
-    const normals = [];
-    for (let i = 0; i < positions.length; i++) {
-        normals.push(0, 0, 1);
-    }
     const indices = [];
     for (let i = 0; i < path.length - 1; i++) {
         indices.push(2 * i, 2 * (i + 1), 2 * i + 1);
@@ -54,7 +49,6 @@ export function createFigureFromPath(path: Vector2[], thickness: (d: number) => 
     }
     return {
         positions: getFlatComponents3D(positions),
-        normals: new Float32Array(normals),
         indices,
     };
 }
@@ -68,6 +62,9 @@ export function getHSL(repr: ColorRepresentation): { h: number; s: number; l: nu
 
 export function getHSLVector(repr: ColorRepresentation): Vector3 {
     const hsl = getHSL(repr);
-    return new Vector3(hsl.h, hsl.s, hsl.l)
+    return new Vector3(hsl.h, hsl.s, hsl.l);
 }
 
+export function to2(v: Vector3): Vector2 {
+    return new Vector2(v.x, v.y);
+}

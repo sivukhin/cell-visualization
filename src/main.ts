@@ -23,6 +23,12 @@ function createConfiguration(canvas): WorldConfiguration {
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
+        target: {
+            appearDuration: atom<number>(1000),
+            selectDuration: atom<number>(3000),
+            attackerColor: atom<ColorRepresentation>("rgba(255, 255, 255, 0)"),
+            defenderColor: atom<ColorRepresentation>("rgba(255, 100, 100, 0)"),
+        },
         cell: {
             membrane: {
                 spline: atom<boolean>(false),

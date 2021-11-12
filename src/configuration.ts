@@ -51,11 +51,19 @@ export interface SoupConfiguration {
     height: number;
 }
 
+export interface TargetConfiguration {
+    appearDuration: Store<number>;
+    selectDuration: Store<number>;
+    attackerColor: Store<ColorRepresentation>;
+    defenderColor: Store<ColorRepresentation>;
+}
+
 export interface WorldConfiguration {
     light: LightConfiguration;
     soup: SoupConfiguration;
     cell: CellConfiguration;
     flagellum: FlagellumConfiguration;
+    target: TargetConfiguration;
     roundDuration: Store<number>;
 }
 
