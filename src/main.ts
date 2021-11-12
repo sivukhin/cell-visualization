@@ -5,13 +5,16 @@ import { createScene } from "./world/scene";
 import { initializeGui } from "./utils/knobs";
 import Stats from "stats.js";
 import "./time";
-import { rollXY } from "./ruler";
+import { rollXY } from "./microscope/ruler";
 
-function adjust(renderer) {
+function adjust(renderer, composers) {
     const canvas = renderer.domElement;
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     renderer.setSize(width, height, false);
+    for (const composer of composers) {
+        composer.setSize(width, height);
+    }
 }
 
 function createConfiguration(canvas): WorldConfiguration {
@@ -28,8 +31,8 @@ function createConfiguration(canvas): WorldConfiguration {
         target: {
             appearDuration: atom<number>(1000),
             selectDuration: atom<number>(3000),
-            attackerColor: atom<ColorRepresentation>("rgba(255, 255, 255, 0)"),
-            defenderColor: atom<ColorRepresentation>("rgba(255, 100, 100, 0)"),
+            attackerColor: atom<ColorRepresentation>("rgb(255, 255, 255)"),
+            defenderColor: atom<ColorRepresentation>("rgb(255, 100, 100)"),
         },
         cell: {
             membrane: {
@@ -44,11 +47,11 @@ function createConfiguration(canvas): WorldConfiguration {
             organell: {
                 transitionDuration: atom<number>(1000),
                 colors: {
-                    color0: atom<ColorRepresentation>("rgba(128, 84, 84, 0)"),
-                    color1: atom<ColorRepresentation>("rgba(106, 130, 86, 0)"),
-                    color2: atom<ColorRepresentation>("rgba(110, 101, 173, 0)"),
-                    color3: atom<ColorRepresentation>("rgba(175, 160, 111, 0)"),
-                    color4: atom<ColorRepresentation>("rgba(175, 127, 195, 0)"),
+                    color0: atom<ColorRepresentation>("rgb(128, 84, 84)"),
+                    color1: atom<ColorRepresentation>("rgb(106, 130, 86)"),
+                    color2: atom<ColorRepresentation>("rgb(110, 101, 173)"),
+                    color3: atom<ColorRepresentation>("rgb(175, 160, 111)"),
+                    color4: atom<ColorRepresentation>("rgb(175, 127, 195)"),
                 },
                 membrane: {
                     spline: atom<boolean>(false),
@@ -62,10 +65,10 @@ function createConfiguration(canvas): WorldConfiguration {
             },
             glowing: atom<number>(0.85),
             radius: atom<number>(100),
-            color: atom<ColorRepresentation>("rgba(84,105,125,1.0)"),
+            color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
         },
         flagellum: {
-            color: atom<ColorRepresentation>("rgba(84,105,125,1.0)"),
+            color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
             segmentLength: atom<number>(50),
             amplitude: atom<number>(100),
             skew: atom<number>(Math.PI),
@@ -114,23 +117,24 @@ function initialize() {
         alpha: true,
     });
     const configuration = createConfiguration(renderer.domElement);
-    scene = createScene(configuration);
+    scene = createScene(configuration, renderer);
 
-    adjust(renderer);
+    adjust(renderer, [scene.microcosmosComposer, scene.microscopeComposer]);
 
     const stats = Stats();
 
     function render(time: number) {
         stats.begin();
         scene.tick(time);
-        renderer.render(scene.scene, scene.camera.camera);
+        scene.microcosmosComposer.render();
+        scene.microscopeComposer.render();
         stats.end();
         requestAnimationFrame(render);
     }
     requestAnimationFrame(render);
 
     stats.showPanel(0);
-    // document.body.appendChild(stats.dom);
+    document.body.appendChild(stats.dom);
 }
 
 initialize();
@@ -138,17 +142,15 @@ initialize();
 let dragging = false;
 let start = [0, 0];
 document.body.addEventListener("mousedown", (ev) => {
-    if (ev.button === 1) {
-        dragging = true;
-        start = [ev.clientX, ev.clientY];
-    }
+    dragging = true;
+    start = [ev.clientX, ev.clientY];
 });
 document.body.addEventListener("mouseup", (ev) => {
     dragging = false;
 });
 document.body.addEventListener("mousemove", (ev) => {
     if (dragging) {
-        const delta = [ev.movementX, -ev.movementY];
+        const delta = [-ev.movementX, ev.movementY];
         scene.camera.move(delta[0], delta[1]);
         rollXY(delta[0], delta[1]);
     }

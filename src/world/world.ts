@@ -3,7 +3,7 @@ import { Color, Object3D, Vector2, Vector3 } from "three";
 import { getRegularPolygon } from "../utils/geometry";
 import { CellElement, createAliveCell } from "./cell";
 import { Element } from "./types";
-import { createTarget } from "./target";
+import { createTarget } from "../microscope/target";
 import { to2 } from "../utils/draw";
 
 type CellId = number;
@@ -22,6 +22,8 @@ export interface WorldElement extends Element {
 
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
     const root = new Object3D();
+    const microscopeRoot = new Object3D();
+
     const positions = getRegularPolygon(worldConfig.soup.count, 300);
     const cells: CellElement[] = [];
     let targets: Element[] = [];
@@ -44,17 +46,18 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             scan: scan,
         });
         targets.push(target);
-        root.add(target.object);
+        microscopeRoot.add(target.object);
     };
     return {
         object: root,
+        microscope: microscopeRoot,
         tick: (time: number) => {
             for (let i = 0; i < cells.length; i++) {
                 cells[i].tick(time);
             }
             for (let i = 0; i < targets.length; i++) {
                 if (!targets[i].alive()) {
-                    root.remove(targets[i].object);
+                    microscopeRoot.remove(targets[i].object);
                 }
             }
             targets = targets.filter((t) => t.alive());

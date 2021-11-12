@@ -2,7 +2,6 @@ import {
     BufferAttribute,
     BufferGeometry,
     Color,
-    DoubleSide,
     LineSegments,
     Mesh,
     MeshBasicMaterial,
