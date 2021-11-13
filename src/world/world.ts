@@ -36,7 +36,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     let previousRound = 0;
     let attacks: Array<{ from: CellId; to: OrganellId }> = [];
     const select = (id: CellId, color: Color) => {
-        const size = (worldConfig.cell.radius / Math.cos(Math.PI / worldConfig.cell.membrane.segments)) * 2;
+        const size = (worldConfig.cell.radius / Math.cos(Math.PI / worldConfig.cell.segments)) * 2;
         const target = createTarget({
             center: to2(cells[id].object.position),
             size: size,
@@ -95,7 +95,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         },
         select: select,
         spawn: (id: OrganellId, radius: number) => {
-            cells[id.cell].spawn(id.organell, radius);
+            cells[id.cell].spawn(id.organell);
         },
         kill: (id: OrganellId) => {
             cells[id.cell].kill(id.organell);

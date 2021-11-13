@@ -1,11 +1,12 @@
 import { atom } from "nanostores";
-import { ColorRepresentation, WebGLRenderer } from "three";
+import { ColorRepresentation, Vector2, WebGLRenderer } from "three";
 import { WorldConfiguration } from "./configuration";
 import { createScene } from "./world/scene";
 import { initializeGui } from "./utils/knobs";
 import Stats from "stats.js";
 import "./time";
 import { rollXY } from "./microscope/ruler";
+import { convexHull } from "./utils/geometry";
 
 function adjust(renderer, composers) {
     const canvas = renderer.domElement;
@@ -24,7 +25,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(1),
+            count: atom<number>(7),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -35,9 +36,9 @@ function createConfiguration(canvas): WorldConfiguration {
             defenderColor: atom<ColorRepresentation>("rgb(255, 100, 100)"),
         },
         cell: {
+            segments: atom<number>(10),
             membrane: {
                 spline: atom<boolean>(false),
-                segments: atom<number>(10),
                 detalization: atom<number>(50),
                 frequency: atom<number>(0.0001),
                 skew: atom<number>(Math.PI / 10),
@@ -56,7 +57,6 @@ function createConfiguration(canvas): WorldConfiguration {
                 },
                 membrane: {
                     spline: atom<boolean>(false),
-                    segments: atom<number>(3),
                     detalization: atom<number>(20),
                     frequency: atom<number>(0.00005),
                     skew: atom<number>(Math.PI / 8),

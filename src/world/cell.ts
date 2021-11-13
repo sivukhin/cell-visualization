@@ -2,7 +2,7 @@ import { BufferAttribute, BufferGeometry, Color, LineSegments, Mesh, ShaderMater
 import { CellConfiguration, FlagellumConfiguration, Unwrap } from "../configuration";
 import { findDeformationAngleTime } from "./deformation";
 import { createFlagellum } from "./flagellum";
-import { createAliveMembrane } from "./membrane";
+import { createAliveMembrane } from "./alive-membrane";
 import { createAliveOrganell, OrganellElement } from "./organell";
 import { getFlatComponents3D, getHSLVector, to2 } from "../utils/draw";
 
@@ -14,7 +14,8 @@ import { lastTick } from "../utils/tick";
 import { Element } from "./types";
 import { randomChoice, randomFrom } from "../utils/math";
 import { Timings } from "../utils/timings";
-import { getComponents, getRadiusForPoints, getRegularPolygon, zero2 } from "../utils/geometry";
+import { convexHull, getComponents, getRadiusForPoints, getRegularPolygon, scalePoints, simplifyShape, zero2 } from "../utils/geometry";
+import { ConvexHull } from "three/examples/jsm/math/ConvexHull";
 
 export interface CellElement extends Element {
     spawn(id: number): void;
@@ -42,14 +43,53 @@ interface OrganellDescription {
     velocity: Vector2;
 }
 
+function calculateOrganell(id: number, center: Vector2, organells: OrganellDescription[], radius: number) {
+    const rStep = radius / 20;
+    const nearest = [];
+    for (let x = -radius; x < radius; x += rStep) {
+        for (let y = -radius; y < radius; y += rStep) {
+            const p = new Vector2(x, y);
+            if (p.length() > radius) {
+                continue;
+            }
+            let current = center.distanceTo(p);
+            let changed = false;
+            for (let s = 0; s < organells.length; s++) {
+                if (organells[s].id === id) {
+                    continue;
+                }
+                if (organells[s].center.distanceTo(p) < current) {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) {
+                nearest.push(p);
+            }
+        }
+    }
+    return simplifyShape(convexHull(nearest), 10);
+}
+
 export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>): CellElement {
-    const offset = Math.floor(randomFrom(0, 3));
-    const offset1 = randomFrom(0, 2 * Math.PI);
-    const offset2 = randomFrom(0, 2 * Math.PI);
-    const slots: Vector2[] = [new Vector2(0, 0), ...getRegularPolygon(6, 1 / 3).map((p) => p.rotateAround(zero2, offset1)), ...getRegularPolygon(6, 2 / 3).map((p) => p.rotateAround(zero2, offset2))];
+    const slots: Vector2[] = [];
+    const padding = cellConfig.glowing * 0.9;
+    const step = 1 / 3;
+    for (let i = -3; i <= 3; i++) {
+        for (let s = -3; s <= 3; s++) {
+            const dx = randomFrom(0.4, 0.6);
+            const dy = randomFrom(0.4, 0.6);
+            const p = new Vector2((i + dx) * step, (s + dy) * step);
+            if (p.length() >= padding) {
+                continue;
+            }
+            slots.push(p);
+        }
+    }
     const occupied = new Array(slots.length).fill(false);
 
-    const { geometry, membrane, tick: membraneTick, update: membraneUpdate } = createAliveMembrane({ radius: cellConfig.radius }, cellConfig.membrane);
+    const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
+    const { geometry, membrane, tick: membraneTick, update: membraneUpdate } = createAliveMembrane({ points: getRegularPolygon(cellConfig.segments, r) }, cellConfig.membrane);
     const colors = Object.values(cellConfig.organell.colors);
     let flagellums: Element[] = [];
     let organells: OrganellDescription[] = [];
@@ -85,31 +125,34 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             }
             for (let i = 0; i < organells.length; i++) {
                 organells[i].element.tick(time);
-                organells[i].element.object.position.x += organells[i].velocity.x;
-                organells[i].element.object.position.y += organells[i].velocity.y;
             }
-            for (let i = 0; i < organells.length; i++) {
-                if (to2(organells[i].element.object.position).length() + organells[i].element.current(time).radius > 0.8 * cellConfig.radius) {
-                    const direction = to2(organells[i].element.object.position).normalize();
-                    const edge = to2(organells[i].element.object.position).length() + organells[i].element.current(time).radius;
-                    organells[i].velocity.addScaledVector(direction, -0.01 / (cellConfig.radius - edge));
-                }
-                for (let s = 0; s < organells.length; s++) {
-                    const a = organells[i].element.current(time);
-                    const b = organells[s].element.current(time);
-                    const aPosition = to2(organells[i].element.object.position);
-                    const bPosition = to2(organells[s].element.object.position);
-                    if (i == s || aPosition.distanceTo(bPosition) * 1.1 > a.radius + b.radius) {
-                        continue;
-                    }
-                    const direction = new Vector2().subVectors(bPosition, aPosition).normalize();
-                    const [v, u] = getComponents(organells[i].velocity, direction);
-                    organells[i].velocity = new Vector2().addVectors(v.addScaledVector(direction, -0.005), u);
-                }
-                if (organells[i].velocity.length() > speed) {
-                    organells[i].velocity.setLength(speed);
-                }
-            }
+            // for (let i = 0; i < organells.length; i++) {
+            //     organells[i].element.tick(time);
+            //     organells[i].element.object.position.x += organells[i].velocity.x;
+            //     organells[i].element.object.position.y += organells[i].velocity.y;
+            // }
+            // for (let i = 0; i < organells.length; i++) {
+            //     if (to2(organells[i].element.object.position).length() + organells[i].element.current(time).radius > 0.8 * cellConfig.radius) {
+            //         const direction = to2(organells[i].element.object.position).normalize();
+            //         const edge = to2(organells[i].element.object.position).length() + organells[i].element.current(time).radius;
+            //         organells[i].velocity.addScaledVector(direction, -0.01 / (cellConfig.radius - edge));
+            //     }
+            //     for (let s = 0; s < organells.length; s++) {
+            //         const a = organells[i].element.current(time);
+            //         const b = organells[s].element.current(time);
+            //         const aPosition = to2(organells[i].element.object.position);
+            //         const bPosition = to2(organells[s].element.object.position);
+            //         if (i == s || aPosition.distanceTo(bPosition) * 1.1 > a.radius + b.radius) {
+            //             continue;
+            //         }
+            //         const direction = new Vector2().subVectors(bPosition, aPosition).normalize();
+            //         const [v, u] = getComponents(organells[i].velocity, direction);
+            //         organells[i].velocity = new Vector2().addVectors(v.addScaledVector(direction, -0.005), u);
+            //     }
+            //     if (organells[i].velocity.length() > speed) {
+            //         organells[i].velocity.setLength(speed);
+            //     }
+            // }
             membraneTick(time);
         },
         get: (id: number) => {
@@ -130,35 +173,63 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             const item = organells.find((t) => t.id == id);
             const color = colors[id % colors.length];
             if (item == null) {
-                const { p: currentCenter, id: currentId } = randomChoice(slots.map((p, id) => ({ p: new Vector2().copy(p).multiplyScalar(cellConfig.radius), id })).filter((t) => !occupied[t.id]));
-                occupied[currentId] = true;
+                const { p: center, id: slotId } = randomChoice(slots.map((p, id) => ({ p: new Vector2().copy(p).multiplyScalar(cellConfig.radius), id })).filter((t) => !occupied[t.id]));
+                occupied[slotId] = true;
 
-                const radiuses = getRadiusForPoints([...organells.map((x) => x.center), currentCenter], 0.9 * cellConfig.radius).map((r) => 0.9 * r);
-                const currentRadius = radiuses[radiuses.length - 1];
-                const invisible = { color: new Color(color), radius: currentRadius, visibility: 0.0, angular: 0.001 };
-                const spawned = createAliveOrganell(invisible, {
-                    ...cellConfig.organell,
-                    membrane: { ...cellConfig.organell.membrane, segments: cellConfig.organell.membrane.segments + ((offset + id) % 3) },
-                });
-                spawned.object.position.set(currentCenter.x, currentCenter.y, 0);
-                spawned.update({ ...invisible, visibility: 0.7 });
-                for (let i = 0; i < organells.length; i++) {
-                    organells[i].element.update({ ...organells[i].element.current(lastTick()), visibility: 0.7, radius: radiuses[i] * 1.2 });
-                }
-                organells.push({ id: id, element: spawned, center: currentCenter, velocity: new Vector2(speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)) });
-                console.info(organells.map((x) => x.velocity));
+                const hull = calculateOrganell(id, center, organells, cellConfig.radius * padding);
+                const spawnedOrganell = { color: new Color(color), visibility: 1.0 };
+                const spawnedMembrane = {
+                    points: scalePoints(
+                        hull.map((p) => p.sub(center)),
+                        0.95
+                    ),
+                };
+                const spawned = createAliveOrganell(spawnedOrganell, spawnedMembrane, cellConfig.organell);
+                spawned.object.position.set(center.x, center.y, 0);
                 cell.add(spawned.object);
-            } else {
-                const visible = { color: new Color(color), radius: item.element.current(lastTick()).radius, visibility: 0.7, angular: 0.001 };
-                item.element.update(visible);
+                organells.push({ element: spawned, center: center, velocity: zero2, id: id });
+                for (let i = 0; i < organells.length - 1; i++) {
+                    const update = calculateOrganell(organells[i].id, organells[i].center, organells, cellConfig.radius * padding);
+                    organells[i].element.update(null, {
+                        points: scalePoints(
+                            update.map((p) => p.sub(organells[i].center)),
+                            0.95
+                        ),
+                    });
+                }
             }
+            // const item = organells.find((t) => t.id == id);
+            // const color = colors[id % colors.length];
+            // if (item == null) {
+            //     const { p: currentCenter, id: currentId } = randomChoice(slots.map((p, id) => ({ p: new Vector2().copy(p).multiplyScalar(cellConfig.radius), id })).filter((t) => !occupied[t.id]));
+            //     occupied[currentId] = true;
+            //
+            //     const radiuses = getRadiusForPoints([...organells.map((x) => x.center), currentCenter], 0.9 * cellConfig.radius).map((r) => 0.9 * r);
+            //     const currentRadius = radiuses[radiuses.length - 1];
+            //     const invisible = { color: new Color(color), radius: currentRadius, visibility: 0.0, angular: 0.001 };
+            //     const spawned = createAliveOrganell(invisible, {
+            //         ...cellConfig.organell,
+            //         membrane: { ...cellConfig.organell.membrane, segments: cellConfig.organell.membrane.segments + ((offset + id) % 3) },
+            //     });
+            //     spawned.object.position.set(currentCenter.x, currentCenter.y, 0);
+            //     spawned.update({ ...invisible, visibility: 0.7 });
+            //     for (let i = 0; i < organells.length; i++) {
+            //         organells[i].element.update({ ...organells[i].element.current(lastTick()), visibility: 0.7, radius: radiuses[i] * 1.2 });
+            //     }
+            //     organells.push({ id: id, element: spawned, center: currentCenter, velocity: new Vector2(speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)) });
+            //     console.info(organells.map((x) => x.velocity));
+            //     cell.add(spawned.object);
+            // } else {
+            //     const visible = { color: new Color(color), radius: item.element.current(lastTick()).radius, visibility: 0.7, angular: 0.001 };
+            //     item.element.update(visible);
+            // }
         },
         kill: (id: number) => {
             const item = organells.find((t) => t.id == id);
             if (item == null) {
                 return;
             }
-            item.element.kill();
+            // item.element.kill();
         },
         attack: (targets: Vector2[], duration: number): Timings[] => {
             const timings = [];

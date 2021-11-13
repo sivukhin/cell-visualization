@@ -17,7 +17,6 @@ export interface FlagellumConfiguration {
 
 export interface MembraneConfiguration {
     spline: Store<boolean>;
-    segments: Store<number>;
     frequency: Store<number>;
     detalization: Store<number>;
     skew: Store<number>;
@@ -42,6 +41,7 @@ export interface CellConfiguration {
     color: Store<ColorRepresentation>;
     glowing: Store<number>;
     radius: Store<number>;
+    segments: Store<number>;
     membrane: MembraneConfiguration;
     organell: OrganellConfiguration;
 }

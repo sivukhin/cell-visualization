@@ -1,6 +1,6 @@
-import { createAliveMembrane } from "./membrane";
+import { createAliveMembrane, AliveMembrane } from "./alive-membrane";
 import { OrganellConfiguration, Unwrap } from "../configuration";
-import { BufferAttribute, Color, Mesh, ShaderMaterial, TextureLoader, Uniform, Vector3 } from "three";
+import { BufferAttribute, Color, Mesh, ShaderMaterial, TextureLoader, Uniform, Vector2, Vector3 } from "three";
 import { interpolateLinear1D, interpolateLinearColor, randomChoice, randomFrom } from "../utils/math";
 import { getHSLVector } from "../utils/draw";
 import { Element } from "./types";
@@ -10,6 +10,7 @@ import OrganellVertexShader from "../shaders/organell-vertex.shader";
 // @ts-ignore
 import OrganellFragmentShader from "../shaders/organell-fragment.shader";
 import { lastTick } from "../utils/tick";
+import { createMembrane } from "./membrane";
 
 const loader = new TextureLoader();
 const textures = [
@@ -23,16 +24,12 @@ const textures = [
 
 export interface Organell {
     color: Color;
-    radius: number;
-    angular: number;
     visibility: number;
 }
 
 export interface OrganellElement extends Element {
-    current(time: number): Organell;
-    update(data: Organell): void;
+    update(nextOrganell: Organell | null, nextMembrane: AliveMembrane | null): void;
     glow(start: number, finish: number): void;
-    kill(): void;
 }
 
 function createMaterial(color: Color, texture: any, visibility: number) {
@@ -51,28 +48,38 @@ function createMaterial(color: Color, texture: any, visibility: number) {
     });
 }
 
-export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellConfiguration>): OrganellElement {
-    const { geometry, tick: membraneTick, update: membraneUpdate, current: membraneCurrent } = createAliveMembrane({ radius: organell.radius }, config.membrane);
+export function createAliveOrganell(organell: Organell, membrane: AliveMembrane, config: Unwrap<OrganellConfiguration>): OrganellElement {
+    const { geometry, tick: membraneTick, update: membraneUpdate } = createAliveMembrane({ points: membrane.points }, config.membrane);
 
-    geometry.computeBoundingBox();
-    const bbox = geometry.boundingBox;
-    if (bbox != null) {
-        bbox.expandByScalar(10);
-        const uv = [];
-        const dimensions = new Vector3();
-        bbox.getSize(dimensions);
-        for (let i = 0; i < geometry.attributes.position.count; i++) {
-            const current = new Vector3(geometry.attributes.position.array[3 * i], geometry.attributes.position.array[3 * i + 1], geometry.attributes.position.array[3 * i + 2]);
-            current.sub(bbox.min);
-            uv.push(current.x / dimensions.x, current.y / dimensions.y);
+    const updateAll = () => {
+        geometry.computeBoundingBox();
+        const bbox = geometry.boundingBox;
+        if (bbox != null) {
+            bbox.expandByScalar(10);
+            const uv = [];
+            const dimensions = new Vector3();
+            bbox.getSize(dimensions);
+            const d = Math.max(dimensions.x, dimensions.y);
+            for (let i = 0; i < geometry.attributes.position.count; i++) {
+                const current = new Vector3(geometry.attributes.position.array[3 * i], geometry.attributes.position.array[3 * i + 1], geometry.attributes.position.array[3 * i + 2]);
+                current.sub(bbox.min);
+                uv.push(current.x / d, current.y / d);
+            }
+            geometry.setAttribute("uv", new BufferAttribute(new Float32Array(uv), 2));
         }
-        geometry.setAttribute("uv", new BufferAttribute(new Float32Array(uv), 2));
-    }
+        const vertices = [0];
+        for (let i = 1; i < geometry.attributes.position.count; i++) {
+            vertices.push(1);
+        }
+        geometry.setAttribute("edge", new BufferAttribute(new Float32Array(vertices), 1));
+        geometry.attributes.edge.needsUpdate = true;
+    };
+
+    updateAll();
 
     const texture = randomChoice(textures);
     const skeleton = new Mesh(geometry, createMaterial(organell.color, texture, organell.visibility));
     skeleton.renderOrder = 0;
-    skeleton.rotateZ(randomFrom(0, Math.PI * 2));
 
     let [startGlow, finishGlow] = [0, 0];
     let transition: Organell | null = null;
@@ -85,21 +92,25 @@ export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellC
         }
         const color = interpolateLinearColor(organell.color, transition.color, transitionStart, transitionFinish, time);
         const visibility = interpolateLinear1D(organell.visibility, transition.visibility, transitionStart, transitionFinish, time);
-        return { ...organell, radius: membraneCurrent(time).radius, color: color, visibility: visibility };
+        return { color: color, visibility: visibility };
     };
 
-    const update = (data: Organell) => {
-        organell = current(lastTick());
-        transition = data;
-        transitionStart = lastTick();
-        transitionFinish = lastTick() + config.transitionDuration;
-        membraneUpdate({ radius: data.radius });
+    const update = (nextOrganell: Organell | null, nextMembrane: AliveMembrane | null) => {
+        if (nextOrganell != null) {
+            organell = current(lastTick());
+            transition = nextOrganell;
+            transitionStart = lastTick();
+            transitionFinish = lastTick() + config.transitionDuration;
+        }
+        if (nextMembrane != null) {
+            membraneUpdate(nextMembrane);
+        }
+        updateAll();
     };
 
     return {
         object: skeleton,
         alive: () => true,
-        current: current,
         tick: (time: number) => {
             const currentOrganell = current(time);
             if (transition != null) {
@@ -123,12 +134,8 @@ export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellC
                 startGlow = finishGlow = 0;
             }
             membraneTick(time);
-            skeleton.rotateZ(organell.angular);
         },
         update: update,
-        kill() {
-            update({ ...organell, visibility: 0 });
-        },
         glow: (start: number, finish: number) => {
             if (startGlow != 0) {
                 startGlow = Math.min(startGlow, start);

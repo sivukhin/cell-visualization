@@ -96,3 +96,46 @@ export function inSector(p: Vector2, a: Vector2, b: Vector2): boolean {
 export function scalePoints(points: Vector2[], scale: number): Vector2[] {
     return points.map((p) => new Vector2().copy(p).multiplyScalar(scale));
 }
+
+export function convexHull(points: Vector2[]): Vector2[] {
+    let min = points[0];
+    for (let i = 0; i < points.length; i++) {
+        if (points[i].x < min.x || (points[i].x == min.x && points[i].y < min.y)) {
+            min = points[i];
+        }
+    }
+    points.sort((a, b) => {
+        if (a == min) {
+            return -1;
+        }
+        if (b == min) {
+            return 1;
+        }
+        const v = new Vector2().subVectors(a, min);
+        const u = new Vector2().subVectors(b, min);
+        return -v.cross(u);
+    });
+    const hull = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+        while (hull.length > 1 && new Vector2().subVectors(hull[hull.length - 1], hull[hull.length - 2]).cross(new Vector2().subVectors(points[i], hull[hull.length - 1])) < 1e-5) {
+            hull.splice(hull.length - 1, 1);
+        }
+        hull.push(points[i]);
+    }
+    return hull;
+}
+
+export function simplifyShape(points: Vector2[], k: number): Vector2[] {
+    let p = 0;
+    for (let i = 0; i < points.length; i++) {
+        p += points[i].distanceTo(points[(i + 1) % points.length]);
+    }
+    const step = p / k;
+    const shape = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+        if (points[i].distanceTo(shape[shape.length - 1]) > step && points[i].distanceTo(points[0]) > step) {
+            shape.push(points[i]);
+        }
+    }
+    return shape;
+}
