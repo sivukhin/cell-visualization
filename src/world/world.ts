@@ -50,7 +50,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     const select = (id: CellId, color: Color) => {
         const size = (worldConfig.cell.radius / Math.cos(Math.PI / worldConfig.cell.segments)) * 2;
         const target = createTarget({
-            center: to2(cells[id].object.position),
+            follow: () => to2(cells[id].object.position),
             size: size,
             appearDuration: worldConfig.target.appearDuration,
             selectDuration: worldConfig.target.selectDuration,

@@ -9,14 +9,14 @@ import TargetFragmentShader from "../shaders/target-fragment.shader";
 import { lastTick } from "../utils/tick";
 
 export interface Target {
-    center: Vector2;
+    follow(): Vector2;
     size: number;
     color: Color;
     appearDuration: number;
     selectDuration: number;
 }
 
-export function createTarget({ size, color, center, appearDuration, selectDuration }: Target) {
+export function createTarget({ size, color, follow, appearDuration, selectDuration }: Target) {
     const root = new Object3D();
 
     const geometry = new BufferGeometry();
@@ -36,7 +36,7 @@ export function createTarget({ size, color, center, appearDuration, selectDurati
         transparent: true,
     });
     const skeleton = new Mesh(geometry, material);
-    skeleton.position.set(center.x - size / 2, center.y - size / 2, 0);
+    skeleton.position.set(follow().x - size / 2, follow().y - size / 2, 0);
     skeleton.renderOrder = 1;
     root.add(skeleton);
     const appearTime = lastTick() + appearDuration;
@@ -50,6 +50,7 @@ export function createTarget({ size, color, center, appearDuration, selectDurati
                 alive = false;
                 return;
             }
+            skeleton.position.set(follow().x - size / 2, follow().y - size / 2, 0);
             const alpha = 1 - Math.max(0, (appearTime - time) / appearDuration);
             material.uniforms.u_size.value = 0.1 * alpha;
             material.needsUpdate = true;
