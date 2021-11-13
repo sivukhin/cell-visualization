@@ -25,7 +25,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(7),
+            count: atom<number>(30),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -66,7 +66,7 @@ function createConfiguration(canvas): WorldConfiguration {
                 },
             },
             glowing: atom<number>(0.85),
-            radius: atom<number>(100),
+            radius: atom<number>(70),
             color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
         },
         flagellum: {
@@ -76,6 +76,7 @@ function createConfiguration(canvas): WorldConfiguration {
             skew: atom<number>(Math.PI),
             wobbling: atom<number>(0.1),
         },
+        speed: atom<number>(0.1),
         roundDuration: atom<number>(5_000),
     };
     const membraneLimits = {
@@ -90,7 +91,7 @@ function createConfiguration(canvas): WorldConfiguration {
     initializeGui(configuration, {
         light: { intensity: { min: 0, max: 1, step: 0.01 } },
         soup: {
-            count: { min: 1, max: 10, step: 1 },
+            count: { min: 1, max: 40, step: 1 },
         },
         cell: {
             membrane: membraneLimits,
@@ -106,6 +107,7 @@ function createConfiguration(canvas): WorldConfiguration {
             skew: { min: 0, max: Math.PI, step: 0.1 },
             wobbling: { min: 0, max: 1, step: 0.05 },
         },
+        speed: { min: 0, max: 10, step: 0.01 },
         roundDuration: { min: 1000, max: 100_000, step: 100 },
     });
     return configuration;

@@ -65,7 +65,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             setLastTick(time);
             world.tick(time);
 
-            if (id < 10 && time > lastTime + randomFrom(1000, 2000)) {
+            if (id < 10 && time > lastTime + randomFrom(100, 200)) {
                 lastTime = time;
                 for (let i = 0; i < store.get().soup.count; i++) {
                     world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);

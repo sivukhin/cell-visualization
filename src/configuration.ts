@@ -65,6 +65,7 @@ export interface WorldConfiguration {
     cell: CellConfiguration;
     flagellum: FlagellumConfiguration;
     target: TargetConfiguration;
+    speed: Store<number>;
     roundDuration: Store<number>;
 }
 

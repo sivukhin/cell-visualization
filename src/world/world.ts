@@ -1,10 +1,11 @@
 import { Unwrap, WorldConfiguration } from "../configuration";
 import { Color, Object3D, Vector2, Vector3 } from "three";
-import { getRegularPolygon } from "../utils/geometry";
+import { getComponents, getRegularPolygon, zero2 } from "../utils/geometry";
 import { CellElement, createAliveCell } from "./cell";
 import { Element } from "./types";
 import { createTarget } from "../microscope/target";
 import { to2 } from "../utils/draw";
+import { randomFrom } from "../utils/math";
 
 type CellId = number;
 
@@ -23,8 +24,19 @@ export interface WorldElement extends Element {
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
     const root = new Object3D();
     const microscopeRoot = new Object3D();
+    const velocities: Vector2[] = [];
 
-    const positions = getRegularPolygon(worldConfig.soup.count, 300);
+    const positions = [];
+    const rows = Math.ceil(Math.sqrt(worldConfig.soup.count));
+    const cols = Math.ceil(worldConfig.soup.count / rows);
+    const dy = worldConfig.soup.height / rows;
+    const dx = worldConfig.soup.width / cols;
+    for (let i = 0; i < rows && positions.length < worldConfig.soup.count; i++) {
+        for (let s = 0; s < cols && positions.length < worldConfig.soup.count; s++) {
+            positions.push(new Vector2(dx * s + dx / 2 + randomFrom(-dx / 4, dx / 4) - worldConfig.soup.width / 2, dy * i + dy / 2 + randomFrom(-dy / 4, dy / 4) - worldConfig.soup.height / 2));
+            velocities.push(new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)));
+        }
+    }
     const cells: CellElement[] = [];
     let targets: Element[] = [];
     for (let i = 0; i < positions.length; i++) {
@@ -53,6 +65,35 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         tick: (time: number) => {
             for (let i = 0; i < cells.length; i++) {
                 cells[i].tick(time);
+                cells[i].object.position.x += velocities[i].x;
+                cells[i].object.position.y += velocities[i].y;
+            }
+            for (let i = 0; i < cells.length; i++) {
+                if (cells[i].object.position.x < -worldConfig.soup.width / 2 + 2 * worldConfig.cell.radius) {
+                    velocities[i].x += worldConfig.speed / 10;
+                }
+                if (cells[i].object.position.y < -worldConfig.soup.height / 2 + 2 * worldConfig.cell.radius) {
+                    velocities[i].y += worldConfig.speed / 10;
+                }
+                if (cells[i].object.position.x > worldConfig.soup.width / 2 - 2 * worldConfig.cell.radius) {
+                    velocities[i].x -= worldConfig.speed / 10;
+                }
+                if (cells[i].object.position.y > worldConfig.soup.height / 2 - 2 * worldConfig.cell.radius) {
+                    velocities[i].y -= worldConfig.speed / 10;
+                }
+                for (let s = 0; s < cells.length; s++) {
+                    const aPosition = to2(cells[i].object.position);
+                    const bPosition = to2(cells[s].object.position);
+                    if (i == s || aPosition.distanceTo(bPosition) * 1.1 > 2 * worldConfig.cell.radius) {
+                        continue;
+                    }
+                    const direction = new Vector2().subVectors(bPosition, aPosition).normalize();
+                    const [v, u] = getComponents(velocities[i], direction);
+                    velocities[i] = new Vector2().addVectors(v.addScaledVector(direction, -worldConfig.speed / 10), u);
+                }
+                if (velocities[i].length() > worldConfig.speed) {
+                    velocities[i].setLength(worldConfig.speed);
+                }
             }
             for (let i = 0; i < targets.length; i++) {
                 if (!targets[i].alive()) {
