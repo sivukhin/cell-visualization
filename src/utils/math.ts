@@ -1,4 +1,4 @@
-import { Vector2 } from "three";
+import { Color, Vector2, Vector3 } from "three";
 import { zero2 } from "./geometry";
 
 export function extrapolate(l: number, r: number, time: number, target: number, inScale?: number, outScale?: number): number {
@@ -60,4 +60,24 @@ export function randomChoice<T>(array: T[]): T {
 export function randomVector(length: number): Vector2 {
     const angle = Math.random() * Math.PI * 2;
     return new Vector2(length, 0).rotateAround(zero2, angle);
+}
+
+export function interpolateLinear1D(a: number, b: number, l: number, r: number, t: number) {
+    const alpha = Math.max(0, Math.min(1, (t - l) / (r - l)));
+    return (1 - alpha) * a + alpha * b;
+}
+
+export function interpolateLinear2D(a: Vector2, b: Vector2, l: number, r: number, t: number) {
+    const alpha = Math.max(0, Math.min(1, (t - l) / (r - l)));
+    return new Vector2().addScaledVector(a, 1 - alpha).addScaledVector(b, alpha);
+}
+
+export function interpolateLinear3D(a: Vector3, b: Vector3, l: number, r: number, t: number) {
+    const alpha = Math.max(0, Math.min(1, (t - l) / (r - l)));
+    return new Vector3().addScaledVector(a, 1 - alpha).addScaledVector(b, alpha);
+}
+
+export function interpolateLinearColor(a: Color, b: Color, l: number, r: number, t: number) {
+    const alpha = Math.max(0, Math.min(1, (t - l) / (r - l)));
+    return new Color(a.r * (1 - alpha) + b.r * alpha, a.g * (1 - alpha) + b.g * alpha, a.b * (1 - alpha) + b.b * alpha);
 }

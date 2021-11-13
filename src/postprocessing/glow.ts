@@ -50,7 +50,7 @@ const EdgeGlowShader = {
             float g = gx*gx + gy*gy;
             
             vec4 col = texture(tDiffuse, vUv);
-            col += vec4(g, 0.0, 0.0, 1.0);
+            col += vec4(0.0, g, 0.0, 1.0);
             
             gl_FragColor = col;
         }`,

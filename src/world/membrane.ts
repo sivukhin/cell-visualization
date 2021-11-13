@@ -1,9 +1,10 @@
-import { getRegularPolygon, inSector, tryIntersectLineCircle, zero2 } from "../utils/geometry";
+import { getRegularPolygon, inSector, scalePoints, tryIntersectLineCircle, zero2 } from "../utils/geometry";
 import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Path, Vector2 } from "three";
 import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
 import { calculateDeformation, calculateDeformationAngle, Deformation } from "./deformation";
-import { randomFrom } from "../utils/math";
+import { interpolateLinear1D, randomFrom } from "../utils/math";
+import { lastTick } from "../utils/tick";
 
 interface DeformationLock {
     start: number;
@@ -134,7 +135,16 @@ function calculateMembranePoints(membrane: MembraneSkeleton, config: Unwrap<Memb
     return { points: path.getPoints(config.detalization), thickness: thickness };
 }
 
-export function createAliveMembrane(membrane: Membrane, config: Unwrap<MembraneConfiguration>) {
+interface MembraneElement {
+    geometry: BufferGeometry;
+    membrane: MembraneSkeleton;
+    tick(time: number): void;
+    current(time: number): Membrane;
+    update(update: Membrane): void;
+}
+
+export function createAliveMembrane(membrane: Membrane, config: Unwrap<MembraneConfiguration>): MembraneElement {
+    const initial = membrane.radius;
     const skeleton = generateAliveMembrane(membrane, config);
     const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(skeleton, config, 0);
     const n = initialPoints.length;
@@ -150,16 +160,40 @@ export function createAliveMembrane(membrane: Membrane, config: Unwrap<MembraneC
         index.push(0, i + 1, ((i + 1) % n) + 1);
     }
     geometry.setIndex(index);
+
+    let transition: Membrane | null = null;
+    let transitionStart = 0;
+    let transitionEnd = 0;
+    const current = (time: number): Membrane => {
+        if (transition == null) {
+            return membrane;
+        }
+        const current = interpolateLinear1D(membrane.radius, transition.radius, transitionStart, transitionEnd, time);
+        return { radius: current };
+    };
     return {
         geometry: geometry,
         membrane: skeleton,
+        current: current,
         tick: (time: number) => {
+            const currentMembrane = current(time);
+            if (transition != null && time > transitionEnd) {
+                membrane = currentMembrane;
+                transition = null;
+            }
+
             const t = time * config.frequency;
             const { points, thickness } = calculateMembranePoints(skeleton, config, t);
             thicknessAttribute.set(new Float32Array([1, ...thickness]));
             thicknessAttribute.needsUpdate = true;
-            positionAttribute.set(getFlatComponents3D([zero2, ...points]));
+            positionAttribute.set(getFlatComponents3D([zero2, ...scalePoints(points, currentMembrane.radius / initial)]));
             positionAttribute.needsUpdate = true;
+        },
+        update: (update: Membrane) => {
+            membrane = current(lastTick());
+            transition = update;
+            transitionStart = lastTick();
+            transitionEnd = lastTick() + config.transitionDuration;
         },
     };
 }

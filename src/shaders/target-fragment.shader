@@ -52,12 +52,6 @@ void main() {
     if (min(p.x, 1.0 - p.x) < u_size && min(p.y, 1.0 - p.y) < u_size && (min(p.x, 1.0 - p.x) < u_thickness || min(p.y, 1.0 - p.y) < u_thickness)) {
         gl_FragColor = vec4(u_color, 1.0);
     } else {
-        float alpha_left = smoothstep(u_scan - 0.1, u_scan, p.y);
-        float alpha_right = smoothstep(u_scan + 0.1, u_scan, p.y);
-        float a = alpha_left;
-        if (p.y > u_scan) {
-            a = alpha_right;
-        }
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5 * a * smoothstep(0.0, 0.1, min(p.x, 1.0 - p.x)) * smoothstep(0.0, 0.1, min(p.y, 1.0 - p.y)));
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 0.0);
     }
 }

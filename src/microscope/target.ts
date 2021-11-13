@@ -1,19 +1,4 @@
-import {
-    BufferAttribute,
-    BufferGeometry,
-    Color,
-    LineSegments,
-    Mesh,
-    MeshBasicMaterial,
-    Object3D,
-    PlaneGeometry,
-    ShaderMaterial,
-    Side,
-    Uniform,
-    Vector2,
-    Vector3,
-    WireframeGeometry,
-} from "three";
+import { BufferAttribute, BufferGeometry, Color, LineSegments, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, Side, Uniform, Vector2, Vector3, WireframeGeometry } from "three";
 import { getFlatComponents3D, getHSLVector } from "../utils/draw";
 import { randomChoice } from "../utils/math";
 
@@ -29,10 +14,9 @@ export interface Target {
     color: Color;
     appearDuration: number;
     selectDuration: number;
-    scan: boolean;
 }
 
-export function createTarget({ size, color, center, appearDuration, selectDuration, scan }: Target) {
+export function createTarget({ size, color, center, appearDuration, selectDuration }: Target) {
     const root = new Object3D();
 
     const geometry = new BufferGeometry();
@@ -42,7 +26,6 @@ export function createTarget({ size, color, center, appearDuration, selectDurati
 
     const material = new ShaderMaterial({
         uniforms: {
-            u_scan: new Uniform(-1.0),
             u_resolution: new Uniform(new Vector2(size, size)),
             u_size: new Uniform(0.0),
             u_color: new Uniform(new Vector3(color.r, color.g, color.b)),
@@ -66,9 +49,6 @@ export function createTarget({ size, color, center, appearDuration, selectDurati
             if (time > finishTime) {
                 alive = false;
                 return;
-            }
-            if (time > appearTime && scan) {
-                material.uniforms.u_scan.value = (time - appearTime) / selectDuration;
             }
             const alpha = 1 - Math.max(0, (appearTime - time) / appearDuration);
             material.uniforms.u_size.value = 0.1 * alpha;

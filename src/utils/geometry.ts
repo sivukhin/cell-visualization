@@ -44,12 +44,37 @@ export function generateCircles(n: number, spaceRadius: number, radiusLimit: num
     return result;
 }
 
+export function getRadiusForPoints(points: Vector2[], maxR: number): number[] {
+    const radiuses = [];
+    for (let i = 0; i < points.length; i++) {
+        let limit = maxR - points[i].length();
+        let r: number = 2 * limit;
+        for (let s = 0; s < points.length; s++) {
+            if (i == s) {
+                continue;
+            }
+            const distance = points[i].distanceTo(points[s]);
+            if (r == null || r > distance) {
+                r = distance;
+            }
+        }
+        radiuses.push(r / 2);
+    }
+    return radiuses;
+}
+
 export function getH(p: Vector2, a: Vector2, v: Vector2): Vector2 {
     const k = new Vector2().subVectors(p, a).dot(v);
     return new Vector2()
         .copy(v)
         .multiplyScalar(k / v.lengthSq())
         .add(a);
+}
+
+export function getComponents(v: Vector2, e1: Vector2): [Vector2, Vector2] {
+    const a = new Vector2().copy(e1).multiplyScalar(v.dot(e1));
+    const b = new Vector2().subVectors(v, a);
+    return [a, b];
 }
 
 export function tryIntersectLineCircle(p: Vector2, v: Vector2, c: Vector2, r: number): Vector2 | null {
@@ -66,4 +91,8 @@ export function tryIntersectLineCircle(p: Vector2, v: Vector2, c: Vector2, r: nu
 
 export function inSector(p: Vector2, a: Vector2, b: Vector2): boolean {
     return a.cross(p) > 0 && p.cross(b) >= 0;
+}
+
+export function scalePoints(points: Vector2[], scale: number): Vector2[] {
+    return points.map((p) => new Vector2().copy(p).multiplyScalar(scale));
 }

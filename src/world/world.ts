@@ -17,7 +17,7 @@ export interface WorldElement extends Element {
     spawn(id: OrganellId, radius: number);
     kill(id: OrganellId);
     attack(from: CellId, to: OrganellId);
-    select(id: CellId, color: Color, scan: boolean);
+    select(id: CellId, color: Color);
 }
 
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
@@ -35,7 +35,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     }
     let previousRound = 0;
     let attacks: Array<{ from: CellId; to: OrganellId }> = [];
-    const select = (id: CellId, color: Color, scan: boolean) => {
+    const select = (id: CellId, color: Color) => {
         const size = (worldConfig.cell.radius / Math.cos(Math.PI / worldConfig.cell.membrane.segments)) * 2;
         const target = createTarget({
             center: to2(cells[id].object.position),
@@ -43,7 +43,6 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             appearDuration: worldConfig.target.appearDuration,
             selectDuration: worldConfig.target.selectDuration,
             color: color,
-            scan: scan,
         });
         targets.push(target);
         microscopeRoot.add(target.object);
@@ -78,7 +77,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
                 for (let i = 0; i < ordered.length; i++) {
                     const source = cells[ordered[i][0]];
-                    select(ordered[i][0], new Color(worldConfig.target.attackerColor), true);
+                    select(ordered[i][0], new Color(worldConfig.target.attackerColor));
                     const targets = ordered[i][1].map((id) => {
                         const relative3d = cells[id.cell].get(id.organell).object.position;
                         const absolute3d = new Vector3().addVectors(relative3d, cells[id.cell].object.position).sub(cells[ordered[i][0]].object.position);
@@ -86,7 +85,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     });
                     const timings = source.attack(targets, worldConfig.roundDuration / 3);
                     for (let s = 0; s < ordered[i][1].length; s++) {
-                        select(ordered[i][1][s].cell, new Color(worldConfig.target.defenderColor), false);
+                        select(ordered[i][1][s].cell, new Color(worldConfig.target.defenderColor));
                         cells[ordered[i][1][s].cell].glow(ordered[i][1][s].organell, timings[s].finishIn, timings[s].finishOut);
                     }
                 }

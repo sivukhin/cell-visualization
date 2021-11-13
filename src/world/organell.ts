@@ -1,7 +1,7 @@
 import { createAliveMembrane } from "./membrane";
 import { OrganellConfiguration, Unwrap } from "../configuration";
 import { BufferAttribute, Color, Mesh, ShaderMaterial, TextureLoader, Uniform, Vector3 } from "three";
-import { randomChoice, randomFrom } from "../utils/math";
+import { interpolateLinear1D, interpolateLinearColor, randomChoice, randomFrom } from "../utils/math";
 import { getHSLVector } from "../utils/draw";
 import { Element } from "./types";
 
@@ -29,8 +29,9 @@ export interface Organell {
 }
 
 export interface OrganellElement extends Element {
-    glow(start: number, finish: number): void;
+    current(time: number): Organell;
     update(data: Organell): void;
+    glow(start: number, finish: number): void;
     kill(): void;
 }
 
@@ -51,7 +52,7 @@ function createMaterial(color: Color, texture: any, visibility: number) {
 }
 
 export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellConfiguration>): OrganellElement {
-    const { geometry, tick: membraneTick } = createAliveMembrane({ radius: organell.radius }, config.membrane);
+    const { geometry, tick: membraneTick, update: membraneUpdate, current: membraneCurrent } = createAliveMembrane({ radius: organell.radius }, config.membrane);
 
     geometry.computeBoundingBox();
     const bbox = geometry.boundingBox;
@@ -74,26 +75,41 @@ export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellC
     skeleton.rotateZ(randomFrom(0, Math.PI * 2));
 
     let [startGlow, finishGlow] = [0, 0];
-    let current = organell;
-    let nextTransition = 0;
-    let next: Organell | null = null;
+    let transition: Organell | null = null;
+    let transitionStart = 0;
+    let transitionFinish = 0;
+
+    const current = (time: number) => {
+        if (transition == null) {
+            return organell;
+        }
+        const color = interpolateLinearColor(organell.color, transition.color, transitionStart, transitionFinish, time);
+        const visibility = interpolateLinear1D(organell.visibility, transition.visibility, transitionStart, transitionFinish, time);
+        return { ...organell, radius: membraneCurrent(time).radius, color: color, visibility: visibility };
+    };
+
+    const update = (data: Organell) => {
+        organell = current(lastTick());
+        transition = data;
+        transitionStart = lastTick();
+        transitionFinish = lastTick() + config.transitionDuration;
+        membraneUpdate({ radius: data.radius });
+    };
+
     return {
         object: skeleton,
         alive: () => true,
+        current: current,
         tick: (time: number) => {
-            if (next != null && (current.visibility != next.visibility || !current.color.equals(next.color))) {
-                const alpha = 1 - Math.max(0, (nextTransition - time) / config.transitionDuration);
-                const color = new Color(
-                    current.color.r * (1 - alpha) + next.color.r * alpha,
-                    current.color.g * (1 - alpha) + next.color.g * alpha,
-                    current.color.b * (1 - alpha) + next.color.b * alpha
-                );
-                skeleton.material.uniforms.u_visibility.value = current.visibility * (1 - alpha) + next.visibility * alpha;
-                skeleton.material.uniforms.u_color.value = getHSLVector(color);
+            const currentOrganell = current(time);
+            if (transition != null) {
+                skeleton.material.uniforms.u_visibility.value = currentOrganell.visibility;
+                skeleton.material.uniforms.u_color.value = getHSLVector(currentOrganell.color);
                 skeleton.material.needsUpdate = true;
-                if (alpha == 1) {
-                    next = null;
-                }
+            }
+            if (transition != null && time > transitionFinish) {
+                organell = currentOrganell;
+                transition = null;
             }
             if (startGlow < time && time < finishGlow) {
                 const d = time - startGlow;
@@ -109,12 +125,9 @@ export function createAliveOrganell(organell: Organell, config: Unwrap<OrganellC
             membraneTick(time);
             skeleton.rotateZ(organell.angular);
         },
-        update(data: Organell) {
-            next = data;
-            nextTransition = lastTick() + config.transitionDuration;
-        },
+        update: update,
         kill() {
-            next = { ...current, visibility: 0 };
+            update({ ...organell, visibility: 0 });
         },
         glow: (start: number, finish: number) => {
             if (startGlow != 0) {
