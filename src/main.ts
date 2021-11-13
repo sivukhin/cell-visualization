@@ -24,7 +24,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(7),
+            count: atom<number>(1),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -43,9 +43,10 @@ function createConfiguration(canvas): WorldConfiguration {
                 skew: atom<number>(Math.PI / 10),
                 thorness: atom<number>(0.2),
                 wobbling: atom<number>(0.15),
+                transitionDuration: atom<number>(5000),
             },
             organell: {
-                transitionDuration: atom<number>(1000),
+                transitionDuration: atom<number>(5000),
                 colors: {
                     color0: atom<ColorRepresentation>("rgb(128, 84, 84)"),
                     color1: atom<ColorRepresentation>("rgb(106, 130, 86)"),
@@ -61,6 +62,7 @@ function createConfiguration(canvas): WorldConfiguration {
                     skew: atom<number>(Math.PI / 8),
                     thorness: atom<number>(0.2),
                     wobbling: atom<number>(0.5),
+                    transitionDuration: atom<number>(5000),
                 },
             },
             glowing: atom<number>(0.85),

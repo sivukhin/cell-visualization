@@ -44,7 +44,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
 
     const microcosmosComposer = new EffectComposer(renderer);
     microcosmosComposer.addPass(new RenderPass(worldScene, camera.camera));
-    microcosmosComposer.addPass(new ShaderPass(RGBShiftShader));
+    // microcosmosComposer.addPass(new ShaderPass(RGBShiftShader));
     // microcosmosComposer.addPass(new ShaderPass(EdgeGlowShader));
 
     const microscopeComposer = new EffectComposer(renderer);
@@ -65,14 +65,14 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             setLastTick(time);
             world.tick(time);
 
-            if (id < 8 && time > lastTime + randomFrom(100, 200)) {
+            if (id < 10 && time > lastTime + randomFrom(1000, 2000)) {
                 lastTime = time;
                 for (let i = 0; i < store.get().soup.count; i++) {
                     world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
                 }
                 id++;
             }
-            if (id == 8 && time > lastTime + randomFrom(5000, 8000) && store.get().soup.count > 1) {
+            if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
                 lastTime = time;
                 const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
                 for (let i = 0; i < 2; i++) {

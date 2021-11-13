@@ -23,6 +23,7 @@ export interface MembraneConfiguration {
     skew: Store<number>;
     thorness: Store<number>;
     wobbling: Store<number>;
+    transitionDuration: Store<number>;
 }
 
 export interface OrganellConfiguration {
