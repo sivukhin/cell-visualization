@@ -3,14 +3,13 @@ import { OrganellConfiguration, Unwrap } from "../configuration";
 import { BufferAttribute, Color, Mesh, ShaderMaterial, TextureLoader, Uniform, Vector2, Vector3 } from "three";
 import { interpolateLinear1D, interpolateLinearColor, randomChoice, randomFrom } from "../utils/math";
 import { getHSLVector } from "../utils/draw";
-import { Element } from "./types";
+import { OrganellElement } from "./types";
 
 // @ts-ignore
 import OrganellVertexShader from "../shaders/organell-vertex.shader";
 // @ts-ignore
 import OrganellFragmentShader from "../shaders/organell-fragment.shader";
 import { lastTick } from "../utils/tick";
-import { createMembrane } from "./membrane";
 
 const loader = new TextureLoader();
 const textures = [
@@ -25,11 +24,6 @@ const textures = [
 export interface Organell {
     color: Color;
     visibility: number;
-}
-
-export interface OrganellElement extends Element {
-    update(nextOrganell: Organell | null, nextMembrane: AliveMembrane | null): void;
-    glow(start: number, finish: number): void;
 }
 
 function createMaterial(color: Color, texture: any, visibility: number) {
@@ -109,8 +103,7 @@ export function createAliveOrganell(organell: Organell, membrane: AliveMembrane,
     };
 
     return {
-        object: skeleton,
-        alive: () => true,
+        multiverse: skeleton,
         tick: (time: number) => {
             const currentOrganell = current(time);
             if (transition != null) {
@@ -134,6 +127,7 @@ export function createAliveOrganell(organell: Organell, membrane: AliveMembrane,
                 startGlow = finishGlow = 0;
             }
             membraneTick(time);
+            return true;
         },
         update: update,
         glow: (start: number, finish: number) => {

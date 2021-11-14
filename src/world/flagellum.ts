@@ -5,6 +5,7 @@ import { randomFrom } from "../utils/math";
 import { zero2 } from "../utils/geometry";
 import { calculateDeformation, Deformation, modifyDeformation } from "./deformation";
 import { getRelativeTime, Timings } from "../utils/timings";
+import { FlagellumElement } from "./types";
 
 interface Flagellum {
     points: Vector2[];
@@ -95,7 +96,7 @@ export interface FlagellumState {
     timings: Timings;
 }
 
-export function createFlagellum({ startDirection, finishDirection, target, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>) {
+export function createFlagellum({ startDirection, finishDirection, target, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>): FlagellumElement {
     const material = new MeshBasicMaterial({ color: configuration.color, side: BackSide, transparent: true });
     const flagellum = generateFlagellum(target, configuration);
     const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
@@ -105,26 +106,18 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
     geometry.setIndex(figure.indices);
 
     const curve = new Mesh(geometry, material);
-    let alive = true;
     return {
-        object: curve,
-        alive: () => alive,
+        multiverse: curve,
         tick: (time: number) => {
-            alive = time <= timings.finishOut;
             if (time > timings.finishOut) {
-                return;
+                return false;
             }
             const relativeTime = getRelativeTime(timings, time);
             const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
-            // if (current.length === positionAttribute.count) {
-            //     positionAttribute.set(getComponents(current));
-            //     positionAttribute.needsUpdate = true;
-            // } else {
             const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
-            // const update = new BufferAttribute(getFlatComponents3D(current), 3);
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
             geometry.setIndex(update.indices);
-            // }
+            return true;
         },
     };
 }

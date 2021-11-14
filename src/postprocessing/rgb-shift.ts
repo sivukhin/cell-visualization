@@ -11,7 +11,7 @@
 const RGBShiftShader = {
     uniforms: {
         tDiffuse: { value: null },
-        amount: { value: 0.005 },
+        amount: { value: 0.002 },
         angle: { value: 0.0 },
     },
 
@@ -29,10 +29,9 @@ const RGBShiftShader = {
 		varying vec2 vUv;
 		void main() {
 			vec2 offset = amount * vec2( cos(angle), sin(angle));
-			vec4 cr = texture(tDiffuse, vUv + offset);
-			vec4 cga = texture(tDiffuse, vUv);
-			vec4 cb = texture(tDiffuse, vUv - offset);
-			gl_FragColor = vec4(cr.r, cga.g, cb.b, cga.a);
+			vec4 orig = texture(tDiffuse, vUv);
+			vec4 crb = texture(tDiffuse, vUv + offset);
+			gl_FragColor = vec4(orig.r, orig.g, crb.b, orig.a);
 		}`,
 };
 

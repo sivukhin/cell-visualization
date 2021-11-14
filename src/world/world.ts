@@ -1,29 +1,20 @@
 import { Unwrap, WorldConfiguration } from "../configuration";
 import { Color, Object3D, Vector2, Vector3 } from "three";
-import { getComponents, getRegularPolygon, zero2 } from "../utils/geometry";
-import { CellElement, createAliveCell } from "./cell";
-import { Element } from "./types";
+import { getComponents, zero2 } from "../utils/geometry";
+import { createAliveCell } from "./cell";
+import { CellElement, OrganellId, TargetElement, WorldElement } from "./types";
 import { createTarget } from "../microscope/target";
 import { to2 } from "../utils/draw";
 import { randomFrom } from "../utils/math";
-
-type CellId = number;
-
-interface OrganellId {
-    cell: CellId;
-    organell: number;
-}
-
-export interface WorldElement extends Element {
-    spawn(id: OrganellId, radius: number);
-    kill(id: OrganellId);
-    attack(from: CellId, to: OrganellId);
-    select(id: CellId, color: Color);
-}
+import { tickAll } from "../utils/tick";
 
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
-    const root = new Object3D();
-    const microscopeRoot = new Object3D();
+    const multiverse = {
+        organell: new Object3D(),
+        membrane: new Object3D(),
+        microscope: new Object3D(),
+    };
+
     const velocities: Vector2[] = [];
 
     const positions = [];
@@ -38,52 +29,55 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         }
     }
     const cells: CellElement[] = [];
-    let targets: Element[] = [];
+    let targets: TargetElement[] = [];
     for (let i = 0; i < positions.length; i++) {
         const cell = createAliveCell(worldConfig.cell, worldConfig.flagellum);
-        cell.object.position.set(positions[i].x, positions[i].y, 0);
-        root.add(cell.object);
+        cell.multiverse.membrane.position.set(positions[i].x, positions[i].y, 0);
+        multiverse.membrane.add(cell.multiverse.membrane);
+        cell.multiverse.organell.position.set(positions[i].x, positions[i].y, 0);
+        multiverse.organell.add(cell.multiverse.organell);
         cells.push(cell);
     }
     let previousRound = 0;
-    let attacks: Array<{ from: CellId; to: OrganellId }> = [];
-    const select = (id: CellId, color: Color) => {
+    let attacks: Array<{ from: number; to: OrganellId }> = [];
+    const select = (id: number, color: Color) => {
         const size = (worldConfig.cell.radius / Math.cos(Math.PI / worldConfig.cell.segments)) * 2;
         const target = createTarget({
-            follow: () => to2(cells[id].object.position),
+            follow: () => to2(cells[id].multiverse.membrane.position),
             size: size,
             appearDuration: worldConfig.target.appearDuration,
             selectDuration: worldConfig.target.selectDuration,
             color: color,
         });
         targets.push(target);
-        microscopeRoot.add(target.object);
+        multiverse.microscope.add(target.multiverse);
     };
     return {
-        object: root,
-        microscope: microscopeRoot,
+        multiverse: multiverse,
         tick: (time: number) => {
             for (let i = 0; i < cells.length; i++) {
                 cells[i].tick(time);
-                cells[i].object.position.x += velocities[i].x;
-                cells[i].object.position.y += velocities[i].y;
+                cells[i].multiverse.organell.position.x += velocities[i].x;
+                cells[i].multiverse.organell.position.y += velocities[i].y;
+                cells[i].multiverse.membrane.position.x += velocities[i].x;
+                cells[i].multiverse.membrane.position.y += velocities[i].y;
             }
             for (let i = 0; i < cells.length; i++) {
-                if (cells[i].object.position.x < -worldConfig.soup.width / 2 + 2 * worldConfig.cell.radius) {
+                if (cells[i].multiverse.membrane.position.x < -worldConfig.soup.width / 2 + 2 * worldConfig.cell.radius) {
                     velocities[i].x += worldConfig.speed / 10;
                 }
-                if (cells[i].object.position.y < -worldConfig.soup.height / 2 + 2 * worldConfig.cell.radius) {
+                if (cells[i].multiverse.membrane.position.y < -worldConfig.soup.height / 2 + 2 * worldConfig.cell.radius) {
                     velocities[i].y += worldConfig.speed / 10;
                 }
-                if (cells[i].object.position.x > worldConfig.soup.width / 2 - 2 * worldConfig.cell.radius) {
+                if (cells[i].multiverse.membrane.position.x > worldConfig.soup.width / 2 - 2 * worldConfig.cell.radius) {
                     velocities[i].x -= worldConfig.speed / 10;
                 }
-                if (cells[i].object.position.y > worldConfig.soup.height / 2 - 2 * worldConfig.cell.radius) {
+                if (cells[i].multiverse.membrane.position.y > worldConfig.soup.height / 2 - 2 * worldConfig.cell.radius) {
                     velocities[i].y -= worldConfig.speed / 10;
                 }
                 for (let s = 0; s < cells.length; s++) {
-                    const aPosition = to2(cells[i].object.position);
-                    const bPosition = to2(cells[s].object.position);
+                    const aPosition = to2(cells[i].multiverse.membrane.position);
+                    const bPosition = to2(cells[s].multiverse.membrane.position);
                     if (i == s || aPosition.distanceTo(bPosition) * 1.1 > 2 * worldConfig.cell.radius) {
                         continue;
                     }
@@ -95,17 +89,10 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     velocities[i].setLength(worldConfig.speed);
                 }
             }
-            for (let i = 0; i < targets.length; i++) {
-                if (!targets[i].alive()) {
-                    microscopeRoot.remove(targets[i].object);
-                }
-            }
-            targets = targets.filter((t) => t.alive());
-            for (let i = 0; i < targets.length; i++) {
-                targets[i].tick(time);
-            }
+            targets = tickAll(targets, time, (t) => multiverse.microscope.remove(t.multiverse));
+
             if (time - previousRound > worldConfig.roundDuration) {
-                const groups = new Map<CellId, OrganellId[]>();
+                const groups = new Map<number, OrganellId[]>();
                 for (let i = 0; i < attacks.length; i++) {
                     const { from, to } = attacks[i];
                     if (!groups.has(from)) {
@@ -120,8 +107,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     const source = cells[ordered[i][0]];
                     select(ordered[i][0], new Color(worldConfig.target.attackerColor));
                     const targets = ordered[i][1].map((id) => {
-                        const relative3d = cells[id.cell].get(id.organell).object.position;
-                        const absolute3d = new Vector3().addVectors(relative3d, cells[id.cell].object.position).sub(cells[ordered[i][0]].object.position);
+                        const relative3d = cells[id.cell].get(id.organell).multiverse.position;
+                        const absolute3d = new Vector3().addVectors(relative3d, cells[id.cell].multiverse.membrane.position).sub(cells[ordered[i][0]].multiverse.membrane.position);
                         return new Vector2(absolute3d.x, absolute3d.y);
                     });
                     const timings = source.attack(targets, worldConfig.roundDuration / 3);
@@ -133,15 +120,13 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 previousRound = time;
                 attacks = [];
             }
+            return true;
         },
         select: select,
         spawn: (id: OrganellId, radius: number) => {
             cells[id.cell].spawn(id.organell);
         },
-        kill: (id: OrganellId) => {
-            cells[id.cell].kill(id.organell);
-        },
-        attack: (from: CellId, to: OrganellId) => {
+        attack: (from: number, to: OrganellId) => {
             attacks.push({ from, to });
         },
     };

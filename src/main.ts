@@ -25,7 +25,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(30),
+            count: atom<number>(5),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -113,7 +113,7 @@ function createConfiguration(canvas): WorldConfiguration {
     return configuration;
 }
 
-let scene = null;
+let microcosmos = null;
 function initialize() {
     const renderer = new WebGLRenderer({
         canvas: document.getElementById("microcosmos"),
@@ -121,17 +121,18 @@ function initialize() {
         alpha: true,
     });
     const configuration = createConfiguration(renderer.domElement);
-    scene = createScene(configuration, renderer);
+    microcosmos = createScene(configuration, renderer);
 
-    adjust(renderer, [scene.microcosmosComposer, scene.microscopeComposer]);
+    adjust(renderer, microcosmos.composers);
 
     const stats = Stats();
 
     function render(time: number) {
         stats.begin();
-        scene.tick(time);
-        scene.microcosmosComposer.render();
-        scene.microscopeComposer.render();
+        microcosmos.tick(time);
+        for (const composer of microcosmos.composers) {
+            composer.render();
+        }
         stats.end();
         requestAnimationFrame(render);
     }
@@ -155,14 +156,14 @@ document.body.addEventListener("mouseup", (ev) => {
 document.body.addEventListener("mousemove", (ev) => {
     if (dragging) {
         const delta = [-ev.movementX, ev.movementY];
-        scene.camera.move(delta[0], delta[1]);
+        microcosmos.move(delta[0], delta[1]);
         rollXY(delta[0], delta[1]);
     }
 });
 document.body.addEventListener("wheel", (ev) => {
-    scene.camera.zoom(-ev.deltaY);
+    microcosmos.zoom(-ev.deltaY);
     const magnifications = document.getElementsByClassName("magnification");
     for (let i = 0; i < magnifications.length; i++) {
-        magnifications[i].textContent = `${Math.round(25 * scene.camera.magnification())}`;
+        magnifications[i].textContent = `${Math.round(25 * microcosmos.magnification())}`;
     }
 });

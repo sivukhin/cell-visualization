@@ -1,8 +1,8 @@
-import { Scene, WebGLRenderer } from "three";
+import { WebGLRenderer } from "three";
 import { createCamera } from "./camera";
 import { createConfigurationStore, WorldConfiguration } from "../configuration";
 import { createEnvironment } from "./environment";
-import { createWorld, WorldElement } from "./world";
+import { createWorld } from "./world";
 import { setLastTick } from "../utils/tick";
 import { randomFrom } from "../utils/math";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
@@ -10,57 +10,50 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass";
 import { RGBShiftShader } from "../postprocessing/rgb-shift";
 import { EdgeGlowShader } from "../postprocessing/glow";
+import { createMultiworld, Microcosmos, WorldElement } from "./types";
 
-export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer) {
-    let zoom = 1;
+export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer): Microcosmos {
     const store = createConfigurationStore(dynamic);
 
-    const worldScene = new Scene();
-    const microscopeScene = new Scene();
-    microscopeScene.background = null;
+    const { camera, move, zoom, magnification } = createCamera(dynamic.soup.width, dynamic.soup.height);
 
-    const camera = createCamera(dynamic.soup.width, dynamic.soup.height);
-    worldScene.add(camera.camera);
-    microscopeScene.add(camera.camera);
-
-    let targets = [];
-    let target = null;
     let world: WorldElement | null = null;
+    let composers: EffectComposer[] = [];
 
     let id = 0;
     store.subscribe((configuration) => {
         id = 0;
-        worldScene.clear();
-        microscopeScene.clear();
-
-        const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
-        worldScene.add(environment);
         world = createWorld(configuration);
-        worldScene.add(world.object);
-        if (world.microscope != null) {
-            microscopeScene.add(world.microscope);
-        }
+        const multiworld = createMultiworld(world.multiverse, camera);
+        const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
+        multiworld.membrane.add(environment);
+
+        const membrane = new EffectComposer(renderer);
+        membrane.addPass(new RenderPass(multiworld.membrane, camera));
+        membrane.addPass(new ShaderPass(RGBShiftShader));
+
+        const organell = new EffectComposer(renderer);
+        const organellPass = new RenderPass(multiworld.organell, camera);
+        organellPass.clear = false;
+        organellPass.clearDepth = true;
+        organell.addPass(organellPass);
+
+        const microscope = new EffectComposer(renderer);
+        const microscopePass = new RenderPass(multiworld.microscope, camera);
+        microscopePass.clear = false;
+        microscopePass.clearDepth = true;
+        microscope.addPass(microscopePass);
+
+        composers.splice(0, composers.length);
+        composers.push(membrane, organell, microscope);
     });
 
-    const microcosmosComposer = new EffectComposer(renderer);
-    microcosmosComposer.addPass(new RenderPass(worldScene, camera.camera));
-    // microcosmosComposer.addPass(new ShaderPass(RGBShiftShader));
-    // microcosmosComposer.addPass(new ShaderPass(EdgeGlowShader));
-
-    const microscopeComposer = new EffectComposer(renderer);
-    const pass = new RenderPass(microscopeScene, camera.camera);
-    pass.clear = false;
-    pass.clearDepth = true;
-    microscopeComposer.addPass(pass);
-
-    let attacked = false;
-    let refreshAt = 0;
     let lastTime = 0;
     return {
-        scene: worldScene,
-        camera,
-        microcosmosComposer,
-        microscopeComposer,
+        composers: composers,
+        move: move,
+        zoom: zoom,
+        magnification: magnification,
         tick: (time: number) => {
             setLastTick(time);
             world.tick(time);

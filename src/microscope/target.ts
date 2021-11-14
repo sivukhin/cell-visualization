@@ -7,6 +7,7 @@ import TargetVertexShader from "../shaders/target-vertex.shader";
 // @ts-ignore
 import TargetFragmentShader from "../shaders/target-fragment.shader";
 import { lastTick } from "../utils/tick";
+import { TargetElement } from "../world/types";
 
 export interface Target {
     follow(): Vector2;
@@ -16,7 +17,7 @@ export interface Target {
     selectDuration: number;
 }
 
-export function createTarget({ size, color, follow, appearDuration, selectDuration }: Target) {
+export function createTarget({ size, color, follow, appearDuration, selectDuration }: Target): TargetElement {
     const root = new Object3D();
 
     const geometry = new BufferGeometry();
@@ -41,19 +42,17 @@ export function createTarget({ size, color, follow, appearDuration, selectDurati
     root.add(skeleton);
     const appearTime = lastTick() + appearDuration;
     const finishTime = lastTick() + appearDuration + selectDuration;
-    let alive = true;
     return {
-        object: root,
-        alive: () => alive,
+        multiverse: root,
         tick: (time: number) => {
             if (time > finishTime) {
-                alive = false;
-                return;
+                return false;
             }
             skeleton.position.set(follow().x - size / 2, follow().y - size / 2, 0);
             const alpha = 1 - Math.max(0, (appearTime - time) / appearDuration);
             material.uniforms.u_size.value = 0.1 * alpha;
             material.needsUpdate = true;
+            return true;
         },
     };
 }

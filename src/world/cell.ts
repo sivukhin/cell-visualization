@@ -1,29 +1,20 @@
-import { BufferAttribute, BufferGeometry, Color, LineSegments, Mesh, ShaderMaterial, Uniform, Vector2, WireframeGeometry } from "three";
+import { BufferAttribute, BufferGeometry, Color, LineSegments, Mesh, Object3D, ShaderMaterial, Uniform, Vector2, WireframeGeometry } from "three";
 import { CellConfiguration, FlagellumConfiguration, Unwrap } from "../configuration";
 import { findDeformationAngleTime } from "./deformation";
 import { createFlagellum } from "./flagellum";
 import { createAliveMembrane } from "./alive-membrane";
-import { createAliveOrganell, OrganellElement } from "./organell";
-import { getFlatComponents3D, getHSLVector, to2 } from "../utils/draw";
+import { createAliveOrganell } from "./organell";
+import { getHSLVector } from "../utils/draw";
 
 // @ts-ignore
 import GlowFragmentShader from "../shaders/cell-fragment.shader";
 // @ts-ignore
 import GlowVertexShader from "../shaders/cell-vertex.shader";
-import { lastTick } from "../utils/tick";
-import { Element } from "./types";
+import { lastTick, tickAll } from "../utils/tick";
 import { randomChoice, randomFrom } from "../utils/math";
 import { Timings } from "../utils/timings";
-import { convexHull, getComponents, getRadiusForPoints, getRegularPolygon, scalePoints, simplifyShape, zero2 } from "../utils/geometry";
-import { ConvexHull } from "three/examples/jsm/math/ConvexHull";
-
-export interface CellElement extends Element {
-    spawn(id: number): void;
-    kill(id: number): void;
-    glow(id: number, start: number, finish: number): void;
-    attack(targets: Vector2[], duration: number): Timings[];
-    get(id: number): OrganellElement;
-}
+import { convexHull, getRegularPolygon, scalePoints, simplifyShape, zero2 } from "../utils/geometry";
+import { CellElement, FlagellumElement, OrganellElement } from "./types";
 
 const directions = [
     new Vector2(1, 0).normalize(),
@@ -36,14 +27,13 @@ const directions = [
     new Vector2(1, -1).normalize(),
 ];
 
-interface OrganellDescription {
+interface OrganellState {
     id: number;
-    element: OrganellElement;
     center: Vector2;
     velocity: Vector2;
 }
 
-function calculateOrganell(id: number, center: Vector2, organells: OrganellDescription[], radius: number) {
+function calculateOrganell(id: number, center: Vector2, organells: OrganellState[], radius: number) {
     const rStep = radius / 20;
     const nearest = [];
     for (let x = -radius; x < radius; x += rStep) {
@@ -91,8 +81,9 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
     const { geometry, membrane, tick: membraneTick, update: membraneUpdate } = createAliveMembrane({ points: getRegularPolygon(cellConfig.segments, r) }, cellConfig.membrane);
     const colors = Object.values(cellConfig.organell.colors);
-    let flagellums: Element[] = [];
-    let organells: OrganellDescription[] = [];
+    let flagellums: FlagellumElement[] = [];
+    let organells: OrganellElement[] = [];
+    let state: OrganellState[] = [];
 
     const material = new ShaderMaterial({
         uniforms: {
@@ -103,80 +94,42 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         fragmentShader: GlowFragmentShader,
         transparent: true,
     });
-    const speed = 0.1;
-    const cell = new Mesh(geometry, material);
+    const multiverse = {
+        organell: new Object3D(),
+        membrane: new Mesh(geometry, material),
+    };
     return {
-        object: cell,
+        multiverse: multiverse,
         tick: (time: number) => {
-            for (let i = 0; i < flagellums.length; i++) {
-                if (!flagellums[i].alive()) {
-                    cell.remove(flagellums[i].object);
-                }
-            }
-            for (let i = 0; i < organells.length; i++) {
-                if (!organells[i].element.alive()) {
-                    cell.remove(organells[i].element.object);
-                }
-            }
-            organells = organells.filter((t) => t.element.alive);
-            flagellums = flagellums.filter((t) => t.alive);
-            for (let i = 0; i < flagellums.length; i++) {
-                flagellums[i].tick(time);
-            }
-            for (let i = 0; i < organells.length; i++) {
-                organells[i].element.tick(time);
-            }
-            // for (let i = 0; i < organells.length; i++) {
-            //     organells[i].element.tick(time);
-            //     organells[i].element.object.position.x += organells[i].velocity.x;
-            //     organells[i].element.object.position.y += organells[i].velocity.y;
-            // }
-            // for (let i = 0; i < organells.length; i++) {
-            //     if (to2(organells[i].element.object.position).length() + organells[i].element.current(time).radius > 0.8 * cellConfig.radius) {
-            //         const direction = to2(organells[i].element.object.position).normalize();
-            //         const edge = to2(organells[i].element.object.position).length() + organells[i].element.current(time).radius;
-            //         organells[i].velocity.addScaledVector(direction, -0.01 / (cellConfig.radius - edge));
-            //     }
-            //     for (let s = 0; s < organells.length; s++) {
-            //         const a = organells[i].element.current(time);
-            //         const b = organells[s].element.current(time);
-            //         const aPosition = to2(organells[i].element.object.position);
-            //         const bPosition = to2(organells[s].element.object.position);
-            //         if (i == s || aPosition.distanceTo(bPosition) * 1.1 > a.radius + b.radius) {
-            //             continue;
-            //         }
-            //         const direction = new Vector2().subVectors(bPosition, aPosition).normalize();
-            //         const [v, u] = getComponents(organells[i].velocity, direction);
-            //         organells[i].velocity = new Vector2().addVectors(v.addScaledVector(direction, -0.005), u);
-            //     }
-            //     if (organells[i].velocity.length() > speed) {
-            //         organells[i].velocity.setLength(speed);
-            //     }
-            // }
+            flagellums = tickAll(flagellums, time, (f) => multiverse.membrane.remove(f.multiverse));
+            organells = tickAll(organells, time, (o) => multiverse.organell.remove(o.multiverse));
             membraneTick(time);
+            return true;
         },
         get: (id: number) => {
-            const item = organells.find((t) => t.id == id);
-            if (item == null) {
-                throw new Error("organell not found");
+            for (let i = 0; i < state.length; i++) {
+                if (state[i].id === id) {
+                    return organells[i];
+                }
             }
-            return item.element;
+            throw new Error("organell not found");
         },
         glow(id: number, start: number, finish: number) {
-            const item = organells.find((t) => t.id == id);
-            if (item == null) {
-                return;
+            for (let i = 0; i < state.length; i++) {
+                if (state[i].id === id) {
+                    organells[i].glow(start, finish);
+                    break;
+                }
             }
-            item.element.glow(start, finish);
         },
         spawn: (id: number) => {
-            const item = organells.find((t) => t.id == id);
             const color = colors[id % colors.length];
-            if (item == null) {
+            const spawned = state.some((x) => x.id == id);
+            if (!spawned) {
                 const { p: center, id: slotId } = randomChoice(slots.map((p, id) => ({ p: new Vector2().copy(p).multiplyScalar(cellConfig.radius), id })).filter((t) => !occupied[t.id]));
                 occupied[slotId] = true;
 
-                const hull = calculateOrganell(id, center, organells, cellConfig.radius * padding);
+                const hull = calculateOrganell(id, center, state, cellConfig.radius * padding);
                 const spawnedOrganell = { color: new Color(color), visibility: 1.0 };
                 const spawnedMembrane = {
                     points: scalePoints(
@@ -185,51 +138,20 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                     ),
                 };
                 const spawned = createAliveOrganell(spawnedOrganell, spawnedMembrane, cellConfig.organell);
-                spawned.object.position.set(center.x, center.y, 0);
-                cell.add(spawned.object);
-                organells.push({ element: spawned, center: center, velocity: zero2, id: id });
+                spawned.multiverse.position.set(center.x, center.y, 0);
+                multiverse.organell.add(spawned.multiverse);
+                organells.push(spawned);
+                state.push({ center: center, velocity: zero2, id: id });
                 for (let i = 0; i < organells.length - 1; i++) {
-                    const update = calculateOrganell(organells[i].id, organells[i].center, organells, cellConfig.radius * padding);
-                    organells[i].element.update(null, {
+                    const update = calculateOrganell(state[i].id, state[i].center, state, cellConfig.radius * padding);
+                    organells[i].update(null, {
                         points: scalePoints(
-                            update.map((p) => p.sub(organells[i].center)),
+                            update.map((p) => p.sub(state[i].center)),
                             0.95
                         ),
                     });
                 }
             }
-            // const item = organells.find((t) => t.id == id);
-            // const color = colors[id % colors.length];
-            // if (item == null) {
-            //     const { p: currentCenter, id: currentId } = randomChoice(slots.map((p, id) => ({ p: new Vector2().copy(p).multiplyScalar(cellConfig.radius), id })).filter((t) => !occupied[t.id]));
-            //     occupied[currentId] = true;
-            //
-            //     const radiuses = getRadiusForPoints([...organells.map((x) => x.center), currentCenter], 0.9 * cellConfig.radius).map((r) => 0.9 * r);
-            //     const currentRadius = radiuses[radiuses.length - 1];
-            //     const invisible = { color: new Color(color), radius: currentRadius, visibility: 0.0, angular: 0.001 };
-            //     const spawned = createAliveOrganell(invisible, {
-            //         ...cellConfig.organell,
-            //         membrane: { ...cellConfig.organell.membrane, segments: cellConfig.organell.membrane.segments + ((offset + id) % 3) },
-            //     });
-            //     spawned.object.position.set(currentCenter.x, currentCenter.y, 0);
-            //     spawned.update({ ...invisible, visibility: 0.7 });
-            //     for (let i = 0; i < organells.length; i++) {
-            //         organells[i].element.update({ ...organells[i].element.current(lastTick()), visibility: 0.7, radius: radiuses[i] * 1.2 });
-            //     }
-            //     organells.push({ id: id, element: spawned, center: currentCenter, velocity: new Vector2(speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)) });
-            //     console.info(organells.map((x) => x.velocity));
-            //     cell.add(spawned.object);
-            // } else {
-            //     const visible = { color: new Color(color), radius: item.element.current(lastTick()).radius, visibility: 0.7, angular: 0.001 };
-            //     item.element.update(visible);
-            // }
-        },
-        kill: (id: number) => {
-            const item = organells.find((t) => t.id == id);
-            if (item == null) {
-                return;
-            }
-            // item.element.kill();
         },
         attack: (targets: Vector2[], duration: number): Timings[] => {
             const timings = [];
@@ -260,8 +182,8 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                     },
                     flagellumConfig
                 );
-                flagellum.object.position.set(attach.x, attach.y, 0);
-                cell.add(flagellum.object);
+                flagellum.multiverse.position.set(attach.x, attach.y, 0);
+                multiverse.membrane.add(flagellum.multiverse);
                 flagellums.push(flagellum);
             }
             return timings;
