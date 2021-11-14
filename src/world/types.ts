@@ -69,8 +69,18 @@ export interface OrganellId {
 
 export interface WorldElement {
     multiverse: {
-        organell: Object3D;
-        membrane: Object3D;
+        top: {
+            organell: Object3D;
+            membrane: Object3D;
+        };
+        middle: {
+            organell: Object3D;
+            membrane: Object3D;
+        };
+        bottom: {
+            organell: Object3D;
+            membrane: Object3D;
+        };
         microscope: Object3D;
     };
     tick(time: number): boolean;

@@ -73,7 +73,7 @@ export function createAliveOrganell(organell: Organell, membrane: AliveMembrane,
 
     const texture = randomChoice(textures);
     const skeleton = new Mesh(geometry, createMaterial(organell.color, texture, organell.visibility));
-    skeleton.renderOrder = 0;
+    skeleton.renderOrder = 1;
 
     let [startGlow, finishGlow] = [0, 0];
     let transition: Organell | null = null;

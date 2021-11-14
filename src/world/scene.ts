@@ -8,9 +8,23 @@ import { randomFrom } from "../utils/math";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass";
-import { RGBShiftShader } from "../postprocessing/rgb-shift";
-import { EdgeGlowShader } from "../postprocessing/glow";
 import { createMultiworld, Microcosmos, WorldElement } from "./types";
+import { BlurShader } from "../postprocessing/blur";
+
+function createOverlayRender(pass: RenderPass) {
+    pass.clear = false;
+    pass.clearDepth = true;
+    return pass;
+}
+
+function createOverlayShader(pass: ShaderPass, uniforms?: any) {
+    pass.clear = false;
+    pass.material.transparent = true;
+    if (uniforms) {
+        pass.material.uniforms = { ...pass.material.uniforms, ...uniforms };
+    }
+    return pass;
+}
 
 export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer): Microcosmos {
     const store = createConfigurationStore(dynamic);
@@ -26,26 +40,32 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         world = createWorld(configuration);
         const multiworld = createMultiworld(world.multiverse, camera);
         const environment = createEnvironment(configuration.soup.width, configuration.soup.height, configuration.light.color);
-        multiworld.membrane.add(environment);
+        multiworld.bottom.membrane.add(environment);
 
-        const membrane = new EffectComposer(renderer);
-        membrane.addPass(new RenderPass(multiworld.membrane, camera));
-        membrane.addPass(new ShaderPass(RGBShiftShader));
+        const bottomMembrane = new EffectComposer(renderer);
+        bottomMembrane.addPass(new RenderPass(multiworld.bottom.membrane, camera));
+        bottomMembrane.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.01 } }));
+        const bottomOrganell = new EffectComposer(renderer);
+        bottomOrganell.addPass(createOverlayRender(new RenderPass(multiworld.bottom.organell, camera)));
+        bottomOrganell.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.01 } }));
 
-        const organell = new EffectComposer(renderer);
-        const organellPass = new RenderPass(multiworld.organell, camera);
-        organellPass.clear = false;
-        organellPass.clearDepth = true;
-        organell.addPass(organellPass);
+        const middleMembrane = new EffectComposer(renderer);
+        middleMembrane.addPass(createOverlayRender(new RenderPass(multiworld.middle.membrane, camera)));
+        middleMembrane.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.005 } }));
+        const middleOrganell = new EffectComposer(renderer);
+        middleOrganell.addPass(createOverlayRender(new RenderPass(multiworld.middle.organell, camera)));
+        middleOrganell.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.005 } }));
+
+        const topMembrane = new EffectComposer(renderer);
+        topMembrane.addPass(createOverlayRender(new RenderPass(multiworld.top.membrane, camera)));
+        const topOrganell = new EffectComposer(renderer);
+        topOrganell.addPass(createOverlayRender(new RenderPass(multiworld.top.organell, camera)));
 
         const microscope = new EffectComposer(renderer);
-        const microscopePass = new RenderPass(multiworld.microscope, camera);
-        microscopePass.clear = false;
-        microscopePass.clearDepth = true;
-        microscope.addPass(microscopePass);
+        microscope.addPass(createOverlayRender(new RenderPass(multiworld.microscope, camera)));
 
         composers.splice(0, composers.length);
-        composers.push(membrane, organell, microscope);
+        composers.push(bottomMembrane, bottomOrganell, middleMembrane, middleOrganell, topMembrane, topOrganell, microscope);
     });
 
     let lastTime = 0;

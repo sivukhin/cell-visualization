@@ -10,8 +10,9 @@ import { tickAll } from "../utils/tick";
 
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
     const multiverse = {
-        organell: new Object3D(),
-        membrane: new Object3D(),
+        top: { organell: new Object3D(), membrane: new Object3D() },
+        middle: { organell: new Object3D(), membrane: new Object3D() },
+        bottom: { organell: new Object3D(), membrane: new Object3D() },
         microscope: new Object3D(),
     };
 
@@ -31,11 +32,12 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     const cells: CellElement[] = [];
     let targets: TargetElement[] = [];
     for (let i = 0; i < positions.length; i++) {
-        const cell = createAliveCell(worldConfig.cell, worldConfig.flagellum);
+        const cell = createAliveCell({ ...worldConfig.cell, radius: worldConfig.cell.radius * (1 + (i % 3) / 2) }, worldConfig.flagellum);
         cell.multiverse.membrane.position.set(positions[i].x, positions[i].y, 0);
-        multiverse.membrane.add(cell.multiverse.membrane);
         cell.multiverse.organell.position.set(positions[i].x, positions[i].y, 0);
-        multiverse.organell.add(cell.multiverse.organell);
+        const layer = [multiverse.bottom, multiverse.middle, multiverse.top][i % 3];
+        layer.membrane.add(cell.multiverse.membrane);
+        layer.organell.add(cell.multiverse.organell);
         cells.push(cell);
     }
     let previousRound = 0;

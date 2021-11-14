@@ -120,6 +120,7 @@ function initialize() {
         antialias: true,
         alpha: true,
     });
+    renderer.autoClear = false;
     const configuration = createConfiguration(renderer.domElement);
     microcosmos = createScene(configuration, renderer);
 
@@ -129,9 +130,14 @@ function initialize() {
 
     function render(time: number) {
         stats.begin();
+        renderer.clear();
         microcosmos.tick(time);
+        for (let i = 0; i < microcosmos.composers; i++) {
+            microcosmos.composers[i].render();
+        }
         for (const composer of microcosmos.composers) {
             composer.render();
+            composer.reset();
         }
         stats.end();
         requestAnimationFrame(render);
