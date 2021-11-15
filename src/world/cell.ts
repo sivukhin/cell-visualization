@@ -13,7 +13,7 @@ import GlowVertexShader from "../shaders/cell-vertex.shader";
 import { lastTick, tickAll } from "../utils/tick";
 import { randomChoice, randomFrom } from "../utils/math";
 import { Timings } from "../utils/timings";
-import { convexHull, getRegularPolygon, scalePoints, simplifyShape, zero2 } from "../utils/geometry";
+import { convexHull, getRegularPolygon, getSectorIn, scalePoints, simplifyShape, zero2 } from "../utils/geometry";
 import { CellElement, FlagellumElement, OrganellElement } from "./types";
 
 const directions = [
@@ -79,7 +79,8 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     const occupied = new Array(slots.length).fill(false);
 
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
-    const { geometry, membrane, tick: membraneTick, update: membraneUpdate } = createAliveMembrane({ points: getRegularPolygon(cellConfig.segments, r) }, cellConfig.membrane);
+    const membrane = { points: getRegularPolygon(cellConfig.segments, r) };
+    const { geometry, thorn: membraneThorn, tick: membraneTick, update: membraneUpdate } = createAliveMembrane(membrane, cellConfig.membrane);
     const colors = Object.values(cellConfig.organell.colors);
     let flagellums: FlagellumElement[] = [];
     let organells: OrganellElement[] = [];
@@ -157,15 +158,9 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             const timings = [];
             const t = lastTick() * cellConfig.membrane.frequency;
             for (let i = 0; i < targets.length; i++) {
-                const { point, id } = membrane.getSector(targets[i]);
+                const { point, id } = getSectorIn(targets[i], membrane.points);
                 const attach = new Vector2().copy(point).multiplyScalar(0.9);
-                const start1 = findDeformationAngleTime(membrane.deformations[id], t, -Math.abs(membrane.deformations[id].angle));
-                const start2 = findDeformationAngleTime(membrane.deformations[id], t, Math.abs(membrane.deformations[id].angle));
-                const finish1 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + duration * cellConfig.membrane.frequency, -Math.abs(membrane.deformations[id].angle));
-                const finish2 = findDeformationAngleTime(membrane.deformations[id], Math.max(start1, start2) + duration * cellConfig.membrane.frequency, Math.abs(membrane.deformations[id].angle));
-                membrane.locks[id].out = { start: start1, finish: finish1 };
-                membrane.locks[id].in = { start: start2, finish: finish2 };
-                const start = Math.max(start1, start2);
+                const start = membraneThorn(id, duration);
                 const timing = {
                     startIn: start / cellConfig.membrane.frequency,
                     finishIn: start / cellConfig.membrane.frequency + duration * 0.3,

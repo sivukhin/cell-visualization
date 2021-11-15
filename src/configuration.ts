@@ -44,6 +44,9 @@ export interface CellConfiguration {
     segments: Store<number>;
     membrane: MembraneConfiguration;
     organell: OrganellConfiguration;
+    bloomStrength: Store<number>;
+    bloomThreshold: Store<number>;
+    bloomRadius: Store<number>;
 }
 
 export interface SoupConfiguration {

@@ -61,12 +61,6 @@ export function createAliveOrganell(organell: Organell, membrane: AliveMembrane,
             }
             geometry.setAttribute("uv", new BufferAttribute(new Float32Array(uv), 2));
         }
-        const vertices = [0];
-        for (let i = 1; i < geometry.attributes.position.count; i++) {
-            vertices.push(1);
-        }
-        geometry.setAttribute("edge", new BufferAttribute(new Float32Array(vertices), 1));
-        geometry.attributes.edge.needsUpdate = true;
     };
 
     updateAll();

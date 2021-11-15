@@ -25,17 +25,18 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     const dx = worldConfig.soup.width / cols;
     for (let i = 0; i < rows && positions.length < worldConfig.soup.count; i++) {
         for (let s = 0; s < cols && positions.length < worldConfig.soup.count; s++) {
-            positions.push(new Vector2(dx * s + dx / 2 + randomFrom(-dx / 4, dx / 4) - worldConfig.soup.width / 2, dy * i + dy / 2 + randomFrom(-dy / 4, dy / 4) - worldConfig.soup.height / 2));
+            //positions.push(new Vector2(dx * s + dx / 2 + randomFrom(-dx / 4, dx / 4) - worldConfig.soup.width / 2, dy * i + dy / 2 + randomFrom(-dy / 4, dy / 4) - worldConfig.soup.height / 2));
+            positions.push(new Vector2(dx * s + dx / 2 - worldConfig.soup.width / 2, dy * i + dy / 2 - worldConfig.soup.height / 2));
             velocities.push(new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)));
         }
     }
     const cells: CellElement[] = [];
     let targets: TargetElement[] = [];
     for (let i = 0; i < positions.length; i++) {
-        const cell = createAliveCell({ ...worldConfig.cell, radius: worldConfig.cell.radius * (1 + (i % 3) / 2) }, worldConfig.flagellum);
+        const cell = createAliveCell({ ...worldConfig.cell, radius: worldConfig.cell.radius * (1 + (2 - i % 3) / 2) }, worldConfig.flagellum);
         cell.multiverse.membrane.position.set(positions[i].x, positions[i].y, 0);
         cell.multiverse.organell.position.set(positions[i].x, positions[i].y, 0);
-        const layer = [multiverse.bottom, multiverse.middle, multiverse.top][i % 3];
+        const layer = [multiverse.top, multiverse.middle, multiverse.bottom][i % 3];
         layer.membrane.add(cell.multiverse.membrane);
         layer.organell.add(cell.multiverse.organell);
         cells.push(cell);

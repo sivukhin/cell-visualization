@@ -2,9 +2,10 @@ import { getRegularPolygon, inSector, scalePoints, tryIntersectLineCircle, zero2
 import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Path, Vector2 } from "three";
 import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
-import { calculateDeformation, calculateDeformationAngle, Deformation } from "./deformation";
+import { calculateDeformation, calculateDeformationAngle, Deformation, findDeformationAngleTime } from "./deformation";
 import { interpolateLinear1D, interpolateLinear2D, randomFrom } from "../utils/math";
 import { lastTick } from "../utils/tick";
+import { Geometry } from "three/examples/jsm/deprecated/Geometry";
 
 interface DeformationLock {
     start: number;
@@ -26,7 +27,6 @@ interface MembraneSkeleton {
     directions: Vector2[];
     deformations: Deformation[];
     locks: VertexLock[];
-    getSector(p: Vector2): Sector;
 }
 
 export interface AliveMembrane {
@@ -69,16 +69,6 @@ function generateAliveMembrane({ points }: AliveMembrane, { wobbling, skew }: Un
         directions: directions,
         locks: locks,
         deformations: deformations,
-        getSector(p: Vector2): { point: Vector2; id: number } {
-            for (let i = 0; i < points.length; i++) {
-                const a = points[i];
-                const b = points[(i + 1) % points.length];
-                if (inSector(p, a, b)) {
-                    return { point: anchors[i], id: i };
-                }
-            }
-            throw new Error(`can't determine sector for point ${p.x} ${p.y}`);
-        },
     };
 }
 
@@ -135,78 +125,60 @@ function calculateMembranePoints(membrane: MembraneSkeleton, config: Unwrap<Memb
     return { points: path.getPoints(config.detalization), thickness: thickness };
 }
 
-interface MembraneElement {
+interface MembraneGeometry {
     geometry: BufferGeometry;
-    membrane: MembraneSkeleton;
     tick(time: number): void;
+    thorn(id: number, duration: number): number;
     update(update: AliveMembrane): void;
 }
 
-export function createAliveMembrane(membrane: AliveMembrane, config: Unwrap<MembraneConfiguration>): MembraneElement {
-    let skeleton = generateAliveMembrane(membrane, config);
-    const { points: initialPoints, thickness: initialThickness } = calculateMembranePoints(skeleton, config, 0);
-    const n = initialPoints.length;
+export function createAliveMembrane(membrane: AliveMembrane, config: Unwrap<MembraneConfiguration>): MembraneGeometry {
     const geometry = new BufferGeometry();
-    let positionAttribute = new BufferAttribute(getFlatComponents3D([zero2, ...initialPoints]), 3);
-    positionAttribute.setUsage(DynamicDrawUsage);
-    geometry.setAttribute("position", positionAttribute);
+    let skeleton = generateAliveMembrane(membrane, config);
+    let positionAttribute = null;
+    let thicknessAttribute = null;
+    const update = (data: AliveMembrane) => {
+        skeleton = generateAliveMembrane(data, config);
+        const { points, thickness } = calculateMembranePoints(skeleton, config, 0);
+        positionAttribute = new BufferAttribute(getFlatComponents3D([zero2, ...points]), 3);
+        positionAttribute.setUsage(DynamicDrawUsage);
+        geometry.setAttribute("position", positionAttribute);
 
-    let thicknessAttribute = new BufferAttribute(new Float32Array([1, ...initialThickness]), 1);
-    thicknessAttribute.setUsage(DynamicDrawUsage);
-    geometry.setAttribute("thickness", thicknessAttribute);
+        thicknessAttribute = new BufferAttribute(new Float32Array([1, ...thickness]), 1);
+        thicknessAttribute.setUsage(DynamicDrawUsage);
+        geometry.setAttribute("thickness", thicknessAttribute);
 
-    const index = [];
-    for (let i = 0; i < n; i++) {
-        index.push(0, i + 1, ((i + 1) % n) + 1);
-    }
-    geometry.setIndex(index);
-
-    let transition: MembraneSkeleton | null = null;
-    let transitionStart = 0;
-    let transitionEnd = 0;
-    const current = (time: number): MembraneSkeleton => {
-        if (transition == null) {
-            return skeleton;
+        const index = [];
+        for (let i = 0; i < points.length; i++) {
+            index.push(0, i + 1, ((i + 1) % points.length) + 1);
         }
-        return {
-            ...transition,
-            directions: skeleton.directions.map((d, i) => interpolateLinear2D(d, transition.directions[i], transitionStart, transitionEnd, time)),
-            deformations: skeleton.deformations.map((d, i) => ({
-                angle: interpolateLinear1D(d.angle, transition.deformations[i].angle, transitionStart, transitionEnd, time),
-                length: interpolateLinear1D(d.length, transition.deformations[i].length, transitionStart, transitionEnd, time),
-            })),
-            anchors: skeleton.anchors.map((a, i) => interpolateLinear2D(a, transition.anchors[i], transitionStart, transitionEnd, time)),
-        };
+        geometry.setIndex(index);
     };
+
+    update(membrane);
+
     return {
         geometry: geometry,
-        membrane: skeleton,
+        thorn: (id: number, duration: number) => {
+            const t = lastTick() * config.frequency;
+            const start1 = findDeformationAngleTime(skeleton.deformations[id], t, -Math.abs(skeleton.deformations[id].angle));
+            const start2 = findDeformationAngleTime(skeleton.deformations[id], t, Math.abs(skeleton.deformations[id].angle));
+            const finish1 = findDeformationAngleTime(skeleton.deformations[id], Math.max(start1, start2) + duration * config.frequency, -Math.abs(skeleton.deformations[id].angle));
+            const finish2 = findDeformationAngleTime(skeleton.deformations[id], Math.max(start1, start2) + duration * config.frequency, Math.abs(skeleton.deformations[id].angle));
+            skeleton.locks[id].out = { start: start1, finish: finish1 };
+            skeleton.locks[id].in = { start: start2, finish: finish2 };
+            return Math.max(start1, start2);
+        },
         tick: (time: number) => {
-            const currentSkeleton = current(time);
-            if (transition != null && time > transitionEnd) {
-                skeleton = currentSkeleton;
-                transition = null;
-            }
-
             const t = time * config.frequency;
-            const { points, thickness } = calculateMembranePoints(currentSkeleton, config, t);
+            const { points, thickness } = calculateMembranePoints(skeleton, config, t);
             thicknessAttribute.set(new Float32Array([1, ...thickness]));
             thicknessAttribute.needsUpdate = true;
             positionAttribute.set(getFlatComponents3D([zero2, ...points]));
             positionAttribute.needsUpdate = true;
         },
-        update: (update: AliveMembrane) => {
-            membrane = update;
-            // skeleton = current(lastTick());
-            skeleton = generateAliveMembrane(membrane, config);
-            const { points: updatePoints, thickness: updateThickness } = calculateMembranePoints(skeleton, config, lastTick());
-            positionAttribute = new BufferAttribute(getFlatComponents3D([zero2, ...updatePoints]), 3);
-            geometry.attributes.position = positionAttribute;
-            thicknessAttribute = new BufferAttribute(new Float32Array([1, ...updateThickness]), 1);
-            geometry.attributes.thickness = thicknessAttribute;
-            // transition = generateAliveMembrane(membrane, config);
-            // transitionStart = lastTick();
-            // transitionEnd = lastTick() + config.transitionDuration;
+        update: (data: AliveMembrane) => {
+            update((membrane = data));
         },
     };
 }

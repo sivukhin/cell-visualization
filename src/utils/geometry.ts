@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Vector2 } from "three";
+import { Path, Vector2 } from "three";
 
 export const zero2 = new THREE.Vector2(0, 0);
 export const zero3 = new THREE.Vector3(0, 0, 0);
@@ -77,6 +77,15 @@ export function getComponents(v: Vector2, e1: Vector2): [Vector2, Vector2] {
     return [a, b];
 }
 
+export function tryIntersectLines(a: Vector2, v: Vector2, b: Vector2, u: Vector2): Vector2 | null {
+    const t = v.cross(u);
+    if (Math.abs(t) < 1e-5) {
+        return null;
+    }
+    const k = new Vector2().subVectors(b, a).cross(u) / t;
+    return new Vector2().copy(a).addScaledVector(v, k);
+}
+
 export function tryIntersectLineCircle(p: Vector2, v: Vector2, c: Vector2, r: number): Vector2 | null {
     const h = getH(c, p, v);
     const d = h.distanceToSquared(c);
@@ -95,6 +104,12 @@ export function inSector(p: Vector2, a: Vector2, b: Vector2): boolean {
 
 export function scalePoints(points: Vector2[], scale: number): Vector2[] {
     return points.map((p) => new Vector2().copy(p).multiplyScalar(scale));
+}
+
+export function onSegment(point: Vector2, a: Vector2, b: Vector2): boolean {
+    const v = new Vector2().subVectors(point, a);
+    const u = new Vector2().subVectors(point, b);
+    return Math.abs(v.cross(u)) < 1e-5 && v.dot(u) < 0;
 }
 
 export function convexHull(points: Vector2[]): Vector2[] {
@@ -125,6 +140,62 @@ export function convexHull(points: Vector2[]): Vector2[] {
     return hull;
 }
 
+export function buildSmoothPath(points: Vector2[], r: number, detalization: number): Vector2[] {
+    const next = new Array(points.length).fill(-1);
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        const v = new Vector2().subVectors(b, a);
+        const vOrt = new Vector2()
+            .copy(v)
+            .rotateAround(zero2, Math.PI / 2)
+            .normalize();
+        const pa = new Vector2().copy(a).addScaledVector(vOrt, r);
+        for (let s = 1; s < n; s++) {
+            const k = (i + s) % n;
+            const c = points[k];
+            const d = points[(k + 1) % n];
+            const u = new Vector2().subVectors(d, c);
+            const uOrt = new Vector2()
+                .copy(u)
+                .rotateAround(zero2, Math.PI / 2)
+                .normalize();
+            const pc = new Vector2().copy(c).addScaledVector(uOrt, r);
+            const intersection = tryIntersectLines(pa, v, pc, u);
+            if (intersection == null) {
+                continue;
+            }
+            const ha = getH(intersection, a, v);
+            const hc = getH(intersection, c, u);
+            if (onSegment(ha, a, b) && onSegment(hc, c, d)) {
+                next[i] = s;
+                break;
+            }
+        }
+    }
+    const used = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) {
+        if (used[i]) {
+            continue;
+        }
+        const chain = [];
+        let v = i;
+        let distance = 0;
+        do {
+            chain.push(v);
+            used[v] = true;
+            distance += (next[v] - v + n) % n;
+            v = next[v];
+        } while (!used[v]);
+        if (distance != n) {
+            continue;
+        }
+
+    }
+    throw new Error("not implemented exception");
+}
+
 export function simplifyShape(points: Vector2[], k: number): Vector2[] {
     let p = 0;
     for (let i = 0; i < points.length; i++) {
@@ -138,4 +209,16 @@ export function simplifyShape(points: Vector2[], k: number): Vector2[] {
         }
     }
     return shape;
+}
+
+export function getSectorIn(p: Vector2, points: Vector2[]): { point: Vector2; id: number } {
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        if (inSector(p, a, b)) {
+            return { point: new Vector2().addVectors(points[i], points[(i + 1) % n]).multiplyScalar(0.5), id: i };
+        }
+    }
+    throw new Error(`can't determine sector for point ${p.x} ${p.y}`);
 }

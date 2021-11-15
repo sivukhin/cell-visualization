@@ -8,24 +8,20 @@ import "./time";
 import { rollXY } from "./microscope/ruler";
 import { convexHull } from "./utils/geometry";
 
-function adjust(renderer, composers) {
-    const canvas = renderer.domElement;
+function adjust(adjustable: { setSize(width: number, height: number, arg?: boolean): void }, canvas) {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
-    renderer.setSize(width, height, false);
-    for (const composer of composers) {
-        composer.setSize(width, height);
-    }
+    adjustable.setSize(width, height, false);
 }
 
 function createConfiguration(canvas): WorldConfiguration {
     const configuration: WorldConfiguration = {
         light: {
-            color: atom<ColorRepresentation>("rgb(43, 50, 71)"),
+            color: atom<ColorRepresentation>("rgb(0, 0, 0)"),
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(5),
+            count: atom<number>(1),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -37,13 +33,16 @@ function createConfiguration(canvas): WorldConfiguration {
         },
         cell: {
             segments: atom<number>(10),
+            bloomStrength: atom<number>(1),
+            bloomThreshold: atom<number>(0.391),
+            bloomRadius: atom<number>(2.5),
             membrane: {
                 spline: atom<boolean>(false),
                 detalization: atom<number>(50),
                 frequency: atom<number>(0.0001),
-                skew: atom<number>(Math.PI / 10),
+                skew: atom<number>(0.325),
                 thorness: atom<number>(0.2),
-                wobbling: atom<number>(0.15),
+                wobbling: atom<number>(0.28),
                 transitionDuration: atom<number>(5000),
             },
             organell: {
@@ -65,7 +64,7 @@ function createConfiguration(canvas): WorldConfiguration {
                     transitionDuration: atom<number>(5000),
                 },
             },
-            glowing: atom<number>(0.85),
+            glowing: atom<number>(1),
             radius: atom<number>(70),
             color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
         },
@@ -94,6 +93,9 @@ function createConfiguration(canvas): WorldConfiguration {
             count: { min: 1, max: 40, step: 1 },
         },
         cell: {
+            bloomStrength: { min: 0, max: 1, step: 0.01 },
+            bloomThreshold: { min: 0, max: 1, step: 0.001 },
+            bloomRadius: { min: 0, max: 10, step: 0.01 },
             membrane: membraneLimits,
             radius: { min: 10, max: 200, step: 1 },
             glowing: { min: 0, max: 1, step: 0.01 },
@@ -117,14 +119,16 @@ let microcosmos = null;
 function initialize() {
     const renderer = new WebGLRenderer({
         canvas: document.getElementById("microcosmos"),
-        antialias: true,
         alpha: true,
     });
     renderer.autoClear = false;
+    adjust(renderer, renderer.domElement);
     const configuration = createConfiguration(renderer.domElement);
     microcosmos = createScene(configuration, renderer);
 
-    adjust(renderer, microcosmos.composers);
+    for (const composer of microcosmos.composers) {
+        adjust(composer, renderer.domElement);
+    }
 
     const stats = Stats();
 
