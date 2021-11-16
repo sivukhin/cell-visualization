@@ -21,7 +21,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(10),
+            count: atom<number>(30),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -36,7 +36,7 @@ function createConfiguration(canvas): WorldConfiguration {
             segments: atom<number>(10),
             bloomStrength: atom<number>(0.5),
             bloomThreshold: atom<number>(0),
-            bloomRadius: atom<number>(10),
+            bloomRadius: atom<number>(3),
             membrane: {
                 spline: atom<boolean>(false),
                 detalization: atom<number>(50),
@@ -65,12 +65,12 @@ function createConfiguration(canvas): WorldConfiguration {
                     transitionDuration: atom<number>(5000),
                 },
             },
-            glowing: atom<number>(1),
+            glowing: atom<number>(0.85),
             radius: atom<number>(100),
-            color: atom<ColorRepresentation>("rgb(84, 78, 54)"),
+            color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
         },
         flagellum: {
-            color: atom<ColorRepresentation>("rgb(84, 78, 54)"),
+            color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
             segmentLength: atom<number>(50),
             amplitude: atom<number>(100),
             skew: atom<number>(Math.PI),

@@ -40,6 +40,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     };
 
     const velocities: Vector2[] = [];
+    const angular: number[] = [];
     const positions: Vector2[] = [];
     const radiuses: number[] = [];
     const teams: string[] = [];
@@ -52,6 +53,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             positions.push(new Vector2(dx * s + dx / 2 + randomFrom(-dx / 4, dx / 4) - worldConfig.soup.width / 2, dy * i + dy / 2 + randomFrom(-dy / 4, dy / 4) - worldConfig.soup.height / 2));
             velocities.push(new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)));
             radiuses.push(worldConfig.cell.radius / (1 + (2 - (radiuses.length % 3)) / 2));
+            angular.push(randomFrom(-0.001, 0.001));
             teams.push(randomChoice(names));
         }
     }
@@ -94,6 +96,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 cells[i].multiverse.organell.position.y += velocities[i].y;
                 cells[i].multiverse.membrane.position.x += velocities[i].x;
                 cells[i].multiverse.membrane.position.y += velocities[i].y;
+                cells[i].multiverse.organell.rotateZ(angular[i]);
             }
             for (let i = 0; i < cells.length; i++) {
                 if (cells[i].multiverse.membrane.position.x < -worldConfig.soup.width / 2 + 2 * radiuses[i]) {

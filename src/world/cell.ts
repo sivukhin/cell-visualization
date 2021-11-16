@@ -11,6 +11,11 @@ import { getRegularPolygon, getSectorIn, scalePoints, zero2 } from "../utils/geo
 import { CellElement, FlagellumElement, OrganellElement } from "./types";
 import { createOrganells } from "./organells";
 
+// @ts-ignore
+import CellVertexShader from "../shaders/cell-vertex.shader";
+// @ts-ignore
+import CellFragmentShader from "../shaders/cell-fragment.shader";
+
 export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>): CellElement {
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
     const membrane = { points: getRegularPolygon(cellConfig.segments, r) };
@@ -19,7 +24,15 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     let organells = createOrganells(membrane.points);
 
     const color = new Color(cellConfig.color);
-    const material = new MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 });
+    const material = new ShaderMaterial({
+        uniforms: {
+            u_color: new Uniform(getHSLVector(cellConfig.color)),
+            u_start: new Uniform(cellConfig.glowing),
+        },
+        vertexShader: CellVertexShader,
+        fragmentShader: CellFragmentShader,
+        transparent: true,
+    });
     const multiverse = {
         organell: new Object3D(),
         membrane: new Mesh(geometry, material),

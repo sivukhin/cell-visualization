@@ -50,14 +50,22 @@ vec3 hsl2rgb(vec3 hsl) {
     return rgb;
 }
 
+float easing(float l, float r, float value) {
+    float x = min(1.0, max(0.0, (value - l) / (r - l)));
+    if (x < 0.239) {
+        return 9.8 * x * x * x - 16.4 * x * x + 7.5 * x;
+    }
+    return 1.0;
+}
+
 void main() {
-    vec2 wobbled = vec2(v_position.x + sin(v_position.y / 5.0 + u_time / 1000.0), v_position.y + cos(v_position.x / 5.0 + u_time / 1000.0));
+    vec2 wobbled = vec2(v_position.x + sin(v_position.y / 5.0 + u_time / 2000.0), v_position.y + cos(v_position.x / 5.0 + u_time / 2000.0));
     float r = length(v_position);
     float best_dist = 100000.0;
     float scnd_dist = 100000.0;
     int best_point = -1;
     for (int i = 0; i < 15; i++) {
-        float curr_dist = distance(wobbled, u_centers[i]) * (1.0 + 0.1 * sin(float(i) + u_time / 1000.0));
+        float curr_dist = distance(wobbled, u_centers[i]);
         if (curr_dist < best_dist) {
           scnd_dist = best_dist;
           best_dist = curr_dist;
@@ -68,11 +76,15 @@ void main() {
     }
     vec2 offset = vec2(cos(u_centers[best_point][0]), sin(u_centers[best_point][1])) * 0.1;
     vec2 direction = wobbled - u_centers[best_point];
-    float grayscale = texture(u_texture, 0.5 + 0.5 * smoothstep(-20.0, 20.0, wobbled - u_centers[best_point])).r;
-    float d = (1.0 - step(0.9, pow(best_dist / scnd_dist, 1.0))) * smoothstep(0.1, 0.15, (u_r - r) / u_r) * smoothstep(0.0, u_r / 8.0 * (1.0 + 0.1 * sin(u_time / 1000.0 + float(best_point))), (scnd_dist - best_dist));
-    vec3 color = u_colors[best_point];
-    color[2] *= 0.5 * (1.0 + d * grayscale);
-    color[1] *= 0.5 * (1.0 + d * grayscale);
+    float grayscale = texture(u_texture, smoothstep(-50.0, 50.0, wobbled - u_centers[best_point])).r;
+    float k = pow(best_dist / scnd_dist, 0.1);
+    float d = (1.0 - step(1.0, k)) *
+                (0.5 + 0.5 * smoothstep(1.0, 0.4, best_dist / scnd_dist)) *
+                smoothstep(0.0, u_r * 0.5, u_r - r) *
+                (easing(100.0, 0.0, best_dist));
+    vec3 color = vec3(1.0);//u_colors[best_point];
+    color[2] *= d * grayscale;
+    color[1] = 0.0;
     if (u_time > u_trans_start[best_point] && u_time < u_trans_finish[best_point]) {
         float duration = u_trans_finish[best_point] - u_trans_start[best_point];
         color[0] *= smoothstep(u_trans_start[best_point] + duration / 2.0, u_trans_start[best_point], u_time) + smoothstep(u_trans_start[best_point] + duration / 2.0, u_trans_finish[best_point], u_time);

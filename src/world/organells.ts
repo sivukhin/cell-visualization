@@ -35,14 +35,14 @@ export function createOrganells(points: Vector2[]) {
     const offset = randomFrom(-1, 1);
     const offset2 = randomFrom(-1, 1);
 
-    const slots: Vector2[] = [];
-    for (let i = 0; i < 6; i++) {
+    const slots: Vector2[] = [new Vector2(randomFrom(-r / 6, r / 6), randomFrom(-r / 6, r / 6))];
+    for (let i = 0; i < 5; i++) {
         const dx = randomFrom(-0.1, 0.1);
         const dy = randomFrom(-0.1, 0.1);
-        const p = new Vector2((r / 4) * (Math.cos(offset + (i * Math.PI) / 3) + dx), (r / 4) * (Math.sin(offset + (i * Math.PI) / 3) + dy));
+        const p = new Vector2((r / 3) * (Math.cos(offset + (i * Math.PI) / 3) + dx), (r / 3) * (Math.sin(offset + (i * Math.PI) / 3) + dy));
         slots.push(p);
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
         const dx = randomFrom(-0.1, 0.1);
         const dy = randomFrom(-0.1, 0.1);
         const p = new Vector2(((3 * r) / 5) * (Math.cos(offset2 + (i * Math.PI) / 4) + dx), ((3 * r) / 5) * (Math.sin(offset2 + (i * Math.PI) / 4) + dy));

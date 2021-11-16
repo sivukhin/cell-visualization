@@ -46,14 +46,14 @@ vec3 hsl2rgb(vec3 hsl) {
 }
 
 void main() {
-    float current = u_start + (1.0 - u_start) * (1.0 - smoothstep(0.0, 1.0, v_thickness));
+    float current = u_start + (1.0 - u_start) * (1.0 - smoothstep(0.0, 1.0, v_distance));
     if (v_distance >= current) {
         float m = 5.0 * PI / (1.0 - current);
         vec3 color = vec3(u_color);
         float intensity = 1.0 - pow(smoothstep(current, 1.0, v_distance), 1.0);
         color[2] += sin((v_distance - current) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);
-        gl_FragColor = vec4(hsl2rgb(color), intensity);
+        gl_FragColor = vec4(hsl2rgb(color), v_distance * intensity);
     } else {
-        gl_FragColor = vec4(hsl2rgb(u_color), 0.9);
+        gl_FragColor = vec4(hsl2rgb(u_color), 0.2 + 0.8 * v_distance);
     }
 }

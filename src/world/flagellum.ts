@@ -100,7 +100,7 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
     const material = new MeshBasicMaterial({ color: configuration.color, side: BackSide, transparent: true });
     const flagellum = generateFlagellum(target, configuration);
     const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
-    const figure = createFigureFromPath(points, (d) => Math.max(1, 10 / Math.pow(1 + d, 1 / 2)));
+    const figure = createFigureFromPath(points, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 2)));
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(figure.positions, 3));
     geometry.setIndex(figure.indices);
@@ -115,7 +115,7 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
             }
             const relativeTime = getRelativeTime(timings, time);
             const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
-            const update = createFigureFromPath(current, (d) => Math.max(1, 8 / Math.pow(1 + d, 1 / 4)));
+            const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
             geometry.setIndex(update.indices);
             return true;
