@@ -48,18 +48,18 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         spawn: (id: number, weight: number) => {
             organells.spawn(id, weight);
         },
-        attack: (targets: Vector2[], duration: number): Timings[] => {
+        attack: (targets: Vector2[], start: number, finish: number): Timings[] => {
             const timings = [];
-            const t = lastTick() * cellConfig.membrane.frequency;
+            const duration = finish - start;
             for (let i = 0; i < targets.length; i++) {
                 const { point, id } = getSectorIn(targets[i], membrane.points);
                 const attach = new Vector2().copy(point).multiplyScalar(0.9);
                 // const start = membraneThorn(id, duration);
                 const timing = {
-                    startIn: lastTick(),
-                    finishIn: lastTick() + duration * 0.3,
-                    startOut: lastTick() + duration * 0.5,
-                    finishOut: lastTick() + duration,
+                    startIn: start,
+                    finishIn: start + duration * 0.3,
+                    startOut: start + duration * 0.5,
+                    finishOut: start + duration,
                 };
                 timings.push(timing);
                 const flagellum = createFlagellum(

@@ -57,14 +57,13 @@ export function createTarget({ size, caption, select, follow, appearDuration, ty
     skeleton.renderOrder = 1;
     root.add(skeleton);
     const startTime = lastTick();
-    const typeTime = lastTick() + typingDuration;
-    const appearTime = typeTime + appearDuration;
-    const finishTime = appearTime + selectDuration;
+    const typeTime = startTime + typingDuration;
+    const appearTime = startTime + appearDuration;
+    const finishTime = Math.max(typeTime, appearTime) + selectDuration;
     let prefixLength = 0;
     const textElement = document.createElement("div");
     textElement.setAttribute("class", "caption");
     document.body.appendChild(textElement);
-    console.info(size);
     return {
         multiverse: root,
         tick: (time: number) => {
@@ -89,7 +88,7 @@ export function createTarget({ size, caption, select, follow, appearDuration, ty
             textElement.setAttribute("style", `left: ${textX}px; bottom: ${textY}px; font-size: ${12 * camera.magnification()}pt`);
             skeleton.position.set(position.x - size / 2, position.y - size / 2, 0);
             if (select) {
-                material.uniforms.u_scale.value = interpolateLinear1D(1, 1.2, typeTime, appearTime, time);
+                material.uniforms.u_scale.value = interpolateLinear1D(1, 1.2, startTime, appearTime, time);
                 material.uniforms.u_size.value = 0.1;
                 material.needsUpdate = true;
             }

@@ -53,7 +53,7 @@ export interface CellElement {
     tick(time: number): boolean;
     spawn(id: number, weight: number): void;
     irritate(id: number, start: number, finish: number): void;
-    attack(targets: Vector2[], duration: number): Timings[];
+    attack(targets: Vector2[], start: number, finish: number): Timings[];
     get(id: number): Vector2;
 }
 

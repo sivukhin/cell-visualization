@@ -144,7 +144,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                         const absolute3d = new Vector3().addVectors(relative3d, cell3d).sub(cells[ordered[i][0]].multiverse.membrane.position);
                         return new Vector2(absolute3d.x, absolute3d.y);
                     });
-                    const timings = source.attack(targets, worldConfig.roundDuration / 3);
+                    const timings = source.attack(targets, time + worldConfig.target.typingDuration, time + worldConfig.target.typingDuration + worldConfig.roundDuration / 3);
                     for (let s = 0; s < ordered[i][1].length; s++) {
                         accent(ordered[i][1][s].cell, teams[ordered[i][1][s].cell], true);
                         cells[ordered[i][1][s].cell].irritate(ordered[i][1][s].organell, timings[s].finishIn, timings[s].finishOut);
