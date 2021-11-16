@@ -86,7 +86,7 @@ export interface WorldElement {
     tick(time: number): boolean;
     spawn(id: OrganellId, radius: number);
     attack(from: number, to: OrganellId);
-    accent(id: number, caption: string, select: boolean);
+    accent(id: number, caption: string, select: boolean, highlight: boolean);
 }
 
 export interface Microcosmos {

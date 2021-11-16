@@ -68,7 +68,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     }
     let previousRound = 0;
     let attacks: Array<{ from: number; to: OrganellId }> = [];
-    const accent = (id: number, caption: string, select: boolean) => {
+    const accent = (id: number, caption: string, select: boolean, highlight: boolean) => {
         const size = (radiuses[id] / Math.cos(Math.PI / worldConfig.cell.segments)) * (1 + worldConfig.cell.membrane.wobbling) * 2;
         const target = createTarget({
             follow: () => to2(cells[id].multiverse.membrane.position),
@@ -77,6 +77,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             typingDuration: worldConfig.target.typingDuration,
             selectDuration: worldConfig.target.selectDuration,
             select: select,
+            highlight: highlight,
             caption: caption,
             width: worldConfig.soup.width,
             height: worldConfig.soup.height,
@@ -135,9 +136,11 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     }
                 }
                 const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
-                for (let i = 0; i < ordered.length; i++) {
+                const attackers = [];
+                const defenders = [];
+                for (let i = 0; i < Math.min(ordered.length, 2); i++) {
                     const source = cells[ordered[i][0]];
-                    accent(ordered[i][0], teams[ordered[i][0]], false);
+                    attackers.push(ordered[i][0]);
                     const targets = ordered[i][1].map((id) => {
                         const relative3d = to3(cells[id.cell].get(id.organell));
                         const cell3d = cells[id.cell].multiverse.membrane.position;
@@ -146,8 +149,15 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     });
                     const timings = source.attack(targets, time + worldConfig.target.typingDuration, time + worldConfig.target.typingDuration + worldConfig.roundDuration / 3);
                     for (let s = 0; s < ordered[i][1].length; s++) {
-                        accent(ordered[i][1][s].cell, teams[ordered[i][1][s].cell], true);
+                        defenders.push(ordered[i][1][s].cell);
                         cells[ordered[i][1][s].cell].irritate(ordered[i][1][s].organell, timings[s].finishIn, timings[s].finishOut);
+                    }
+                }
+                for (let i = 0; i < teams.length; i++) {
+                    const select = defenders.includes(i);
+                    const highlight = attackers.includes(i);
+                    if (select || highlight) {
+                        accent(i, teams[i], select, highlight);
                     }
                 }
                 previousRound = time;

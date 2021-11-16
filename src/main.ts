@@ -77,7 +77,7 @@ function createConfiguration(canvas): WorldConfiguration {
             wobbling: atom<number>(0.1),
         },
         speed: atom<number>(0.1),
-        roundDuration: atom<number>(3_000),
+        roundDuration: atom<number>(8000),
     };
     const membraneLimits = {
         segments: { min: 3, max: 10, step: 1 },

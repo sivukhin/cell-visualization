@@ -17,6 +17,7 @@ export interface Target {
     size: number;
     caption: string;
     select: boolean;
+    highlight: boolean;
     typingDuration: number;
     appearDuration: number;
     selectDuration: number;
@@ -32,7 +33,7 @@ export function setCamera(update: any) {
     camera = update;
 }
 
-export function createTarget({ size, caption, select, follow, appearDuration, typingDuration, selectDuration, width, height }: Target): TargetElement {
+export function createTarget({ size, caption, select, highlight, follow, appearDuration, typingDuration, selectDuration, width, height }: Target): TargetElement {
     const root = new Object3D();
 
     const geometry = new BufferGeometry();
@@ -62,7 +63,7 @@ export function createTarget({ size, caption, select, follow, appearDuration, ty
     const finishTime = Math.max(typeTime, appearTime) + selectDuration;
     let prefixLength = 0;
     const textElement = document.createElement("div");
-    textElement.setAttribute("class", "caption");
+    textElement.setAttribute("class", "caption " + (highlight ? "highlight" : ""));
     document.body.appendChild(textElement);
     return {
         multiverse: root,
