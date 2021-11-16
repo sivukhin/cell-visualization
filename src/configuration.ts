@@ -57,6 +57,7 @@ export interface SoupConfiguration {
 
 export interface TargetConfiguration {
     appearDuration: Store<number>;
+    typingDuration: Store<number>;
     selectDuration: Store<number>;
     attackerColor: Store<ColorRepresentation>;
     defenderColor: Store<ColorRepresentation>;

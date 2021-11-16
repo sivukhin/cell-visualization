@@ -1,4 +1,5 @@
 import { OrthographicCamera, Vector3 } from "three";
+import { to2 } from "../utils/draw";
 
 export function createCamera(width: number, height: number) {
     let zoom = 1;
@@ -12,6 +13,7 @@ export function createCamera(width: number, height: number) {
     return {
         camera,
         magnification: () => zoom,
+        position: () => to2(camera.position),
         zoom: (magnification: number) => {
             zoom = Math.max(1, Math.min(4, zoom + magnification * 0.001));
             camera.left = -width / 2 / zoom;

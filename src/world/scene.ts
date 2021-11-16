@@ -14,6 +14,8 @@ import { EdgeGlowShader } from "../postprocessing/glow";
 import { BloomPass } from "three/examples/jsm/postprocessing/BloomPass";
 import { CopyShader } from "three/examples/jsm/shaders/CopyShader";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
+import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader";
+import { setCamera } from "../microscope/target";
 
 function createOverlayRender(pass: RenderPass) {
     pass.clear = false;
@@ -41,7 +43,8 @@ function createOverlay<T extends Pass>(pass: T, modify: (t: T) => void) {
 export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer): Microcosmos {
     const store = createConfigurationStore(dynamic);
 
-    const { camera, move, zoom, magnification } = createCamera(dynamic.soup.width, dynamic.soup.height);
+    const { camera, move, zoom, magnification, position } = createCamera(dynamic.soup.width, dynamic.soup.height);
+    setCamera({ camera, move, zoom, magnification, position });
 
     let world: WorldElement | null = null;
     let composers: EffectComposer[] = [];
@@ -87,6 +90,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
 
         const microscope = new EffectComposer(renderer);
         microscope.addPass(createOverlayRender(new RenderPass(multiworld.microscope, camera)));
+        // microscope.addPass(createOverlayShader(new ShaderPass(FXAAShader)));
 
         composers.splice(0, composers.length);
         // composers.push(topMembrane);

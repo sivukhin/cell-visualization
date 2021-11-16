@@ -26,8 +26,9 @@ function createConfiguration(canvas): WorldConfiguration {
             height: canvas.clientHeight,
         },
         target: {
-            appearDuration: atom<number>(100),
-            selectDuration: atom<number>(500),
+            appearDuration: atom<number>(250),
+            typingDuration: atom<number>(1000),
+            selectDuration: atom<number>(2000),
             attackerColor: atom<ColorRepresentation>("rgb(255, 255, 255)"),
             defenderColor: atom<ColorRepresentation>("rgb(255, 100, 100)"),
         },
