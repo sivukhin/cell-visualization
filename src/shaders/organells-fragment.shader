@@ -1,6 +1,7 @@
 uniform sampler2D u_texture;
 uniform float u_time;
 uniform float u_r;
+uniform float u_curvature;
 uniform vec2[15] u_centers;
 uniform vec3[15] u_colors;
 uniform float[15] u_weights;
@@ -8,13 +9,52 @@ uniform float[15] u_weights;
 varying vec2 v_position;
 #define PI 3.1415
 
+float hue2rgb(float f1, float f2, float hue) {
+    if (hue < 0.0)
+    hue += 1.0;
+    else if (hue > 1.0)
+    hue -= 1.0;
+    float res;
+    if ((6.0 * hue) < 1.0)
+    res = f1 + (f2 - f1) * 6.0 * hue;
+    else if ((2.0 * hue) < 1.0)
+    res = f2;
+    else if ((3.0 * hue) < 2.0)
+    res = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;
+    else
+    res = f1;
+    return res;
+}
+
+vec3 hsl2rgb(vec3 hsl) {
+    vec3 rgb;
+
+    if (hsl.y == 0.0) {
+        rgb = vec3(hsl.z); // Luminance
+    } else {
+        float f2;
+
+        if (hsl.z < 0.5)
+        f2 = hsl.z * (1.0 + hsl.y);
+        else
+        f2 = hsl.z + hsl.y - hsl.y * hsl.z;
+
+        float f1 = 2.0 * hsl.z - f2;
+
+        rgb.r = hue2rgb(f1, f2, hsl.x + (1.0/3.0));
+        rgb.g = hue2rgb(f1, f2, hsl.x);
+        rgb.b = hue2rgb(f1, f2, hsl.x - (1.0/3.0));
+    }
+    return rgb;
+}
+
 void main() {
     vec2 wobbled = vec2(v_position.x + sin(v_position.y / 5.0 + u_time / 1000.0), v_position.y + cos(v_position.x / 5.0 + u_time / 1000.0));
     float r = length(v_position);
-    float best_dist = distance(wobbled, u_centers[0]) * u_weights[0];
+    float best_dist = 100000.0;
     float scnd_dist = 100000.0;
-    int best_point = 0;
-    for (int i = 1; i < 15; i++) {
+    int best_point = -1;
+    for (int i = 0; i < 15; i++) {
         float curr_dist = distance(wobbled, u_centers[i]) * (1.0 + 0.1 * sin(float(i) + u_time / 1000.0));
         if (curr_dist < best_dist) {
           scnd_dist = best_dist;
@@ -25,10 +65,11 @@ void main() {
         }
     }
     vec2 offset = vec2(cos(u_centers[best_point][0]), sin(u_centers[best_point][1])) * 0.1;
-    float grayscale = texture(u_texture, smoothstep(-1.0, 1.0, (wobbled - u_centers[best_point]) / (0.5 * u_r + offset))).r + 0.2;
-    float d = pow(best_dist / scnd_dist, 2.0);
-    float t = smoothstep(0.9 + 0.2 * sin(u_time / 1000.0), 0.5, d);
-    t *= smoothstep(1.2 * scnd_dist, 0.0, best_dist);
-    t *= smoothstep(0.0, 80.0, u_r - r);
-    gl_FragColor = vec4(vec3(grayscale), t * grayscale);
+    vec2 direction = wobbled - u_centers[best_point];
+    float grayscale = texture(u_texture, 0.5 + 0.5 * smoothstep(-20.0, 20.0, wobbled - u_centers[best_point])).r;
+    float d = (1.0 - step(0.9, pow(best_dist / scnd_dist, 1.0))) * smoothstep(0.1, 0.15, (u_r - r) / u_r) * smoothstep(0.0, u_r / 8.0, (scnd_dist - best_dist));
+    vec3 color = u_colors[best_point];
+    color[2] *= 0.5 * (1.0 + d * grayscale);
+    color[1] *= 0.5 * (1.0 + d * grayscale);
+    gl_FragColor = vec4(hsl2rgb(color), d);
 }

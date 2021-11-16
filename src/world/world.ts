@@ -27,7 +27,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         for (let s = 0; s < cols && positions.length < worldConfig.soup.count; s++) {
             //positions.push(new Vector2(dx * s + dx / 2 + randomFrom(-dx / 4, dx / 4) - worldConfig.soup.width / 2, dy * i + dy / 2 + randomFrom(-dy / 4, dy / 4) - worldConfig.soup.height / 2));
             positions.push(new Vector2(dx * s + dx / 2 - worldConfig.soup.width / 2, dy * i + dy / 2 - worldConfig.soup.height / 2));
-            velocities.push(new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)));
+            // velocities.push(new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)));
+            velocities.push(new Vector2(0, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI)));
         }
     }
     const cells: CellElement[] = [];

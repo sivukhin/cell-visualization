@@ -26,8 +26,8 @@ function createConfiguration(canvas): WorldConfiguration {
             height: canvas.clientHeight,
         },
         target: {
-            appearDuration: atom<number>(1000),
-            selectDuration: atom<number>(3000),
+            appearDuration: atom<number>(500),
+            selectDuration: atom<number>(500),
             attackerColor: atom<ColorRepresentation>("rgb(255, 255, 255)"),
             defenderColor: atom<ColorRepresentation>("rgb(255, 100, 100)"),
         },
@@ -65,8 +65,8 @@ function createConfiguration(canvas): WorldConfiguration {
                 },
             },
             glowing: atom<number>(1),
-            radius: atom<number>(70),
-            color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
+            radius: atom<number>(35),
+            color: atom<ColorRepresentation>("rgb(84, 78, 54)"),
         },
         flagellum: {
             color: atom<ColorRepresentation>("rgb(84, 105, 125)"),

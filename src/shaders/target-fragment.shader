@@ -1,8 +1,8 @@
 uniform vec2 u_resolution;
 uniform vec3 u_color;
-uniform float u_scan;
-uniform float u_thickness;
 uniform float u_size;
+uniform float u_scale;
+uniform float u_thickness;
 
 varying vec2 v_position;
 
@@ -49,7 +49,10 @@ vec3 hsl2rgb(vec3 hsl) {
 
 void main() {
     vec2 p = v_position.xy / u_resolution;
-    if (min(p.x, 1.0 - p.x) < u_size && min(p.y, 1.0 - p.y) < u_size && (min(p.x, 1.0 - p.x) < u_thickness || min(p.y, 1.0 - p.y) < u_thickness)) {
+    float offset = smoothstep((1.0 - 1.0 / u_scale) / 2.0;
+    float dx = min(p.x - offset, 1.0 - offset - p.x);
+    float dy = min(p.y - offset, 1.0 - offset - p.y);
+    if (0.0 <= dx && dx < u_size && 0.0 <= dy && dy < u_size && (dx < u_thickness || dy < u_thickness)) {
         gl_FragColor = vec4(u_color, 1.0);
     } else {
         gl_FragColor = vec4(1.0, 1.0, 1.0, 0.0);

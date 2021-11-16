@@ -56,12 +56,10 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
 
         const bottomMembrane = new EffectComposer(renderer);
         bottomMembrane.addPass(new RenderPass(multiworld.bottom.membrane, camera));
-        //bottomMembrane.addPass(createOverlayShader(new ShaderPass(EdgeGlowShader), undefined, true));
-        //bottomMembrane.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.01 } }));
+        // bottomMembrane.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.01 } }));
         const bottomOrganell = new EffectComposer(renderer);
         bottomOrganell.addPass(createOverlayRender(new RenderPass(multiworld.bottom.organell, camera)));
-        //bottomOrganell.addPass(createOverlayShader(new ShaderPass(EdgeGlowShader), undefined, true));
-        //bottomOrganell.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.01 } }));
+        // bottomOrganell.addPass(createOverlayShader(new ShaderPass(BlurShader), { u_size: { value: 0.01 } }));
 
         const middleMembrane = new EffectComposer(renderer);
         middleMembrane.addPass(createOverlayRender(new RenderPass(multiworld.middle.membrane, camera)));
@@ -105,13 +103,16 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             setLastTick(time);
             world.tick(time);
 
-
             if (id < 10 && time > lastTime + randomFrom(100, 200)) {
                 lastTime = time;
-                for (let i = 0; i < store.get().soup.count; i++) {
-                    world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
-                }
-                id++;
+            }
+
+            if (id < 10 && time > lastTime + randomFrom(100, 200)) {
+                // lastTime = time;
+                // for (let i = 0; i < store.get().soup.count; i++) {
+                //     world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
+                // }
+                // id++;
             }
             /*
             if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {

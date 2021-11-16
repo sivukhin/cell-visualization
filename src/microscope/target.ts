@@ -1,6 +1,6 @@
 import { BufferAttribute, BufferGeometry, Color, LineSegments, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, Side, Uniform, Vector2, Vector3, WireframeGeometry } from "three";
 import { getFlatComponents3D, getHSLVector } from "../utils/draw";
-import { randomChoice } from "../utils/math";
+import { interpolateLinear1D, randomChoice } from "../utils/math";
 
 // @ts-ignore
 import TargetVertexShader from "../shaders/target-vertex.shader";
@@ -30,6 +30,7 @@ export function createTarget({ size, color, follow, appearDuration, selectDurati
             u_resolution: new Uniform(new Vector2(size, size)),
             u_size: new Uniform(0.0),
             u_color: new Uniform(new Vector3(color.r, color.g, color.b)),
+            u_scale: new Uniform(1.0),
             u_thickness: new Uniform(0.01),
         },
         vertexShader: TargetVertexShader,
@@ -37,9 +38,10 @@ export function createTarget({ size, color, follow, appearDuration, selectDurati
         transparent: true,
     });
     const skeleton = new Mesh(geometry, material);
-    skeleton.position.set(follow().x - size / 2, follow().y - size / 2, 0);
+    skeleton.position.set(follow().x - size * 1.2 / 2, follow().y - size * 1.2 / 2, 0);
     skeleton.renderOrder = 1;
     root.add(skeleton);
+    const startTime = lastTick();
     const appearTime = lastTick() + appearDuration;
     const finishTime = lastTick() + appearDuration + selectDuration;
     return {
@@ -50,7 +52,8 @@ export function createTarget({ size, color, follow, appearDuration, selectDurati
             }
             skeleton.position.set(follow().x - size / 2, follow().y - size / 2, 0);
             const alpha = 1 - Math.max(0, (appearTime - time) / appearDuration);
-            material.uniforms.u_size.value = 0.1 * alpha;
+            material.uniforms.u_scale.value = interpolateLinear1D(1, 1.2, startTime, appearTime, time);
+            material.uniforms.u_size.value = 0.1;
             material.needsUpdate = true;
             return true;
         },
