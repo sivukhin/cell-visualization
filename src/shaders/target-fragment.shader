@@ -49,10 +49,10 @@ vec3 hsl2rgb(vec3 hsl) {
 
 void main() {
     vec2 p = v_position.xy / u_resolution;
-    float offset = smoothstep((1.0 - 1.0 / u_scale) / 2.0;
+    float offset = (1.0 - 1.0 / u_scale) / 2.0;
     float dx = min(p.x - offset, 1.0 - offset - p.x);
     float dy = min(p.y - offset, 1.0 - offset - p.y);
-    if (0.0 <= dx && dx < u_size && 0.0 <= dy && dy < u_size && (dx < u_thickness || dy < u_thickness)) {
+    if (0.0 <= dx && dx < smoothstep(1.0, 1.2, u_scale) * u_size && 0.0 <= dy && dy < smoothstep(1.0, 1.2, u_scale) * u_size && (dx < u_thickness || dy < u_thickness)) {
         gl_FragColor = vec4(u_color, 1.0);
     } else {
         gl_FragColor = vec4(1.0, 1.0, 1.0, 0.0);

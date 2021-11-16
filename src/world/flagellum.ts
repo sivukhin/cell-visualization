@@ -114,7 +114,7 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
             }
             const relativeTime = getRelativeTime(timings, time);
             const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
-            const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
+            const update = createFigureFromPath(current, (d) => Math.max(1, 8 / Math.pow(1 + d, 1 / 4)));
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
             geometry.setIndex(update.indices);
             return true;

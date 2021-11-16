@@ -1,4 +1,4 @@
-import { Vector2, WebGLRenderer } from "three";
+import { Color, Vector2, WebGLRenderer } from "three";
 import { createCamera } from "./camera";
 import { createConfigurationStore, WorldConfiguration } from "../configuration";
 import { createEnvironment } from "./environment";
@@ -105,20 +105,15 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
 
             if (id < 10 && time > lastTime + randomFrom(100, 200)) {
                 lastTime = time;
+                for (let i = 0; i < store.get().soup.count; i++) {
+                    world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
+                }
+                id++;
             }
-
-            if (id < 10 && time > lastTime + randomFrom(100, 200)) {
-                // lastTime = time;
-                // for (let i = 0; i < store.get().soup.count; i++) {
-                //     world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
-                // }
-                // id++;
-            }
-            /*
             if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
                 lastTime = time;
                 const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
-                for (let i = 0; i < 2; i++) {
+                for (let i = 0; i < 1; i++) {
                     while (true) {
                         const targetCell = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
                         if (targetCell === source) {
@@ -130,7 +125,6 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
                     }
                 }
             }
-             */
         },
     };
 }

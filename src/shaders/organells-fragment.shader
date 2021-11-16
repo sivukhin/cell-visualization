@@ -5,6 +5,8 @@ uniform float u_curvature;
 uniform vec2[15] u_centers;
 uniform vec3[15] u_colors;
 uniform float[15] u_weights;
+uniform float[15] u_trans_start;
+uniform float[15] u_trans_finish;
 
 varying vec2 v_position;
 #define PI 3.1415
@@ -67,9 +69,13 @@ void main() {
     vec2 offset = vec2(cos(u_centers[best_point][0]), sin(u_centers[best_point][1])) * 0.1;
     vec2 direction = wobbled - u_centers[best_point];
     float grayscale = texture(u_texture, 0.5 + 0.5 * smoothstep(-20.0, 20.0, wobbled - u_centers[best_point])).r;
-    float d = (1.0 - step(0.9, pow(best_dist / scnd_dist, 1.0))) * smoothstep(0.1, 0.15, (u_r - r) / u_r) * smoothstep(0.0, u_r / 8.0, (scnd_dist - best_dist));
+    float d = (1.0 - step(0.9, pow(best_dist / scnd_dist, 1.0))) * smoothstep(0.1, 0.15, (u_r - r) / u_r) * smoothstep(0.0, u_r / 8.0 * (1.0 + 0.1 * sin(u_time / 1000.0 + float(best_point))), (scnd_dist - best_dist));
     vec3 color = u_colors[best_point];
     color[2] *= 0.5 * (1.0 + d * grayscale);
     color[1] *= 0.5 * (1.0 + d * grayscale);
-    gl_FragColor = vec4(hsl2rgb(color), d);
+    if (u_time > u_trans_start[best_point] && u_time < u_trans_finish[best_point]) {
+        float duration = u_trans_finish[best_point] - u_trans_start[best_point];
+        color[0] *= smoothstep(u_trans_start[best_point] + duration / 2.0, u_trans_start[best_point], u_time) + smoothstep(u_trans_start[best_point] + duration / 2.0, u_trans_finish[best_point], u_time);
+    }
+    gl_FragColor = vec4(hsl2rgb(color), smoothstep(0.0, 1.5, d));
 }

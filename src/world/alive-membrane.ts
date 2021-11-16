@@ -1,11 +1,10 @@
-import { getRegularPolygon, inSector, scalePoints, tryIntersectLineCircle, zero2 } from "../utils/geometry";
+import { zero2 } from "../utils/geometry";
 import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Path, Vector2 } from "three";
 import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
 import { calculateDeformation, calculateDeformationAngle, Deformation, findDeformationAngleTime } from "./deformation";
-import { interpolateLinear1D, interpolateLinear2D, randomFrom } from "../utils/math";
+import { randomFrom } from "../utils/math";
 import { lastTick } from "../utils/tick";
-import { Geometry } from "three/examples/jsm/deprecated/Geometry";
 
 interface DeformationLock {
     start: number;

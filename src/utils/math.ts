@@ -53,8 +53,19 @@ export function randomFrom(l: number, r: number) {
 }
 
 export function randomChoice<T>(array: T[]): T {
-    const id = Math.min(array.length - 1, Math.ceil(randomFrom(0, array.length)));
+    const id = Math.min(array.length - 1, Math.floor(randomFrom(0, array.length)));
     return array[id];
+}
+
+export function randomChoiceNonRepeat<T>(array: T[], occupied: boolean[]): T {
+    while (true) {
+        const id = Math.min(array.length - 1, Math.floor(randomFrom(0, array.length)));
+        if (occupied[id]) {
+            continue;
+        }
+        occupied[id] = true;
+        return array[id];
+    }
 }
 
 export function randomVector(length: number): Vector2 {

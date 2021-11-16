@@ -21,21 +21,21 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(1),
+            count: atom<number>(10),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
         target: {
-            appearDuration: atom<number>(500),
+            appearDuration: atom<number>(100),
             selectDuration: atom<number>(500),
             attackerColor: atom<ColorRepresentation>("rgb(255, 255, 255)"),
             defenderColor: atom<ColorRepresentation>("rgb(255, 100, 100)"),
         },
         cell: {
             segments: atom<number>(10),
-            bloomStrength: atom<number>(1),
-            bloomThreshold: atom<number>(0.391),
-            bloomRadius: atom<number>(2.5),
+            bloomStrength: atom<number>(0.5),
+            bloomThreshold: atom<number>(0),
+            bloomRadius: atom<number>(10),
             membrane: {
                 spline: atom<boolean>(false),
                 detalization: atom<number>(50),
@@ -65,18 +65,18 @@ function createConfiguration(canvas): WorldConfiguration {
                 },
             },
             glowing: atom<number>(1),
-            radius: atom<number>(35),
+            radius: atom<number>(100),
             color: atom<ColorRepresentation>("rgb(84, 78, 54)"),
         },
         flagellum: {
-            color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
+            color: atom<ColorRepresentation>("rgb(84, 78, 54)"),
             segmentLength: atom<number>(50),
             amplitude: atom<number>(100),
             skew: atom<number>(Math.PI),
             wobbling: atom<number>(0.1),
         },
         speed: atom<number>(0.1),
-        roundDuration: atom<number>(5_000),
+        roundDuration: atom<number>(3_000),
     };
     const membraneLimits = {
         segments: { min: 3, max: 10, step: 1 },

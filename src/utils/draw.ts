@@ -68,3 +68,7 @@ export function getHSLVector(repr: ColorRepresentation): Vector3 {
 export function to2(v: Vector3): Vector2 {
     return new Vector2(v.x, v.y);
 }
+
+export function to3(v: Vector2): Vector3 {
+    return new Vector3(v.x, v.y, 0);
+}

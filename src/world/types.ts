@@ -51,10 +51,10 @@ export interface CellElement {
         membrane: Object3D;
     };
     tick(time: number): boolean;
-    spawn(id: number): void;
-    glow(id: number, start: number, finish: number): void;
+    spawn(id: number, weight: number): void;
+    irritate(id: number, start: number, finish: number): void;
     attack(targets: Vector2[], duration: number): Timings[];
-    get(id: number): OrganellElement;
+    get(id: number): Vector2;
 }
 
 export interface TargetElement {
