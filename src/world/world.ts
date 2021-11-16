@@ -36,7 +36,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         const cell = createAliveCell({ ...worldConfig.cell, radius: worldConfig.cell.radius * (1 + (2 - i % 3) / 2) }, worldConfig.flagellum);
         cell.multiverse.membrane.position.set(positions[i].x, positions[i].y, 0);
         cell.multiverse.organell.position.set(positions[i].x, positions[i].y, 0);
-        const layer = [multiverse.top, multiverse.middle, multiverse.bottom][i % 3];
+        const layer = [multiverse.top, multiverse.top, multiverse.top][i % 3];
         layer.membrane.add(cell.multiverse.membrane);
         layer.organell.add(cell.multiverse.organell);
         cells.push(cell);

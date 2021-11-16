@@ -54,6 +54,6 @@ void main() {
         color[2] += sin((v_distance - current) * m * intensity) * intensity * min(color[2] - 0.2, 0.8 - color[2]);
         gl_FragColor = vec4(hsl2rgb(color), intensity);
     } else {
-        gl_FragColor = vec4(hsl2rgb(u_color), 1);
+        gl_FragColor = vec4(hsl2rgb(u_color), 0.9);
     }
 }

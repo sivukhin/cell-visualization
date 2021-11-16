@@ -13,12 +13,7 @@ import { lastTick } from "../utils/tick";
 
 const loader = new TextureLoader();
 const textures = [
-    loader.load("assets/org-texture-01.png"),
-    loader.load("assets/org-texture-02.png"),
-    loader.load("assets/org-texture-03.png"),
-    loader.load("assets/org-texture-04.png"),
-    loader.load("assets/org-texture-05.png"),
-    loader.load("assets/org-texture-06.png"),
+    loader.load("assets/org-texture-clip-01.png"),
 ];
 
 export interface Organell {

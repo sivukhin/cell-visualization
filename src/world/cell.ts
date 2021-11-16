@@ -15,6 +15,7 @@ import { randomChoice, randomFrom } from "../utils/math";
 import { Timings } from "../utils/timings";
 import { convexHull, getRegularPolygon, getSectorIn, scalePoints, simplifyShape, zero2 } from "../utils/geometry";
 import { CellElement, FlagellumElement, OrganellElement } from "./types";
+import { createOrganells } from "./organells";
 
 const directions = [
     new Vector2(1, 0).normalize(),
@@ -99,12 +100,15 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         organell: new Object3D(),
         membrane: new Mesh(geometry, material),
     };
+    const kek = createOrganells(membrane.points);
+    multiverse.organell.add(kek.multiverse);
     return {
         multiverse: multiverse,
         tick: (time: number) => {
             flagellums = tickAll(flagellums, time, (f) => multiverse.membrane.remove(f.multiverse));
-            organells = tickAll(organells, time, (o) => multiverse.organell.remove(o.multiverse));
+            // organells = tickAll(organells, time, (o) => multiverse.organell.remove(o.multiverse));
             membraneTick(time);
+            kek.tick(time);
             return true;
         },
         get: (id: number) => {
@@ -140,7 +144,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                 };
                 const spawned = createAliveOrganell(spawnedOrganell, spawnedMembrane, cellConfig.organell);
                 spawned.multiverse.position.set(center.x, center.y, 0);
-                multiverse.organell.add(spawned.multiverse);
+                // multiverse.organell.add(spawned.multiverse);
                 organells.push(spawned);
                 state.push({ center: center, velocity: zero2, id: id });
                 for (let i = 0; i < organells.length - 1; i++) {
