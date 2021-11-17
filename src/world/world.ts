@@ -7,6 +7,7 @@ import { createTarget } from "../microscope/target";
 import { to2, to3 } from "../utils/draw";
 import { interpolateMany, randomChoice, randomChoiceNonRepeat, randomFrom } from "../utils/math";
 import { tickAll } from "../utils/tick";
+import { createDetails } from "../microscope/details";
 
 const names = [
     "Shadow Servants",
@@ -68,9 +69,19 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         targets.push(target);
         multiverse.microscope.add(target.multiverse);
     };
+    let details = createDetails({
+        follow: () => [new Vector2(550, 550), new Vector2(500, 550), new Vector2(450, 450)],
+        center: () => new Vector2(500, 500),
+        innerRadius: 100,
+        outerRadius: 200,
+        texts: ["hello", "world", "CTF"],
+    });
     return {
         multiverse: multiverse,
         tick: (time: number) => {
+            if (details != null && !details.tick(time)) {
+                details = null;
+            }
             for (const item of cells.values()) {
                 item.element.tick(time);
                 item.element.multiverse.organell.position.x += item.state.velocity.x;

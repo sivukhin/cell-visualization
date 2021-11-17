@@ -8,6 +8,7 @@ import "./time";
 import { rollXY } from "./microscope/ruler";
 import { convexHull } from "./utils/geometry";
 import { updateApiCredentials } from "./api";
+import { createDetails } from "./microscope/details";
 
 function adjust(adjustable: { setSize(width: number, height: number, arg?: boolean): void }, canvas) {
     const width = canvas.clientWidth;
