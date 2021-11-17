@@ -52,6 +52,7 @@ export interface CellElement {
     };
     tick(time: number): boolean;
     spawn(id: number, weight: number): void;
+    update(size: number, organells: OrganellInfo[]): void;
     irritate(id: number, start: number, finish: number): void;
     attack(targets: Vector2[], start: number, finish: number): Timings[];
     get(id: number): Vector2;
@@ -65,6 +66,18 @@ export interface TargetElement {
 export interface OrganellId {
     cell: number;
     organell: number;
+}
+
+export interface OrganellInfo {
+    id: number;
+    size: number;
+}
+
+export interface CellInfo {
+    id: number;
+    size: number;
+    caption: string;
+    organells: OrganellInfo[];
 }
 
 export interface WorldElement {
@@ -84,9 +97,8 @@ export interface WorldElement {
         microscope: Object3D;
     };
     tick(time: number): boolean;
-    spawn(id: OrganellId, radius: number);
+    update(cellStates: CellInfo[]);
     attack(from: number, to: OrganellId);
-    accent(id: number, caption: string, select: boolean, highlight: boolean);
 }
 
 export interface Microcosmos {

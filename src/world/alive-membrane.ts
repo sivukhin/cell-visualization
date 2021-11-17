@@ -1,4 +1,4 @@
-import { zero2 } from "../utils/geometry";
+import { scalePoints, zero2 } from "../utils/geometry";
 import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Path, Vector2 } from "three";
 import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
@@ -128,7 +128,8 @@ interface MembraneGeometry {
     geometry: BufferGeometry;
     tick(time: number): void;
     thorn(id: number, duration: number): number;
-    update(update: AliveMembrane): void;
+    scale(scale: number): void;
+    getScale(): number;
 }
 
 export function createAliveMembrane(membrane: AliveMembrane, config: Unwrap<MembraneConfiguration>): MembraneGeometry {
@@ -155,6 +156,7 @@ export function createAliveMembrane(membrane: AliveMembrane, config: Unwrap<Memb
     };
 
     update(membrane);
+    let scale = 1.0;
 
     return {
         geometry: geometry,
@@ -173,11 +175,14 @@ export function createAliveMembrane(membrane: AliveMembrane, config: Unwrap<Memb
             const { points, thickness } = calculateMembranePoints(skeleton, config, t);
             thicknessAttribute.set(new Float32Array([1, ...thickness]));
             thicknessAttribute.needsUpdate = true;
-            positionAttribute.set(getFlatComponents3D([zero2, ...points]));
+            positionAttribute.set(getFlatComponents3D([zero2, ...scalePoints(points, scale)]));
             positionAttribute.needsUpdate = true;
         },
-        update: (data: AliveMembrane) => {
-            update((membrane = data));
+        scale: (update: number) => {
+            scale = update;
+        },
+        getScale: () => {
+            return scale;
         },
     };
 }

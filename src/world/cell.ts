@@ -8,7 +8,7 @@ import { lastTick, tickAll } from "../utils/tick";
 import { randomChoice, randomFrom } from "../utils/math";
 import { Timings } from "../utils/timings";
 import { getRegularPolygon, getSectorIn, scalePoints, zero2 } from "../utils/geometry";
-import { CellElement, FlagellumElement, OrganellElement } from "./types";
+import { CellElement, FlagellumElement, OrganellElement, OrganellInfo } from "./types";
 import { createOrganells } from "./organells";
 
 // @ts-ignore
@@ -19,7 +19,7 @@ import CellFragmentShader from "../shaders/cell-fragment.shader";
 export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>): CellElement {
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
     const membrane = { points: getRegularPolygon(cellConfig.segments, r) };
-    const { geometry, thorn: membraneThorn, tick: membraneTick, update: membraneUpdate } = createAliveMembrane(membrane, cellConfig.membrane);
+    const { geometry, thorn: membraneThorn, tick: membraneTick, scale: membraneScale, getScale: membraneGetScale } = createAliveMembrane(membrane, cellConfig.membrane);
     let flagellums: FlagellumElement[] = [];
     let organells = createOrganells(membrane.points);
 
@@ -58,6 +58,11 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             //     }
             // }
         },
+        update: (size: number, organellInfos: OrganellInfo[]) => {
+            membraneScale(size / cellConfig.radius);
+            organells.spawnMany(organellInfos);
+            organells.scale(size / cellConfig.radius);
+        },
         spawn: (id: number, weight: number) => {
             organells.spawn(id, weight);
         },
@@ -66,7 +71,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             const duration = finish - start;
             for (let i = 0; i < targets.length; i++) {
                 const { point, id } = getSectorIn(targets[i], membrane.points);
-                const attach = new Vector2().copy(point).multiplyScalar(0.9);
+                const attach = new Vector2().copy(point).multiplyScalar(0.9 * membraneGetScale());
                 // const start = membraneThorn(id, duration);
                 const timing = {
                     startIn: start,

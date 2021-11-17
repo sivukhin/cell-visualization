@@ -70,6 +70,7 @@ export interface WorldConfiguration {
     flagellum: FlagellumConfiguration;
     target: TargetConfiguration;
     speed: Store<number>;
+    angular: Store<number>;
     roundDuration: Store<number>;
 }
 

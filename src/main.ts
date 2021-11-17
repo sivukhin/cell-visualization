@@ -7,6 +7,7 @@ import Stats from "stats.js";
 import "./time";
 import { rollXY } from "./microscope/ruler";
 import { convexHull } from "./utils/geometry";
+import { updateApiCredentials } from "./api";
 
 function adjust(adjustable: { setSize(width: number, height: number, arg?: boolean): void }, canvas) {
     const width = canvas.clientWidth;
@@ -21,7 +22,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(30),
+            count: atom<number>(1),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },
@@ -77,6 +78,7 @@ function createConfiguration(canvas): WorldConfiguration {
             wobbling: atom<number>(0.1),
         },
         speed: atom<number>(0.1),
+        angular: atom<number>(0.001),
         roundDuration: atom<number>(8000),
     };
     const membraneLimits = {
@@ -111,6 +113,7 @@ function createConfiguration(canvas): WorldConfiguration {
             wobbling: { min: 0, max: 1, step: 0.05 },
         },
         speed: { min: 0, max: 10, step: 0.01 },
+        angular: { min: 0, max: 1, step: 0.0001 },
         roundDuration: { min: 1000, max: 100_000, step: 100 },
     });
     return configuration;
@@ -178,3 +181,19 @@ document.body.addEventListener("wheel", (ev) => {
         magnifications[i].textContent = `${Math.round(25 * microcosmos.magnification())}`;
     }
 });
+
+function updateApi() {
+    // @ts-ignore
+    const value = document.getElementById("credentials").value;
+    console.info("update api with new credentials: " + value);
+    let [username, password] = value.split("/");
+    if (username == null || password == null) {
+        console.error("bad credentials string");
+        return;
+    }
+    username = username.trim();
+    password = password.trim();
+    updateApiCredentials(`wss://${username}:${password}@ctf.hitb.org/api/events`);
+}
+
+document.getElementById("credentials").addEventListener("keypress", (e) => (e.code.includes("Enter") ? updateApi() : null));

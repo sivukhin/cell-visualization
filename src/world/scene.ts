@@ -16,6 +16,8 @@ import { CopyShader } from "three/examples/jsm/shaders/CopyShader";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader";
 import { setCamera } from "../microscope/target";
+import { subscribeApi } from "../api";
+import { createTeamIndex } from "../glue";
 
 function createOverlayRender(pass: RenderPass) {
     pass.clear = false;
@@ -41,6 +43,7 @@ function createOverlay<T extends Pass>(pass: T, modify: (t: T) => void) {
 }
 
 export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer): Microcosmos {
+    const teams = createTeamIndex();
     const store = createConfigurationStore(dynamic);
 
     const { camera, move, zoom, magnification, position } = createCamera(dynamic.soup.width, dynamic.soup.height);
@@ -50,6 +53,23 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
     let composers: EffectComposer[] = [];
 
     let id = 0;
+
+    subscribeApi((r) => {
+        console.info("response", r);
+        if (r.type == "state") {
+            world.update(
+                r.value.scoreboard.map((team) => ({
+                    id: teams.getOrAdd(team.name),
+                    size: team.score,
+                    caption: team.name,
+                    organells: team.services.map((s) => ({ id: s.id, size: s.fp })),
+                }))
+            );
+        } else if (r.type == "attack") {
+            world.attack(r.value.attacker_id, { cell: r.value.victim_id, organell: r.value.service_id });
+        }
+    });
+
     store.subscribe((configuration) => {
         id = 0;
         world = createWorld(configuration);
@@ -107,28 +127,28 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             setLastTick(time);
             world.tick(time);
 
-            if (id < 10 && time > lastTime + randomFrom(100, 200)) {
-                lastTime = time;
-                for (let i = 0; i < store.get().soup.count; i++) {
-                    world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
-                }
-                id++;
-            }
-            if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
-                lastTime = time;
-                const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
-                for (let i = 0; i < 1; i++) {
-                    while (true) {
-                        const targetCell = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
-                        if (targetCell === source) {
-                            continue;
-                        }
-                        const targetOrganell = Math.min(id - 1, Math.floor(randomFrom(0, id)));
-                        world.attack(source, { cell: targetCell, organell: targetOrganell });
-                        break;
-                    }
-                }
-            }
+            // if (id < 10 && time > lastTime + randomFrom(100, 200)) {
+            //     lastTime = time;
+            //     for (let i = 0; i < store.get().soup.count; i++) {
+            //         world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
+            //     }
+            //     id++;
+            // }
+            // if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
+            //     lastTime = time;
+            //     const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
+            //     for (let i = 0; i < 1; i++) {
+            //         while (true) {
+            //             const targetCell = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));
+            //             if (targetCell === source) {
+            //                 continue;
+            //             }
+            //             const targetOrganell = Math.min(id - 1, Math.floor(randomFrom(0, id)));
+            //             world.attack(source, { cell: targetCell, organell: targetOrganell });
+            //             break;
+            //         }
+            //     }
+            // }
         },
     };
 }

@@ -8,6 +8,7 @@ import OrganellsVertexShader from "../shaders/organells-vertex.shader";
 // @ts-ignore
 import OrganellsFragmentShader from "../shaders/organells-fragment.shader";
 import { lastTick } from "../utils/tick";
+import { OrganellInfo } from "./types";
 
 const loader = new TextureLoader();
 const textures = [loader.load("assets/org-texture-clip-01.png")];
@@ -20,6 +21,8 @@ const colorsPreset = [
     getHSLVector("rgb(177, 129, 67)"),
     getHSLVector("rgb(214, 224, 109)"),
 ];
+
+const MaxOrganells = 15;
 
 export function createOrganells(points: Vector2[]) {
     const geometry = new BufferGeometry();
@@ -49,14 +52,12 @@ export function createOrganells(points: Vector2[]) {
         slots.push(p);
     }
     const occupied = new Array(slots.length).fill(false);
-    const centers = new Array(15).fill(new Vector2(100000, 0));
-    const weights = new Array(15).fill(1);
-    const colors = new Array(15).fill(undefined);
-    for (let i = 0; i < 15; i++) {
-        colors[i] = colorsPreset[i % 7];
-    }
-    const transitionStart = new Array(15).fill(-1);
-    const transitionFinish = new Array(15).fill(-1);
+    const original = new Array(MaxOrganells).fill(null);
+    const centers = new Array(MaxOrganells).fill(new Vector2(100000, 0));
+    const weights = new Array(MaxOrganells).fill(1);
+    const transitionStart = new Array(MaxOrganells).fill(-1);
+    const transitionFinish = new Array(MaxOrganells).fill(-1);
+    let scale: number = 1.0;
     const material = new ShaderMaterial({
         uniforms: {
             u_time: new Uniform(0),
@@ -65,7 +66,6 @@ export function createOrganells(points: Vector2[]) {
             u_r: new Uniform(r),
             u_centers: new Uniform(centers),
             u_weights: new Uniform(weights),
-            u_colors: new Uniform(colors),
             u_trans_start: new Uniform(transitionStart),
             u_trans_finish: new Uniform(transitionFinish),
         },
@@ -73,16 +73,50 @@ export function createOrganells(points: Vector2[]) {
         fragmentShader: OrganellsFragmentShader,
         transparent: true,
     });
+    const spawn = (id: number, weight: number) => {
+        if (original[id] == null) {
+            original[id] = randomChoiceNonRepeat(slots, occupied);
+            centers[id] = new Vector2().copy(original[id]).multiplyScalar(scale);
+            material.needsUpdate = true;
+        }
+    };
+    const kill = (id: number) => {
+        original[id] = null;
+        material.uniforms.u_centers.value[id] = new Vector2(100000, 0);
+        occupied[id] = false;
+        material.needsUpdate = true;
+    };
     const organells = new Mesh(geometry, material);
     return {
         multiverse: organells,
+        scale: (update: number) => {
+            scale = update;
+            material.uniforms.u_r.value = r * scale;
+            for (let i = 0; i < material.uniforms.u_centers.value.length; i++) {
+                if (original[i] != null) {
+                    centers[i] = new Vector2().copy(original[i]).multiplyScalar(scale);
+                }
+            }
+            material.needsUpdate = true;
+        },
         get: (id: number) => {
             return centers[id];
         },
-        spawn: (id: number, weight: number) => {
-            centers[id] = randomChoiceNonRepeat(slots, occupied);
-            material.needsUpdate = true;
+        kill: kill,
+        spawnMany: (organellInfos: OrganellInfo[]) => {
+            console.info("spawn many organells", organellInfos);
+            const spawned = new Set<number>();
+            for (const organellInfo of organellInfos) {
+                spawned.add(organellInfo.id);
+                spawn(organellInfo.id, organellInfo.size);
+            }
+            for (let i = 0; i < MaxOrganells; i++) {
+                if (occupied[i] && !spawned.has(i)) {
+                    kill(i);
+                }
+            }
         },
+        spawn: spawn,
         irritate: (id: number, start: number, finish: number) => {
             transitionStart[id] = start;
             transitionFinish[id] = finish;

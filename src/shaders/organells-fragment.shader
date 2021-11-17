@@ -3,7 +3,6 @@ uniform float u_time;
 uniform float u_r;
 uniform float u_curvature;
 uniform vec2[15] u_centers;
-uniform vec3[15] u_colors;
 uniform float[15] u_weights;
 uniform float[15] u_trans_start;
 uniform float[15] u_trans_finish;

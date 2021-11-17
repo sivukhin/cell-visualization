@@ -92,3 +92,17 @@ export function interpolateLinearColor(a: Color, b: Color, l: number, r: number,
     const alpha = Math.max(0, Math.min(1, (t - l) / (r - l)));
     return new Color(a.r * (1 - alpha) + b.r * alpha, a.g * (1 - alpha) + b.g * alpha, a.b * (1 - alpha) + b.b * alpha);
 }
+
+export function interpolateMany(values: number[], l: number, r: number) {
+    let min = values[0];
+    let max = values[0];
+    for (const value of values) {
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+    }
+    const result: number[] = [];
+    for (const value of values) {
+        result.push(l + ((value - min) / (max - min)) * (r - l));
+    }
+    return result;
+}

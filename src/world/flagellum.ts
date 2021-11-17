@@ -109,7 +109,6 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
     return {
         multiverse: curve,
         tick: (time: number) => {
-            console.info("flagellum", timings, time);
             if (time > timings.finishOut) {
                 return false;
             }
