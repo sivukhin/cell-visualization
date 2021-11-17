@@ -80,7 +80,7 @@
                 fill: transparent;
                 stroke-width: 2px;
             }
-            circle.detail {
+            rect.detail {
                 fill: aliceblue;
             }
             text.detail {
@@ -94,12 +94,15 @@
             rect.overlay {
                 fill: rgba(0, 0, 0, 0.5);
             }
+            svg {
+                dominant-baseline: hanging;
+            }
         </style>
     </head>
     <body>
         <canvas id="microcosmos"></canvas>
         <div id="microscope">
-            <svg id="display" width="1500" height="800"></svg>
+            <svg id="display"></svg>
             <svg id="shadow-display" width="0" height="0"></svg>
             <div class="left ruler-container">
                 <canvas class="ruler"></canvas>

@@ -102,7 +102,11 @@ export function interpolateMany(values: number[], l: number, r: number) {
     }
     const result: number[] = [];
     for (const value of values) {
-        result.push(l + ((value - min) / (max - min)) * (r - l));
+        if (min == max) {
+            result.push(r);
+        } else {
+            result.push(l + ((value - min) / (max - min)) * (r - l));
+        }
     }
     return result;
 }

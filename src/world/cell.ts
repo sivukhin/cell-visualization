@@ -49,6 +49,9 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         get: (id: number) => {
             return organells.get(id);
         },
+        getAll: () => {
+            return organells.getAll();
+        },
         irritate(id: number, start: number, finish: number) {
             organells.irritate(id, start, finish);
             // for (let i = 0; i < state.length; i++) {

@@ -57,6 +57,11 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
     subscribeApi((r) => {
         console.info("response", r);
         if (r.type == "state") {
+            for (const [id, service] of Object.entries(r.value.services)) {
+                if (service.active) {
+                    world.register(parseInt(id), service.name);
+                }
+            }
             world.update(
                 r.value.scoreboard.map((team) => ({
                     id: teams.getOrAdd(team.name),
@@ -65,6 +70,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
                     organells: team.services.map((s) => ({ id: s.id, size: s.fp })),
                 }))
             );
+            world.inspect(teams.getOrAdd(r.value.scoreboard[0].name));
         } else if (r.type == "attack") {
             world.attack(r.value.attacker_id, { cell: r.value.victim_id, organell: r.value.service_id });
         }
@@ -117,7 +123,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         composers.push(bottomMembrane, bottomOrganell, middleMembrane, middleOrganell, topMembrane, topOrganell, microscope);
     });
 
-    let lastTime = 0;
+    let lastTime = -Infinity;
     return {
         composers: composers,
         move: move,
@@ -127,13 +133,37 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             setLastTick(time);
             world.tick(time);
 
-            // if (id < 10 && time > lastTime + randomFrom(100, 200)) {
-            //     lastTime = time;
-            //     for (let i = 0; i < store.get().soup.count; i++) {
-            //         world.spawn({ cell: i, organell: id }, 0.2 * store.get().cell.radius);
-            //     }
-            //     id++;
-            // }
+            /*
+            if (id < 1 && time > lastTime + randomFrom(100, 200)) {
+                world.update([
+                    {
+                        id: 1,
+                        size: 10,
+                        caption: "Team 1",
+                        organells: [
+                            {
+                                id: 1,
+                                size: 10,
+                            },
+                            {
+                                id: 2,
+                                size: 10,
+                            },
+                            {
+                                id: 3,
+                                size: 10,
+                            },
+                        ],
+                    },
+                ]);
+                id++;
+            }
+            if (id == 1 && time > lastTime + 20000) {
+                lastTime = time;
+                lastTime = time;
+                world.inspect(1);
+            }
+             */
             // if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
             //     lastTime = time;
             //     const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));

@@ -3,6 +3,11 @@ import { to2 } from "../utils/draw";
 
 export function createCamera(width: number, height: number) {
     let zoom = 1;
+    const display = document.getElementById("display");
+    display.setAttribute("width", `${width}`);
+    display.setAttribute("height", `${height}`);
+    display.setAttribute("viewBox", `${-width / 2} ${-height / 2} ${width} ${height}`);
+
     const camera = new OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2);
     camera.position.set(0, 0, 100);
     camera.lookAt(0, 0, 0);

@@ -2,35 +2,12 @@ import { Unwrap, WorldConfiguration } from "../configuration";
 import { Color, Object3D, Vector2, Vector3 } from "three";
 import { getComponents, zero2 } from "../utils/geometry";
 import { createAliveCell } from "./cell";
-import { CellElement, CellInfo, OrganellId, OrganellInfo, TargetElement, WorldElement } from "./types";
+import { CellElement, CellInfo, DetailsElement, OrganellId, OrganellInfo, TargetElement, WorldElement } from "./types";
 import { createTarget } from "../microscope/target";
 import { to2, to3 } from "../utils/draw";
 import { interpolateMany, randomChoice, randomChoiceNonRepeat, randomFrom } from "../utils/math";
 import { tickAll } from "../utils/tick";
 import { createDetails } from "../microscope/details";
-
-const names = [
-    "Shadow Servants",
-    "VoidHack",
-    "keva",
-    "Espacio",
-    "c00kies@venice",
-    "SiBears",
-    "MSHP SSL: The Elite Firm",
-    "WE_0WN_Y0U",
-    "Переподвысмотрит",
-    "saarsec",
-    "SwissMadeSecurity",
-    "BSUIR",
-    "Bushwhackers",
-    "[censored]",
-    "Lights Out",
-    "Tower Of Hanoi",
-    "Destructive Voice",
-    "girav",
-    "Teamspin Magic-Hat",
-    "ENOFLA",
-];
 
 interface CellState {
     velocity: Vector2;
@@ -38,6 +15,8 @@ interface CellState {
     radius: number;
     caption: string;
 }
+
+const palette = ["#F03B36", "#FC7630", "#64B419", "#26AD50", "#00BEA2", "#2291FF", "#366AF3", "#B750D1"];
 
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
     const multiverse = {
@@ -48,7 +27,9 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     };
 
     const cells = new Map<number, { element: CellElement; state: CellState }>();
+    const organells = new Map<number, string>();
     let targets: TargetElement[] = [];
+    let details: DetailsElement[] = [];
 
     let previousRound = 0;
     let attacks: Array<{ from: number; to: OrganellId }> = [];
@@ -69,19 +50,31 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         targets.push(target);
         multiverse.microscope.add(target.multiverse);
     };
-    let details = createDetails({
-        follow: () => [new Vector2(550, 550), new Vector2(500, 550), new Vector2(450, 450)],
-        center: () => new Vector2(500, 500),
-        innerRadius: 100,
-        outerRadius: 200,
-        texts: ["hello", "world", "CTF"],
-    });
     return {
         multiverse: multiverse,
-        tick: (time: number) => {
-            if (details != null && !details.tick(time)) {
-                details = null;
+        inspect: (id: number) => {
+            const cell = cells.get(id);
+            if (cell == null) {
+                return;
             }
+            const current = cell.element.getAll();
+
+            details.push(
+                createDetails({
+                    center: () => to2(cell.element.multiverse.membrane.position),
+                    innerRadius: 150,
+                    outerRadius: 180,
+                    follow: () => current.map((c) => new Vector2().addVectors(cell.element.get(c.id).center, to2(cell.element.multiverse.membrane.position))),
+                    captions: current.map((c) => ({ title: organells.get(c.id), attribute: `${Math.round(c.weight)}`, color: palette[c.id % palette.length] })),
+                })
+            );
+        },
+        register: (id: number, name: string) => {
+            organells.set(id, name);
+        },
+        tick: (time: number) => {
+            details = tickAll(details, time, (t) => {});
+            targets = tickAll(targets, time, (t) => multiverse.microscope.remove(t.multiverse));
             for (const item of cells.values()) {
                 item.element.tick(time);
                 item.element.multiverse.organell.position.x += item.state.velocity.x;
@@ -117,7 +110,6 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     aState.velocity.setLength(worldConfig.speed);
                 }
             }
-            targets = tickAll(targets, time, (t) => multiverse.microscope.remove(t.multiverse));
 
             if (time - previousRound > worldConfig.roundDuration) {
                 const groups = new Map<number, OrganellId[]>();
@@ -143,7 +135,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                         .filter((id) => cells.has(id.cell))
                         .map((id) => {
                             const target = cells.get(id.cell);
-                            const relative3d = to3(target.element.get(id.organell));
+                            const relative3d = to3(target.element.get(id.organell).center);
                             const cell3d = target.element.multiverse.membrane.position;
                             const absolute3d = new Vector3().addVectors(relative3d, cell3d).sub(source.element.multiverse.membrane.position);
                             return new Vector2(absolute3d.x, absolute3d.y);
@@ -184,7 +176,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     cell.element.update(sizes[i], cellInfo.organells);
                 } else {
                     const cell = createAliveCell(worldConfig.cell, worldConfig.flagellum);
-                    const velocity = new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI));
+                    const velocity = new Vector2(1, 0);
                     const count = cells.size + 1;
                     const rows = Math.ceil(Math.sqrt(count));
                     const cols = Math.ceil(count / rows);
@@ -205,9 +197,9 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                         col * (slot % cols) + randomFrom(col / 4, (3 * col) / 4) - worldConfig.soup.width / 2,
                         row * Math.ceil(slot / cols) + randomFrom(row / 4, (3 * row) / 4) - worldConfig.soup.height / 2
                     );
-                    console.info(position);
                     cell.multiverse.membrane.position.set(position.x, position.y, 0);
                     cell.multiverse.organell.position.set(position.x, position.y, 0);
+                    console.info(position);
                     cell.update(sizes[i], cellInfo.organells);
                     multiverse.top.membrane.add(cell.multiverse.membrane);
                     multiverse.top.organell.add(cell.multiverse.organell);
@@ -217,7 +209,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                             caption: cellInfo.caption,
                             velocity: velocity,
                             radius: sizes[i],
-                            angular: randomFrom(-worldConfig.angular, worldConfig.angular),
+                            angular: randomFrom(0, 0),
                         },
                     });
                 }

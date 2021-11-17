@@ -79,6 +79,7 @@ export function createOrganells(points: Vector2[]) {
             centers[id] = new Vector2().copy(original[id]).multiplyScalar(scale);
             material.needsUpdate = true;
         }
+        weights[id] = weight;
     };
     const kill = (id: number) => {
         original[id] = null;
@@ -99,19 +100,27 @@ export function createOrganells(points: Vector2[]) {
             }
             material.needsUpdate = true;
         },
+        getAll: () => {
+            const result: Array<{ id: number; center: Vector2; weight: number }> = [];
+            for (let i = 0; i < MaxOrganells; i++) {
+                if (original[i] != null) {
+                    result.push({ id: i, center: centers[i], weight: weights[i] });
+                }
+            }
+            return result;
+        },
         get: (id: number) => {
-            return centers[id];
+            return { center: centers[id], weight: weights[id] };
         },
         kill: kill,
         spawnMany: (organellInfos: OrganellInfo[]) => {
-            console.info("spawn many organells", organellInfos);
             const spawned = new Set<number>();
             for (const organellInfo of organellInfos) {
                 spawned.add(organellInfo.id);
                 spawn(organellInfo.id, organellInfo.size);
             }
             for (let i = 0; i < MaxOrganells; i++) {
-                if (occupied[i] && !spawned.has(i)) {
+                if (original[i] != null && !spawned.has(i)) {
                     kill(i);
                 }
             }

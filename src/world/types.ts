@@ -55,7 +55,12 @@ export interface CellElement {
     update(size: number, organells: OrganellInfo[]): void;
     irritate(id: number, start: number, finish: number): void;
     attack(targets: Vector2[], start: number, finish: number): Timings[];
-    get(id: number): Vector2;
+    get(id: number): { center: Vector2; weight: number };
+    getAll(): Array<{ id: number; center: Vector2; weight: number }>;
+}
+
+export interface DetailsElement {
+    tick(time: number): boolean;
 }
 
 export interface TargetElement {
@@ -97,6 +102,8 @@ export interface WorldElement {
         microscope: Object3D;
     };
     tick(time: number): boolean;
+    inspect(id: number): void;
+    register(id: number, name: string): void;
     update(cellStates: CellInfo[]);
     attack(from: number, to: OrganellId);
 }
