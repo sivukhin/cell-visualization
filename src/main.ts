@@ -23,7 +23,7 @@ function createConfiguration(canvas): WorldConfiguration {
             intensity: atom<number>(1),
         },
         soup: {
-            count: atom<number>(1),
+            count: atom<number>(2),
             width: canvas.clientWidth,
             height: canvas.clientHeight,
         },

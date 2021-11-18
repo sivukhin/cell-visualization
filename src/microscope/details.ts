@@ -1,8 +1,8 @@
 import { Vector2 } from "three";
 import { lastTick } from "../utils/tick";
-import { zero2 } from "../utils/geometry";
+import { tryIntersectLines, zero2 } from "../utils/geometry";
 import { DetailsElement } from "../world/types";
-import { interpolateMany } from "../utils/math";
+import { interpolateMany, randomChoiceNonRepeat } from "../utils/math";
 
 interface Detail {
     title: string;
@@ -13,8 +13,7 @@ interface Detail {
 interface Details {
     follow: () => Vector2[];
     center: () => Vector2;
-    innerRadius: number;
-    outerRadius: number;
+    sideX: number;
     captions: Detail[];
     start: number;
     finish: number;
@@ -82,39 +81,41 @@ function createDetail() {
     };
 }
 
-function getPivots(positions: Vector2[], center: Vector2, innerRadius: number, outerRadius: number) {
+function diagonalIntersect(a: Vector2, b: Vector2): Vector2 {
+    const deltaY = Math.abs(a.y - b.y);
+    const deltaX = Math.min(deltaY, Math.abs(b.x - a.x) - 10);
+    return a.x < b.x ? new Vector2(a.x + deltaX, b.y) : new Vector2(a.x - deltaX, b.y);
+}
+
+function getPivots(positions: Vector2[], center: Vector2, sideX: number) {
     const sectors = [];
-    for (let i = 1; i <= 4; i++) {
-        sectors.push(Math.asin(i / 4.1));
-        sectors.push(Math.PI - Math.asin(i / 4.1));
+    for (let i = -3; i <= 3; i++) {
+        sectors.push(new Vector2(-sideX, i * 40));
+        sectors.push(new Vector2(sideX, i * 40));
     }
-    for (let i = 1; i <= 2; i++) {
-        sectors.push(-Math.asin(i / 4));
-        sectors.push(Math.PI + Math.asin(i / 4));
-    }
-    const pivots: Array<{ inner: Vector2; outer: Vector2; side: "left" | "right" }> = [];
     const occupied = sectors.map((_) => false);
-    for (const position of positions) {
-        const angle = new Vector2().subVectors(position, center).angle();
-        let best = -1;
-        let bestDistance = Infinity;
+    const distances = [];
+    for (let p = 0; p < positions.length; p++) {
+        const position = positions[p];
+        const current = new Vector2().subVectors(position, center);
         for (let i = 0; i < sectors.length; i++) {
             if (occupied[i]) {
                 continue;
             }
-            let distance = (2 * Math.PI + angle - sectors[i]) % (2 * Math.PI);
-            distance = Math.min(distance, 2 * Math.PI - distance);
-            if (distance < bestDistance) {
-                best = i;
-                bestDistance = distance;
-            }
+            const currentDistance = Math.abs(sectors[i].y - current.y) + Math.abs(sectors[i].x - current.x);
+            distances.push({ p: p, sector: i, distance: currentDistance });
         }
-        const innerPoint = new Vector2(innerRadius).rotateAround(zero2, sectors[best]);
-        const outerX = outerRadius;
-        const outerPoint = new Vector2(innerPoint.x < 0 ? -outerX : outerX, innerPoint.y);
-        const side = outerPoint.x < 0 ? "left" : "right";
-        pivots.push({ inner: innerPoint.add(center), outer: outerPoint.add(center), side: side });
-        occupied[best] = true;
+    }
+    distances.sort((a, b) => a.distance - b.distance);
+    const pivots: Array<{ inner: Vector2; outer: Vector2; side: "left" | "right" }> = new Array(positions.length).fill(null);
+    for (const distance of distances) {
+        if (occupied[distance.sector] || pivots[distance.p] != null) {
+            continue;
+        }
+        const inner = diagonalIntersect(positions[distance.p], new Vector2().addVectors(sectors[distance.sector], center));
+        const side = sectors[distance.sector].x < 0 ? "left" : "right";
+        pivots[distance.p] = { inner: inner, outer: new Vector2().copy(sectors[distance.sector]).add(center), side: side };
+        occupied[distance.sector] = true;
     }
     return pivots;
 }
@@ -169,37 +170,42 @@ function getTextSize(text: string) {
     return bbox;
 }
 
-export function createDetails({ follow, center, innerRadius, outerRadius, captions, start, finish }: Details): DetailsElement {
+export function createDetails({ follow, center, sideX, captions, start, finish }: Details): DetailsElement {
     const display = document.getElementById("display");
     const detailsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const details = captions.map((_) => createDetail());
     const initialPosition = follow();
-    const initial = getPivots(initialPosition, center(), innerRadius, outerRadius);
+    const initialCenter = center();
+    const initial = getPivots(initialPosition, initialCenter, sideX);
     const textSizes = captions.map((t) => getTextSize(t.title + " " + Math.round(t.value)));
     const hPadding = 4;
     const vPadding = 8;
     for (const detail of details) {
         detailsGroup.appendChild(detail.element);
     }
-    display.appendChild(detailsGroup);
+    let appended = false;
     return {
         tick: (time: number) => {
             if (time < start) {
                 return true;
+            }
+            if (!appended) {
+                display.appendChild(detailsGroup);
             }
             if (time > finish) {
                 display.removeChild(detailsGroup);
                 return false;
             }
             const positions = follow();
+            const currentCenter = center();
             const lineAlpha = Math.min(1.0, (time - start) / 500.0);
             const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / Math.min(finish - start - 3000, 500)));
             for (let i = 0; i < positions.length; i++) {
                 details[i].move(positions[i].x, -positions[i].y);
-                const inner = new Vector2().subVectors(initial[i].inner, positions[i]);
-                inner.y = -inner.y;
-                const outer = new Vector2().subVectors(initial[i].outer, positions[i]);
+                const outer = new Vector2().subVectors(initial[i].outer, positions[i]).add(new Vector2().subVectors(currentCenter, initialCenter));
+                const inner = diagonalIntersect(zero2, outer);
                 outer.y = -outer.y;
+                inner.y = -inner.y;
                 details[i].setPath(getSvgPath(getPath([zero2, inner, outer], lineAlpha)));
                 const cx = initial[i].side == "left" ? outer.x - textSizes[i].width / 2 - vPadding : outer.x + textSizes[i].width / 2 + vPadding;
                 const cy = outer.y - textSizes[i].height / 2 - hPadding;
@@ -208,13 +214,13 @@ export function createDetails({ follow, center, innerRadius, outerRadius, captio
                     const prefix = getText(text, textAlpha);
                     const tokens = prefix.split("ё");
                     const segments = tokens.map((t) => ({ value: t, color: undefined }));
-                    if (initial[i].side == "left") {
-                        segments[0].color = captions[i].color;
+                    if (initial[i].side == "right") {
+                        segments[0].color = captions[i].color || "gray";
                     } else if (tokens.length > 1) {
-                        segments[1].color = captions[i].color;
+                        segments[1].color = captions[i].color || "gray";
                     }
                     details[i].setText(segments, cx - textSizes[i].width / 2, cy + textSizes[i].height / 2 - hPadding);
-                    details[i].setOverlay(cx - textSizes[i].width / 2 - vPadding, cy, textSizes[i].width + 2 * vPadding, textSizes[i].height + 2 * hPadding, captions[i].color, captions[i].value);
+                    details[i].setOverlay(cx - textSizes[i].width / 2 - vPadding, cy, textSizes[i].width + 2 * vPadding, textSizes[i].height + 2 * hPadding);
                     if (captions[i].color) {
                         const height = 18;
                         details[i].setAnchor(

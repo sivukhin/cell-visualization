@@ -1,4 +1,4 @@
-import { Color, Mesh, MeshBasicMaterial, Object3D, ShaderMaterial, Uniform, Vector2 } from "three";
+import { Color, ColorRepresentation, Mesh, MeshBasicMaterial, Object3D, ShaderMaterial, Uniform, Vector2 } from "three";
 import { CellConfiguration, FlagellumConfiguration, Unwrap } from "../configuration";
 import { createFlagellum } from "./flagellum";
 import { createAliveMembrane } from "./alive-membrane";
@@ -35,9 +35,13 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     });
     const multiverse = {
         organell: new Object3D(),
-        membrane: new Mesh(geometry, material),
+        membrane: new Object3D(),
     };
-    multiverse.organell.add(organells.multiverse);
+    const cell = new Mesh(geometry, material);
+    cell.renderOrder = 1;
+    multiverse.membrane.add(cell);
+    multiverse.membrane.add(organells.multiverse);
+    organells.multiverse.renderOrder = 2;
     return {
         multiverse: multiverse,
         tick: (time: number) => {
@@ -68,23 +72,20 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             organells.spawnMany(organellInfos);
             organells.scale(size / cellConfig.radius);
         },
-        spawn: (id: number, weight: number) => {
-            organells.spawn(id, weight);
+        spawn: (id: number, weight: number, active: boolean, color: ColorRepresentation) => {
+            organells.spawn(id, weight, active, color);
         },
-        attack: (targets: Vector2[], start: number, finish: number): Timings[] => {
-            const timings = [];
+        attack: (targets: Vector2[], start: number, finish: number): Timings => {
             const duration = finish - start;
+            const timing = {
+                startIn: start,
+                finishIn: start + duration * 0.3,
+                startOut: start + duration * 0.5,
+                finishOut: start + duration,
+            };
             for (let i = 0; i < targets.length; i++) {
                 const { point, id } = getSectorIn(targets[i], membrane.points);
                 const attach = new Vector2().copy(point).multiplyScalar(0.9 * membraneGetScale());
-                // const start = membraneThorn(id, duration);
-                const timing = {
-                    startIn: start,
-                    finishIn: start + duration * 0.3,
-                    startOut: start + duration * 0.5,
-                    finishOut: start + duration,
-                };
-                timings.push(timing);
                 const flagellum = createFlagellum(
                     {
                         startDirection: new Vector2().copy(point),
@@ -95,10 +96,11 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                     flagellumConfig
                 );
                 flagellum.multiverse.position.set(attach.x, attach.y, 0);
+                flagellum.multiverse.renderOrder = 3;
                 multiverse.membrane.add(flagellum.multiverse);
                 flagellums.push(flagellum);
             }
-            return timings;
+            return timing;
         },
     };
 }

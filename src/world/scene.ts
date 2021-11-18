@@ -124,42 +124,62 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             //                 {
             //                     id: 1,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("red"),
             //                 },
             //                 {
             //                     id: 2,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("blue"),
             //                 },
             //                 {
             //                     id: 3,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("blue"),
             //                 },
             //                 {
             //                     id: 4,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("green"),
             //                 },
             //                 {
             //                     id: 5,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("orange"),
             //                 },
             //                 {
             //                     id: 6,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("green"),
             //                 },
             //                 {
             //                     id: 7,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("green"),
             //                 },
             //                 {
             //                     id: 8,
             //                     size: 10,
+            //                     active: false,
+            //                     color: new Color("green"),
             //                 },
             //                 {
             //                     id: 9,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("green"),
             //                 },
             //                 {
             //                     id: 10,
             //                     size: 10,
+            //                     active: true,
+            //                     color: new Color("green"),
             //                 },
             //             ],
             //         },
@@ -168,8 +188,9 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             // }
             // if (id == store.get().soup.count && time > lastTime + 5000) {
             //     lastTime = time;
-            //     // world.attack(1, { cell: 2, organell: 5 });
-            //     world.inspect(1);
+            //     world.register(1, "HACK1");
+            //     world.attack(0, [{ cell: 1, organell: 5 }], time + 1000, time + 3000);
+            //     // world.inspect(0, time + 1000, time + 5000);
             // }
             // if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
             //     lastTime = time;

@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Color, Mesh, ShaderMaterial, Uniform, Vector2, TextureLoader } from "three";
+import { BufferAttribute, BufferGeometry, Color, Mesh, ShaderMaterial, Uniform, Vector2, TextureLoader, ColorRepresentation, Vector3 } from "three";
 import { getFlatComponents3D, getHSLVector } from "../utils/draw";
 import { zero2 } from "../utils/geometry";
 import { randomFrom, randomChoice, randomChoiceNonRepeat } from "../utils/math";
@@ -11,7 +11,7 @@ import { lastTick } from "../utils/tick";
 import { OrganellInfo } from "./types";
 
 const loader = new TextureLoader();
-const textures = [loader.load("assets/org-texture-clip-01.png")];
+const textures = [loader.load("assets/texture.jpg")];
 const colorsPreset = [
     getHSLVector("rgb(158, 186, 16)"),
     getHSLVector("rgb(160, 137, 7)"),
@@ -54,7 +54,10 @@ export function createOrganells(points: Vector2[]) {
     const occupied = new Array(slots.length).fill(false);
     const original = new Array(MaxOrganells).fill(null);
     const centers = new Array(MaxOrganells).fill(new Vector2(100000, 0));
+    const activity = new Array(MaxOrganells).fill(1);
     const weights = new Array(MaxOrganells).fill(1);
+    const originalColors = new Array(MaxOrganells).fill(null).map((_) => new Color());
+    const colors = new Array(MaxOrganells).fill(null).map((_) => new Vector3());
     const transitionStart = new Array(MaxOrganells).fill(-1);
     const transitionFinish = new Array(MaxOrganells).fill(-1);
     let scale: number = 1.0;
@@ -65,7 +68,9 @@ export function createOrganells(points: Vector2[]) {
             u_texture: new Uniform(textures[0]),
             u_r: new Uniform(r),
             u_centers: new Uniform(centers),
+            u_activity: new Uniform(activity),
             u_weights: new Uniform(weights),
+            u_colors: new Uniform(colors),
             u_trans_start: new Uniform(transitionStart),
             u_trans_finish: new Uniform(transitionFinish),
         },
@@ -73,13 +78,16 @@ export function createOrganells(points: Vector2[]) {
         fragmentShader: OrganellsFragmentShader,
         transparent: true,
     });
-    const spawn = (id: number, weight: number) => {
+    const spawn = (id: number, weight: number, active: boolean, color: ColorRepresentation) => {
         if (original[id] == null) {
             original[id] = randomChoiceNonRepeat(slots, occupied);
             centers[id] = new Vector2().copy(original[id]).multiplyScalar(scale);
-            material.needsUpdate = true;
         }
+        originalColors[id] = new Color(color);
+        colors[id] = getHSLVector(color);
+        activity[id] = active ? 1 : 0;
         weights[id] = weight;
+        material.needsUpdate = true;
     };
     const kill = (id: number) => {
         original[id] = null;
@@ -101,10 +109,10 @@ export function createOrganells(points: Vector2[]) {
             material.needsUpdate = true;
         },
         getAll: () => {
-            const result: Array<{ id: number; center: Vector2; weight: number }> = [];
+            const result: Array<{ id: number; center: Vector2; weight: number; active: boolean; color: Color }> = [];
             for (let i = 0; i < MaxOrganells; i++) {
                 if (original[i] != null) {
-                    result.push({ id: i, center: centers[i], weight: weights[i] });
+                    result.push({ id: i, center: centers[i], weight: weights[i], active: activity[i] == 1, color: originalColors[i] });
                 }
             }
             return result;
@@ -117,7 +125,7 @@ export function createOrganells(points: Vector2[]) {
             const spawned = new Set<number>();
             for (const organellInfo of organellInfos) {
                 spawned.add(organellInfo.id);
-                spawn(organellInfo.id, organellInfo.size);
+                spawn(organellInfo.id, organellInfo.size, organellInfo.active, organellInfo.color);
             }
             for (let i = 0; i < MaxOrganells; i++) {
                 if (original[i] != null && !spawned.has(i)) {
@@ -128,7 +136,7 @@ export function createOrganells(points: Vector2[]) {
         spawn: spawn,
         irritate: (id: number, start: number, finish: number) => {
             transitionStart[id] = start;
-            transitionFinish[id] = finish;
+            transitionFinish[id] = Math.max(transitionFinish[id], finish);
             material.needsUpdate = true;
         },
         tick: (time: number) => {

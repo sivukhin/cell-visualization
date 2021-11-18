@@ -110,13 +110,26 @@ function createOrientation(n: number) {
     return new Float32Array(orientation);
 }
 
+function createTrace(points: Vector2[]) {
+    let length = 0;
+    for (let i = 1; i < points.length; i++) {
+        length += points[i].distanceTo(points[i - 1]);
+    }
+    const trace = [0];
+    let current = 0;
+    for (let i = 1; i < points.length; i++) {
+        current += points[i].distanceTo(points[i - 1]);
+        trace.push(current / length);
+        trace.push(current / length);
+    }
+    return new Float32Array(trace);
+}
+
 export function createFlagellum({ startDirection, finishDirection, target, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>): FlagellumElement {
     const flagellum = generateFlagellum(target, configuration);
     const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
     const figure = createFigureFromPath(points, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 2)));
     const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new BufferAttribute(figure.positions, 3));
-    geometry.setIndex(figure.indices);
 
     const material = new ShaderMaterial({
         uniforms: {
@@ -139,7 +152,11 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
             const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
             geometry.setAttribute("orientation", new BufferAttribute(createOrientation(current.length), 1));
+            geometry.setAttribute("trace", new BufferAttribute(createTrace(current), 1));
             geometry.setIndex(update.indices);
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.orientation.needsUpdate = true;
+            geometry.attributes.trace.needsUpdate = true;
             return true;
         },
     };

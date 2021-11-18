@@ -55,7 +55,7 @@ function createWorldStat(): WorldStat {
                 return [];
             }
             const last = roundsBuffer[roundsBuffer.length - 1];
-            const order = last.scoreboard.map((x, i) => ({ id: i, name: x.name, position: x.n })).sort((a, b) => a.position - b.position);
+            const order = last.scoreboard.map((x) => ({ id: x.team_id, name: x.name, position: x.n })).sort((a, b) => a.position - b.position);
             return order.slice(0, k).map((x) => x);
         },
         state: () => (roundsBuffer.length > 0 ? roundsBuffer[roundsBuffer.length - 1] : null),
@@ -130,7 +130,6 @@ function createWorldStat(): WorldStat {
                 k *= 1 - serviceDeltaStolenFlags.get(e.to.service) / deltaStolenFlags;
                 k *= 1 - Math.min(1, e.amount / Math.max(1, serviceStolenFlags.get(e.to.service)));
                 p *= 1 - k;
-                console.info(p);
             } else if (e.kind === "stat") {
                 p *= Math.min(1.0, Math.max(0.0, (time - statShowTime) / (10 * 60 * 1000)));
                 p *= Math.min(0.99, (teamStatDelta.get(e.team) || 0) / Math.max(1, statDelta));
@@ -141,9 +140,11 @@ function createWorldStat(): WorldStat {
     };
 }
 
+const palette = ["#F03B36", "#FC7630", "#64B419", "#26AD50", "#00BEA2", "#2291FF", "#366AF3", "#B750D1"];
+
 export function createGod(world: WorldElement): GodElement {
     const teams = createTeamIndex();
-    const top = [];
+    let top = [];
     const attacks: WorldEvent[] = [];
     const worldStat = createWorldStat();
 
@@ -158,10 +159,10 @@ export function createGod(world: WorldElement): GodElement {
             }
             world.update(
                 r.value.scoreboard.map((team) => ({
-                    id: teams.getOrAdd(team.name),
+                    id: team.team_id,
                     size: team.score,
                     caption: team.name,
-                    organells: team.services.map((s) => ({ id: s.id, size: s.fp })),
+                    organells: team.services.map((s) => ({ id: s.id, size: s.fp, active: s.status == 101, color: palette[s.id % palette.length] })),
                 }))
             );
         } else if (r.type == "attack") {
@@ -174,29 +175,32 @@ export function createGod(world: WorldElement): GodElement {
 
     let lastTick = -Infinity;
     let actionFinish = -Infinity;
+    let showStats = false;
     return {
         tick: (time: number) => {
             if (time < lastTick + 100 || worldStat.state() == null) {
                 return;
             }
-            const currentTop = new Set(worldStat.top(5));
-            for (const id of top) {
-                if (!currentTop.has(id)) {
-                    world.resetAccent(id);
+            if (!showStats) {
+                const currentTop = worldStat.top(5);
+                for (const id of top) {
+                    if (currentTop.every((x) => x.id != id)) {
+                        world.resetAccent(id);
+                    }
                 }
-            }
-            for (const team of currentTop) {
-                world.setAccent(team.id, team.name);
+                for (const team of currentTop) {
+                    world.setAccent(team.id, team.name);
+                }
+                top = currentTop.map((x) => x.id);
             }
             if (time < actionFinish) {
                 return;
             }
+            showStats = false;
 
             lastTick = time;
-            const events = [...attacks, ...worldStat.state().scoreboard.map((s, i) => ({ kind: "stat", team: i } as WorldEvent))];
+            const events = [...attacks, ...worldStat.state().scoreboard.map((s) => ({ kind: "stat", team: s.team_id } as WorldEvent))];
             const probabilities = events.map((e) => worldStat.getProbability(e, time));
-            console.info(events);
-            console.info(probabilities);
             let filtered = events.filter((e, i) => randomFrom(0, 1) < probabilities[i]);
             if (filtered.length == 0) {
                 const order = [];
@@ -218,14 +222,21 @@ export function createGod(world: WorldElement): GodElement {
             for (let i = 0; i < luckers.length; i++) {
                 const lucker = luckers[i];
                 if (lucker.kind === "stat") {
-                    actionFinish = Math.max(actionFinish, time + (10_000 / 4) * i + 10_000);
-                    world.inspect(lucker.team, time + (10_000 / 4) * i, time + (10_000 / 4) * i + 10_000);
-                    worldStat.showStat(lucker.team, time + (10_000 / 4) * i);
+                    showStats = true;
+                    actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
+                    world.inspect(lucker.team, time + 6000 * i, time + 6000 * i + 6000);
+                    worldStat.showStat(lucker.team, time + 6000 * i);
                 } else if (lucker.kind === "attack") {
                     actionFinish = Math.max(actionFinish, time + (2000 / 3) * i + 2000);
                     world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: lucker.to.service }], time + (2000 / 3) * i, time + (2000 / 3) * i + 2000);
                     worldStat.attack(lucker.attacker, lucker.to.victim, time + (2000 / 3) * i);
                 }
+            }
+            if (showStats) {
+                for (const id of top) {
+                    world.resetAccent(id);
+                }
+                top = [];
             }
         },
     };

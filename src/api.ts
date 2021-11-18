@@ -27,6 +27,7 @@ export interface Team {
     score: number;
     old_score: number;
     services: TeamService[];
+    team_id: number;
 }
 
 export interface State {

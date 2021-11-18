@@ -16,8 +16,6 @@ interface CellState {
     caption: string;
 }
 
-const palette = ["#F03B36", "#FC7630", "#64B419", "#26AD50", "#00BEA2", "#2291FF", "#366AF3", "#B750D1"];
-
 function occupy(occupied: number[], row: number, col: number, rows: number, cols: number) {
     occupied[row * cols + col]++;
     occupied[Math.min(rows - 1, row + 1) * cols + col]++;
@@ -39,7 +37,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
     let targets = new Map<number, TargetElement>();
     let details: DetailsElement[] = [];
 
-    let previousRound = 0;
+    const vPadding = 150;
+    const hPadding = 50;
     return {
         multiverse: multiverse,
         resetAccent: (id: number) => {
@@ -48,7 +47,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 return;
             }
             multiverse.microscope.remove(target.multiverse);
-            targets.set(id, null);
+            target.cleanup();
+            targets.delete(id);
         },
         setAccent: (id: number, caption: string) => {
             if (targets.has(id)) {
@@ -75,7 +75,6 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             return new Vector2().addVectors(cell.element.get(organell).center, to2(cell.element.multiverse.membrane.position));
         },
         inspect: (id: number, start: number, finish: number) => {
-            console.info("inspect", id, start, finish);
             const cell = cells.get(id);
             if (cell == null) {
                 return;
@@ -85,10 +84,9 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             details.push(
                 createDetails({
                     center: () => to2(cell.element.multiverse.membrane.position),
-                    innerRadius: cell.state.radius + 20,
-                    outerRadius: cell.state.radius + 50,
+                    sideX: 110,
                     follow: () => current.map((c) => new Vector2().addVectors(cell.element.get(c.id).center, to2(cell.element.multiverse.membrane.position))),
-                    captions: current.map((c) => ({ title: organells.get(c.id), value: c.weight, color: palette[c.id % palette.length] })),
+                    captions: current.map((c) => ({ title: organells.get(c.id), value: c.weight, color: c.active ? "#" + c.color.getHexString() : null })),
                     start: start,
                     finish: finish,
                 })
@@ -111,16 +109,16 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 item.element.multiverse.organell.rotateZ(item.state.angular);
             }
             for (const { element: aElement, state: aState } of cells.values()) {
-                if (aElement.multiverse.membrane.position.x < -worldConfig.soup.width / 2 + 2 * aState.radius) {
+                if (aElement.multiverse.membrane.position.x < -worldConfig.soup.width / 2 + vPadding + 2 * aState.radius) {
                     aState.velocity.x += worldConfig.speed / 10;
                 }
-                if (aElement.multiverse.membrane.position.y < -worldConfig.soup.height / 2 + 2 * aState.radius) {
+                if (aElement.multiverse.membrane.position.y < -worldConfig.soup.height / 2 + hPadding + 2 * aState.radius) {
                     aState.velocity.y += worldConfig.speed / 10;
                 }
-                if (aElement.multiverse.membrane.position.x > worldConfig.soup.width / 2 - 2 * aState.radius) {
+                if (aElement.multiverse.membrane.position.x > worldConfig.soup.width / 2 - vPadding - 2 * aState.radius) {
                     aState.velocity.x -= worldConfig.speed / 10;
                 }
-                if (aElement.multiverse.membrane.position.y > worldConfig.soup.height / 2 - 2 * aState.radius) {
+                if (aElement.multiverse.membrane.position.y > worldConfig.soup.height / 2 - hPadding - 2 * aState.radius) {
                     aState.velocity.y -= worldConfig.speed / 10;
                 }
                 for (const { element: bElement, state: bState } of cells.values()) {
@@ -148,14 +146,14 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             const count = new Set([...cells.keys(), ...cellInfos.map((x) => x.id)]).size;
             let rows = Math.ceil(Math.sqrt(count / (worldConfig.soup.width / worldConfig.soup.height)));
             let cols = Math.ceil(count / rows);
-            const row = worldConfig.soup.height / rows;
-            const col = worldConfig.soup.width / cols;
+            const row = (worldConfig.soup.height - 2 * hPadding) / rows;
+            const col = (worldConfig.soup.width - 2 * vPadding) / cols;
             const occupied = new Array(rows * cols).fill(0);
             for (const cell of cells.values()) {
                 const x = cell.element.multiverse.membrane.position.x;
                 const y = cell.element.multiverse.membrane.position.y;
-                const r = Math.min(rows - 1, Math.floor((y + worldConfig.soup.height / 2) / row));
-                const c = Math.min(cols - 1, Math.floor((x + worldConfig.soup.width / 2) / col));
+                const r = Math.min(rows - 1, Math.floor((y + worldConfig.soup.height / 2 - hPadding) / row));
+                const c = Math.min(cols - 1, Math.floor((x + worldConfig.soup.width / 2 - vPadding) / col));
                 occupy(occupied, r, c, rows, cols);
             }
             for (let i = 0; i < cellInfos.length; i++) {
@@ -178,11 +176,11 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     }
                     occupy(occupied, Math.floor(slot / cols), slot % cols, rows, cols);
                     const position = new Vector2(
-                        col * (slot % cols) - worldConfig.soup.width / 2 + randomFrom(col / 3, (2 * col) / 3),
-                        row * Math.floor(slot / cols) - worldConfig.soup.height / 2 + randomFrom(row / 3, (2 * row) / 3)
+                        col * (slot % cols) - worldConfig.soup.width / 2 + vPadding + randomFrom(col / 3, (2 * col) / 3),
+                        row * Math.floor(slot / cols) - worldConfig.soup.height / 2 + hPadding + randomFrom(row / 3, (2 * row) / 3)
                     );
-                    position.x = Math.min(worldConfig.soup.width - sizes[i], Math.max(-worldConfig.soup.width + sizes[i], position.x));
-                    position.y = Math.min(worldConfig.soup.height - sizes[i], Math.max(-worldConfig.soup.height + sizes[i], position.y));
+                    position.x = Math.min(worldConfig.soup.width - sizes[i] - vPadding, Math.max(-worldConfig.soup.width + sizes[i] + vPadding, position.x));
+                    position.y = Math.min(worldConfig.soup.height - sizes[i] - hPadding, Math.max(-worldConfig.soup.height + sizes[i] + hPadding, position.y));
                     cell.multiverse.membrane.position.set(position.x, position.y, 0);
                     cell.multiverse.organell.position.set(position.x, position.y, 0);
                     cell.update(sizes[i], cellInfo.organells);
@@ -201,6 +199,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             }
         },
         attack: (from: number, targets: Array<{ cell: number; organell: number }>, start: number, finish: number) => {
+            console.info("ATTACK", from, targets, cells);
             const source = cells.get(from).element;
             if (source == null) {
                 return;
@@ -212,7 +211,11 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 const relative = new Vector2().subVectors(absolute, to2(source.multiverse.membrane.position));
                 points.push(relative);
             }
-            source.attack(points, start, finish);
+            const timing = source.attack(points, start, finish);
+            for (let i = 0; i < targets.length; i++) {
+                const cell = cells.get(targets[i].cell);
+                cell.element.irritate(targets[i].organell, timing.finishIn, timing.finishOut);
+            }
         },
     };
 }

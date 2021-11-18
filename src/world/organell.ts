@@ -12,9 +12,7 @@ import OrganellFragmentShader from "../shaders/organell-fragment.shader";
 import { lastTick } from "../utils/tick";
 
 const loader = new TextureLoader();
-const textures = [
-    loader.load("assets/org-texture-clip-01.png"),
-];
+const textures = [loader.load("assets/org-texture-clip-01.png")];
 
 export interface Organell {
     color: Color;
@@ -38,7 +36,7 @@ function createMaterial(color: Color, texture: any, visibility: number) {
 }
 
 export function createAliveOrganell(organell: Organell, membrane: AliveMembrane, config: Unwrap<OrganellConfiguration>): OrganellElement {
-    const { geometry, tick: membraneTick, update: membraneUpdate } = createAliveMembrane({ points: membrane.points }, config.membrane);
+    const { geometry, tick: membraneTick } = createAliveMembrane({ points: membrane.points }, config.membrane);
 
     const updateAll = () => {
         geometry.computeBoundingBox();
@@ -78,15 +76,12 @@ export function createAliveOrganell(organell: Organell, membrane: AliveMembrane,
         return { color: color, visibility: visibility };
     };
 
-    const update = (nextOrganell: Organell | null, nextMembrane: AliveMembrane | null) => {
+    const update = (nextOrganell: Organell | null) => {
         if (nextOrganell != null) {
             organell = current(lastTick());
             transition = nextOrganell;
             transitionStart = lastTick();
             transitionFinish = lastTick() + config.transitionDuration;
-        }
-        if (nextMembrane != null) {
-            membraneUpdate(nextMembrane);
         }
         updateAll();
     };

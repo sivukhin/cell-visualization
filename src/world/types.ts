@@ -1,4 +1,4 @@
-import { Camera, Color, Object3D, Scene, Vector2, Vector3 } from "three";
+import { Camera, Color, ColorRepresentation, Object3D, Scene, Vector2, Vector3 } from "three";
 import { AliveMembrane } from "./alive-membrane";
 import { Organell } from "./organell";
 import { Timings } from "../utils/timings";
@@ -41,7 +41,7 @@ export interface FlagellumElement {
 export interface OrganellElement {
     multiverse: Object3D;
     tick(time: number): boolean;
-    update(nextOrganell: Organell | null, nextMembrane: AliveMembrane | null): void;
+    update(nextOrganell: Organell | null): void;
     glow(start: number, finish: number): void;
 }
 
@@ -51,12 +51,12 @@ export interface CellElement {
         membrane: Object3D;
     };
     tick(time: number): boolean;
-    spawn(id: number, weight: number): void;
+    spawn(id: number, weight: number, active: boolean, color: ColorRepresentation): void;
     update(size: number, organells: OrganellInfo[]): void;
     irritate(id: number, start: number, finish: number): void;
-    attack(targets: Vector2[], start: number, finish: number): Timings[];
+    attack(targets: Vector2[], start: number, finish: number): Timings;
     get(id: number): { center: Vector2; weight: number };
-    getAll(): Array<{ id: number; center: Vector2; weight: number }>;
+    getAll(): Array<{ id: number; center: Vector2; weight: number; active: boolean; color: Color }>;
 }
 
 export interface DetailsElement {
@@ -65,6 +65,7 @@ export interface DetailsElement {
 
 export interface TargetElement {
     multiverse: Object3D;
+    cleanup(): void;
     tick(time: number): boolean;
 }
 
@@ -76,6 +77,8 @@ export interface OrganellId {
 export interface OrganellInfo {
     id: number;
     size: number;
+    color: ColorRepresentation;
+    active: boolean;
 }
 
 export interface CellInfo {

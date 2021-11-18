@@ -6,6 +6,8 @@ uniform vec2[15] u_centers;
 uniform float[15] u_weights;
 uniform float[15] u_trans_start;
 uniform float[15] u_trans_finish;
+uniform float[15] u_activity;
+uniform vec3[15] u_colors;
 
 varying vec2 v_position;
 #define PI 3.1415
@@ -58,7 +60,7 @@ float easing(float l, float r, float value) {
 }
 
 void main() {
-    vec2 wobbled = vec2(v_position.x + sin(v_position.y / 5.0 + u_time / 2000.0), v_position.y + cos(v_position.x / 5.0 + u_time / 2000.0));
+    vec2 wobbled = vec2(v_position.x + sin(v_position.y / 5.0 + u_time / 1000.0), v_position.y + cos(v_position.x / 5.0 + u_time / 1000.0));
     float r = length(v_position);
     float best_dist = 100000.0;
     float scnd_dist = 100000.0;
@@ -73,20 +75,34 @@ void main() {
           scnd_dist = curr_dist;
         }
     }
+
     vec2 offset = vec2(cos(u_centers[best_point][0]), sin(u_centers[best_point][1])) * 0.1;
     vec2 direction = wobbled - u_centers[best_point];
-    float grayscale = texture(u_texture, smoothstep(-50.0, 50.0, wobbled - u_centers[best_point])).r;
+    float grayscale = texture(u_texture, vec2(0.5 + 0.1 * sin(float(best_point) + u_time / 7000.0), 0.5 + 0.1 * cos(float(best_point) + u_time / 7000.0)) + (wobbled - u_centers[best_point]) / 100.0).r;
     float k = pow(best_dist / scnd_dist, 0.1);
     float d = (1.0 - step(1.0, k)) *
                 (0.5 + 0.5 * smoothstep(1.0, 0.4, best_dist / scnd_dist)) *
                 smoothstep(0.0, u_r * 0.5, u_r - r) *
                 (easing(100.0, 0.0, best_dist));
     vec3 color = vec3(1.0);//u_colors[best_point];
-    color[2] *= d * grayscale;
     color[1] = 0.0;
+    if (u_activity[best_point] == 1.0) {
+        color[2] = d * grayscale;
+    } else {
+        color[2] = (1.0 - step(1.0, k)) *
+                    (0.5 + 0.5 * smoothstep(1.0, 0.4, best_dist / scnd_dist)) *
+                    smoothstep(0.0, u_r * 0.5, u_r - r) *
+                    (easing(100.0, 0.0, best_dist)) *
+                    (1.0 - (1.0 - u_activity[best_point]) * smoothstep(1.2, 0.0, best_dist / scnd_dist)) *
+                    grayscale;
+    }
     if (u_time > u_trans_start[best_point] && u_time < u_trans_finish[best_point]) {
         float duration = u_trans_finish[best_point] - u_trans_start[best_point];
-        color[0] *= smoothstep(u_trans_start[best_point] + duration / 2.0, u_trans_start[best_point], u_time) + smoothstep(u_trans_start[best_point] + duration / 2.0, u_trans_finish[best_point], u_time);
+        color[0] = u_colors[best_point][0];
+        color[1] = 0.5 * (1.0 - step(u_trans_start[best_point] + duration / 6.0, u_time)) * smoothstep(u_trans_start[best_point], u_trans_start[best_point] + duration / 6.0, u_time) +
+                    0.5 * (step(u_trans_start[best_point] + duration / 6.0, u_time)) * smoothstep(u_trans_finish[best_point], u_trans_start[best_point] + duration / 6.0, u_time);
+        color[2] *= 1.0 + color[1];
     }
+//    color[2] *= activity;
     gl_FragColor = vec4(hsl2rgb(color), smoothstep(0.0, 1.5, d));
 }

@@ -64,6 +64,9 @@ export function createTarget({ size, caption, select, highlight, follow, appearD
     document.body.appendChild(textElement);
     return {
         multiverse: root,
+        cleanup: () => {
+            document.body.removeChild(textElement);
+        },
         tick: (time: number) => {
             const duration = typingDuration / caption.length;
             let currentLength = prefixLength;
