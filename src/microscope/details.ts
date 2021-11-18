@@ -16,6 +16,8 @@ interface Details {
     innerRadius: number;
     outerRadius: number;
     captions: Detail[];
+    start: number;
+    finish: number;
 }
 
 interface TextSegment {
@@ -167,7 +169,7 @@ function getTextSize(text: string) {
     return bbox;
 }
 
-export function createDetails({ follow, center, innerRadius, outerRadius, captions }: Details): DetailsElement {
+export function createDetails({ follow, center, innerRadius, outerRadius, captions, start, finish }: Details): DetailsElement {
     const display = document.getElementById("display");
     const detailsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const details = captions.map((_) => createDetail());
@@ -180,19 +182,18 @@ export function createDetails({ follow, center, innerRadius, outerRadius, captio
         detailsGroup.appendChild(detail.element);
     }
     display.appendChild(detailsGroup);
-    let startTime = null;
     return {
         tick: (time: number) => {
-            if (startTime == null) {
-                startTime = time;
+            if (time < start) {
+                return true;
             }
-            if (time > startTime + 5000) {
+            if (time > finish) {
                 display.removeChild(detailsGroup);
                 return false;
             }
             const positions = follow();
-            const lineAlpha = Math.min(1.0, (time - startTime) / 500.0);
-            const textAlpha = Math.min(1.0, Math.max(0.0, (time - startTime - 500.0) / 500.0));
+            const lineAlpha = Math.min(1.0, (time - start) / 500.0);
+            const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / Math.min(finish - start - 3000, 500)));
             for (let i = 0; i < positions.length; i++) {
                 details[i].move(positions[i].x, -positions[i].y);
                 const inner = new Vector2().subVectors(initial[i].inner, positions[i]);

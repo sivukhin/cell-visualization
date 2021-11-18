@@ -8,7 +8,7 @@ import { randomFrom } from "../utils/math";
 import { EffectComposer, Pass } from "three/examples/jsm/postprocessing/EffectComposer";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass";
-import { createMultiworld, Microcosmos, WorldElement } from "./types";
+import { createMultiworld, GodElement, Microcosmos, WorldElement } from "./types";
 import { BlurShader } from "../postprocessing/blur";
 import { EdgeGlowShader } from "../postprocessing/glow";
 import { BloomPass } from "three/examples/jsm/postprocessing/BloomPass";
@@ -18,6 +18,7 @@ import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader";
 import { setCamera } from "../microscope/target";
 import { subscribeApi } from "../api";
 import { createTeamIndex } from "../glue";
+import { createGod } from "./god";
 
 function createOverlayRender(pass: RenderPass) {
     pass.clear = false;
@@ -43,38 +44,16 @@ function createOverlay<T extends Pass>(pass: T, modify: (t: T) => void) {
 }
 
 export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer): Microcosmos {
-    const teams = createTeamIndex();
     const store = createConfigurationStore(dynamic);
 
     const { camera, move, zoom, magnification, position } = createCamera(dynamic.soup.width, dynamic.soup.height);
     setCamera({ camera, move, zoom, magnification, position });
 
     let world: WorldElement | null = null;
+    let god: GodElement | null = null;
     let composers: EffectComposer[] = [];
 
     let id = 0;
-
-    subscribeApi((r) => {
-        console.info("response", r);
-        if (r.type == "state") {
-            for (const [id, service] of Object.entries(r.value.services)) {
-                if (service.active) {
-                    world.register(parseInt(id), service.name);
-                }
-            }
-            world.update(
-                r.value.scoreboard.map((team) => ({
-                    id: teams.getOrAdd(team.name),
-                    size: team.score,
-                    caption: team.name,
-                    organells: team.services.map((s) => ({ id: s.id, size: s.fp })),
-                }))
-            );
-            world.inspect(teams.getOrAdd(r.value.scoreboard[0].name));
-        } else if (r.type == "attack") {
-            world.attack(r.value.attacker_id, { cell: r.value.victim_id, organell: r.value.service_id });
-        }
-    });
 
     store.subscribe((configuration) => {
         id = 0;
@@ -121,6 +100,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         composers.splice(0, composers.length);
         // composers.push(topMembrane);
         composers.push(bottomMembrane, bottomOrganell, middleMembrane, middleOrganell, topMembrane, topOrganell, microscope);
+        god = createGod(world);
     });
 
     let lastTime = -Infinity;
@@ -132,6 +112,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         tick: (time: number) => {
             setLastTick(time);
             world.tick(time);
+            god.tick(time);
 
             // if (id < store.get().soup.count && time > lastTime + randomFrom(100, 200)) {
             //     world.update([

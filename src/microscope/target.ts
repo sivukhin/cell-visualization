@@ -20,7 +20,7 @@ export interface Target {
     highlight: boolean;
     typingDuration: number;
     appearDuration: number;
-    selectDuration: number;
+    start: number;
 }
 
 const fontLoader = new FontLoader();
@@ -33,7 +33,7 @@ export function setCamera(update: any) {
     camera = update;
 }
 
-export function createTarget({ size, caption, select, highlight, follow, appearDuration, typingDuration, selectDuration, width, height }: Target): TargetElement {
+export function createTarget({ size, caption, select, highlight, follow, appearDuration, typingDuration, start, width, height }: Target): TargetElement {
     const root = new Object3D();
 
     const geometry = new BufferGeometry();
@@ -57,10 +57,7 @@ export function createTarget({ size, caption, select, highlight, follow, appearD
     skeleton.position.set(follow().x - size / 2, follow().y - size / 2, 0);
     skeleton.renderOrder = 1;
     root.add(skeleton);
-    const startTime = lastTick();
-    const typeTime = startTime + typingDuration;
-    const appearTime = startTime + appearDuration;
-    const finishTime = Math.max(typeTime, appearTime) + selectDuration;
+    const appearTime = start + appearDuration;
     let prefixLength = 0;
     const textElement = document.createElement("div");
     textElement.setAttribute("class", "caption " + (highlight ? "highlight" : ""));
@@ -68,13 +65,9 @@ export function createTarget({ size, caption, select, highlight, follow, appearD
     return {
         multiverse: root,
         tick: (time: number) => {
-            if (time > finishTime) {
-                document.body.removeChild(textElement);
-                return false;
-            }
             const duration = typingDuration / caption.length;
             let currentLength = prefixLength;
-            while (currentLength * duration < time - startTime) {
+            while (currentLength * duration < time - start) {
                 currentLength++;
             }
             if (currentLength > prefixLength) {
@@ -89,7 +82,7 @@ export function createTarget({ size, caption, select, highlight, follow, appearD
             textElement.setAttribute("style", `left: ${textX}px; bottom: ${textY}px; font-size: ${12 * camera.magnification()}pt`);
             skeleton.position.set(position.x - size / 2, position.y - size / 2, 0);
             if (select) {
-                material.uniforms.u_scale.value = interpolateLinear1D(1, 1.2, startTime, appearTime, time);
+                material.uniforms.u_scale.value = interpolateLinear1D(1, 1.2, start, appearTime, time);
                 material.uniforms.u_size.value = 0.1;
                 material.needsUpdate = true;
             }

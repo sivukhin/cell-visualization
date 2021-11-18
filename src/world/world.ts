@@ -6,7 +6,7 @@ import { CellElement, CellInfo, DetailsElement, OrganellId, OrganellInfo, Target
 import { createTarget } from "../microscope/target";
 import { to2, to3 } from "../utils/draw";
 import { interpolateMany, randomChoice, randomChoiceNonRepeat, randomFrom } from "../utils/math";
-import { tickAll } from "../utils/tick";
+import { lastTick, tickAll } from "../utils/tick";
 import { createDetails } from "../microscope/details";
 
 interface CellState {
@@ -36,31 +36,46 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
 
     const cells = new Map<number, { element: CellElement; state: CellState }>();
     const organells = new Map<number, string>();
-    let targets: TargetElement[] = [];
+    let targets = new Map<number, TargetElement>();
     let details: DetailsElement[] = [];
 
     let previousRound = 0;
-    let attacks: Array<{ from: number; to: OrganellId }> = [];
-    const accent = (id: number, caption: string, select: boolean, highlight: boolean) => {
-        const size = (cells.get(id).state.radius / Math.cos(Math.PI / worldConfig.cell.segments)) * (1 + worldConfig.cell.membrane.wobbling) * 2;
-        const target = createTarget({
-            follow: () => to2(cells.get(id).element.multiverse.membrane.position),
-            size: size,
-            appearDuration: worldConfig.target.appearDuration,
-            typingDuration: worldConfig.target.typingDuration,
-            selectDuration: worldConfig.target.selectDuration,
-            select: select,
-            highlight: highlight,
-            caption: caption,
-            width: worldConfig.soup.width,
-            height: worldConfig.soup.height,
-        });
-        targets.push(target);
-        multiverse.microscope.add(target.multiverse);
-    };
     return {
         multiverse: multiverse,
-        inspect: (id: number) => {
+        resetAccent: (id: number) => {
+            const target = targets.get(id);
+            if (target == null) {
+                return;
+            }
+            multiverse.microscope.remove(target.multiverse);
+            targets.set(id, null);
+        },
+        setAccent: (id: number, caption: string) => {
+            if (targets.has(id)) {
+                return;
+            }
+            const size = (cells.get(id).state.radius / Math.cos(Math.PI / worldConfig.cell.segments)) * (1 + worldConfig.cell.membrane.wobbling) * 2;
+            const target = createTarget({
+                follow: () => to2(cells.get(id).element.multiverse.membrane.position),
+                size: size,
+                appearDuration: worldConfig.target.appearDuration,
+                typingDuration: worldConfig.target.typingDuration,
+                start: lastTick(),
+                select: true,
+                highlight: false,
+                caption: caption,
+                width: worldConfig.soup.width,
+                height: worldConfig.soup.height,
+            });
+            targets.set(id, target);
+            multiverse.microscope.add(target.multiverse);
+        },
+        getTarget(cellId: number, organell: number): Vector2 {
+            const cell = cells.get(cellId);
+            return new Vector2().addVectors(cell.element.get(organell).center, to2(cell.element.multiverse.membrane.position));
+        },
+        inspect: (id: number, start: number, finish: number) => {
+            console.info("inspect", id, start, finish);
             const cell = cells.get(id);
             if (cell == null) {
                 return;
@@ -74,6 +89,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     outerRadius: cell.state.radius + 50,
                     follow: () => current.map((c) => new Vector2().addVectors(cell.element.get(c.id).center, to2(cell.element.multiverse.membrane.position))),
                     captions: current.map((c) => ({ title: organells.get(c.id), value: c.weight, color: palette[c.id % palette.length] })),
+                    start: start,
+                    finish: finish,
                 })
             );
         },
@@ -82,7 +99,9 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         },
         tick: (time: number) => {
             details = tickAll(details, time, (t) => {});
-            targets = tickAll(targets, time, (t) => multiverse.microscope.remove(t.multiverse));
+            for (const target of targets.values()) {
+                target.tick(time);
+            }
             for (const item of cells.values()) {
                 item.element.tick(time);
                 item.element.multiverse.organell.position.x += item.state.velocity.x;
@@ -117,56 +136,6 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 if (aState.velocity.length() > worldConfig.speed) {
                     aState.velocity.setLength(worldConfig.speed);
                 }
-            }
-
-            if (time - previousRound > worldConfig.roundDuration) {
-                const groups = new Map<number, OrganellId[]>();
-                for (let i = 0; i < attacks.length; i++) {
-                    const { from, to } = attacks[i];
-                    if (!groups.has(from)) {
-                        groups.set(from, []);
-                    }
-                    if (!groups.get(from).includes(to)) {
-                        groups.get(from).push(to);
-                    }
-                }
-                const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
-                const attackers = [];
-                const defenders = [];
-                for (let i = 0; i < Math.min(ordered.length, 2); i++) {
-                    const source = cells.get(ordered[i][0]);
-                    if (source == null) {
-                        continue;
-                    }
-                    attackers.push(ordered[i][0]);
-                    let targets = ordered[i][1]
-                        .filter((id) => cells.has(id.cell))
-                        .map((id) => {
-                            const target = cells.get(id.cell);
-                            const relative3d = to3(target.element.get(id.organell).center);
-                            const cell3d = target.element.multiverse.membrane.position;
-                            const absolute3d = new Vector3().addVectors(relative3d, cell3d).sub(source.element.multiverse.membrane.position);
-                            return new Vector2(absolute3d.x, absolute3d.y);
-                        });
-                    if (targets.length == 0) {
-                        continue;
-                    }
-                    targets = targets.slice(0, 3);
-                    const timings = source.element.attack(targets, time + worldConfig.target.typingDuration, time + worldConfig.target.typingDuration + worldConfig.roundDuration / 3);
-                    for (let s = 0; s < Math.min(ordered[i][1].length, 3); s++) {
-                        defenders.push(ordered[i][1][s].cell);
-                        cells.get(ordered[i][1][s].cell).element.irritate(ordered[i][1][s].organell, timings[s].finishIn, timings[s].finishOut);
-                    }
-                }
-                for (const id of cells.keys()) {
-                    const select = defenders.includes(id);
-                    const highlight = attackers.includes(id);
-                    if (select || highlight) {
-                        accent(id, cells.get(id).state.caption, select, highlight);
-                    }
-                }
-                previousRound = time;
-                attacks = [];
             }
             return true;
         },
@@ -231,8 +200,19 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 }
             }
         },
-        attack: (from: number, to: OrganellId) => {
-            attacks.push({ from, to });
+        attack: (from: number, targets: Array<{ cell: number; organell: number }>, start: number, finish: number) => {
+            const source = cells.get(from).element;
+            if (source == null) {
+                return;
+            }
+            const points = [];
+            for (let i = 0; i < targets.length; i++) {
+                const cell = cells.get(targets[i].cell);
+                const absolute = new Vector2().addVectors(cell.element.get(targets[i].organell).center, to2(cell.element.multiverse.membrane.position));
+                const relative = new Vector2().subVectors(absolute, to2(source.multiverse.membrane.position));
+                points.push(relative);
+            }
+            source.attack(points, start, finish);
         },
     };
 }

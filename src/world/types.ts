@@ -101,11 +101,18 @@ export interface WorldElement {
         };
         microscope: Object3D;
     };
+    getTarget(cell: number, organell: number): Vector2;
     tick(time: number): boolean;
-    inspect(id: number): void;
     register(id: number, name: string): void;
     update(cellStates: CellInfo[]);
-    attack(from: number, to: OrganellId);
+    inspect(id: number, start: number, finish: number): void;
+    attack(from: number, targets: Array<{ cell: number; organell: number }>, start: number, finish: number);
+    setAccent(id: number, caption: string);
+    resetAccent(id: number);
+}
+
+export interface GodElement {
+    tick(time: number): void;
 }
 
 export interface Microcosmos {
