@@ -1,4 +1,4 @@
-import { BackSide, BufferAttribute, BufferGeometry, DynamicDrawUsage, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, Path, Vector2 } from "three";
+import { BackSide, BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, Path, ShaderMaterial, Uniform, Vector2 } from "three";
 import { FlagellumConfiguration, Unwrap } from "../configuration";
 import { createFigureFromPath, cutBezierCurve, getFlatComponents3D } from "../utils/draw";
 import { randomFrom } from "../utils/math";
@@ -6,6 +6,11 @@ import { zero2 } from "../utils/geometry";
 import { calculateDeformation, Deformation, modifyDeformation } from "./deformation";
 import { getRelativeTime, Timings } from "../utils/timings";
 import { FlagellumElement } from "./types";
+
+// @ts-ignore
+import FlagellumVertexShader from "../shaders/flagellum-vertex.shader";
+// @ts-ignore
+import FlagellumFragmentShader from "../shaders/flagellum-fragment.shader";
 
 interface Flagellum {
     points: Vector2[];
@@ -96,8 +101,16 @@ export interface FlagellumState {
     timings: Timings;
 }
 
+function createOrientation(n: number) {
+    const orientation = [];
+    for (let i = 0; i < n; i++) {
+        orientation.push(1);
+        orientation.push(-1);
+    }
+    return new Float32Array(orientation);
+}
+
 export function createFlagellum({ startDirection, finishDirection, target, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>): FlagellumElement {
-    const material = new MeshBasicMaterial({ color: configuration.color, side: BackSide, transparent: true });
     const flagellum = generateFlagellum(target, configuration);
     const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
     const figure = createFigureFromPath(points, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 2)));
@@ -105,6 +118,15 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
     geometry.setAttribute("position", new BufferAttribute(figure.positions, 3));
     geometry.setIndex(figure.indices);
 
+    const material = new ShaderMaterial({
+        uniforms: {
+            u_color: new Uniform(new Color(configuration.color)),
+        },
+        vertexShader: FlagellumVertexShader,
+        fragmentShader: FlagellumFragmentShader,
+        transparent: true,
+        side: BackSide,
+    });
     const curve = new Mesh(geometry, material);
     return {
         multiverse: curve,
@@ -116,6 +138,7 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
             const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
             const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
+            geometry.setAttribute("orientation", new BufferAttribute(createOrientation(current.length), 1));
             geometry.setIndex(update.indices);
             return true;
         },

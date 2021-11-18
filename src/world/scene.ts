@@ -133,37 +133,63 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
             setLastTick(time);
             world.tick(time);
 
-            /*
-            if (id < 1 && time > lastTime + randomFrom(100, 200)) {
-                world.update([
-                    {
-                        id: 1,
-                        size: 10,
-                        caption: "Team 1",
-                        organells: [
-                            {
-                                id: 1,
-                                size: 10,
-                            },
-                            {
-                                id: 2,
-                                size: 10,
-                            },
-                            {
-                                id: 3,
-                                size: 10,
-                            },
-                        ],
-                    },
-                ]);
-                id++;
-            }
-            if (id == 1 && time > lastTime + 20000) {
-                lastTime = time;
-                lastTime = time;
-                world.inspect(1);
-            }
-             */
+            // if (id < store.get().soup.count && time > lastTime + randomFrom(100, 200)) {
+            //     world.update([
+            //         {
+            //             id: id,
+            //             size: 10,
+            //             caption: "Team 1",
+            //             organells: [
+            //                 {
+            //                     id: 1,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 2,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 3,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 4,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 5,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 6,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 7,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 8,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 9,
+            //                     size: 10,
+            //                 },
+            //                 {
+            //                     id: 10,
+            //                     size: 10,
+            //                 },
+            //             ],
+            //         },
+            //     ]);
+            //     id++;
+            // }
+            // if (id == store.get().soup.count && time > lastTime + 5000) {
+            //     lastTime = time;
+            //     // world.attack(1, { cell: 2, organell: 5 });
+            //     world.inspect(1);
+            // }
             // if (id == 10 && time > lastTime + randomFrom(1000, 2000) && store.get().soup.count > 1) {
             //     lastTime = time;
             //     const source = Math.min(store.get().soup.count - 1, Math.floor(randomFrom(0, store.get().soup.count)));

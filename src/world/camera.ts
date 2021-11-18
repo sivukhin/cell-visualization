@@ -14,6 +14,7 @@ export function createCamera(width: number, height: number) {
     const align = () => {
         camera.position.x = Math.min(width / 2 - camera.right, Math.max(-camera.left - width / 2, camera.position.x));
         camera.position.y = Math.min(height / 2 - camera.top, Math.max(-camera.bottom - height / 2, camera.position.y));
+        display.setAttribute("viewBox", `${camera.position.x + camera.left} ${-camera.position.y + camera.bottom} ${camera.right - camera.left} ${camera.top - camera.bottom}`);
     };
     return {
         camera,

@@ -18,6 +18,14 @@ interface CellState {
 
 const palette = ["#F03B36", "#FC7630", "#64B419", "#26AD50", "#00BEA2", "#2291FF", "#366AF3", "#B750D1"];
 
+function occupy(occupied: number[], row: number, col: number, rows: number, cols: number) {
+    occupied[row * cols + col]++;
+    occupied[Math.min(rows - 1, row + 1) * cols + col]++;
+    occupied[Math.max(0, row + 1) * cols + col]++;
+    occupied[row * cols + Math.min(cols - 1, col + 1)]++;
+    occupied[row * cols + Math.max(0, col - 1)]++;
+}
+
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
     const multiverse = {
         top: { organell: new Object3D(), membrane: new Object3D() },
@@ -62,10 +70,10 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             details.push(
                 createDetails({
                     center: () => to2(cell.element.multiverse.membrane.position),
-                    innerRadius: 150,
-                    outerRadius: 180,
+                    innerRadius: cell.state.radius + 20,
+                    outerRadius: cell.state.radius + 50,
                     follow: () => current.map((c) => new Vector2().addVectors(cell.element.get(c.id).center, to2(cell.element.multiverse.membrane.position))),
-                    captions: current.map((c) => ({ title: organells.get(c.id), attribute: `${Math.round(c.weight)}`, color: palette[c.id % palette.length] })),
+                    captions: current.map((c) => ({ title: organells.get(c.id), value: c.weight, color: palette[c.id % palette.length] })),
                 })
             );
         },
@@ -168,6 +176,19 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 worldConfig.cell.radius / 2,
                 worldConfig.cell.radius
             );
+            const count = new Set([...cells.keys(), ...cellInfos.map((x) => x.id)]).size;
+            let rows = Math.ceil(Math.sqrt(count / (worldConfig.soup.width / worldConfig.soup.height)));
+            let cols = Math.ceil(count / rows);
+            const row = worldConfig.soup.height / rows;
+            const col = worldConfig.soup.width / cols;
+            const occupied = new Array(rows * cols).fill(0);
+            for (const cell of cells.values()) {
+                const x = cell.element.multiverse.membrane.position.x;
+                const y = cell.element.multiverse.membrane.position.y;
+                const r = Math.min(rows - 1, Math.floor((y + worldConfig.soup.height / 2) / row));
+                const c = Math.min(cols - 1, Math.floor((x + worldConfig.soup.width / 2) / col));
+                occupy(occupied, r, c, rows, cols);
+            }
             for (let i = 0; i < cellInfos.length; i++) {
                 const cellInfo = cellInfos[i];
                 if (cells.has(cellInfo.id)) {
@@ -176,30 +197,25 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     cell.element.update(sizes[i], cellInfo.organells);
                 } else {
                     const cell = createAliveCell(worldConfig.cell, worldConfig.flagellum);
-                    const velocity = new Vector2(1, 0);
-                    const count = cells.size + 1;
-                    const rows = Math.ceil(Math.sqrt(count));
-                    const cols = Math.ceil(count / rows);
-                    const row = worldConfig.soup.height / rows;
-                    const col = worldConfig.soup.width / cols;
-                    const occupied = new Array(rows * cols).fill(false);
-                    for (const { element } of cells.values()) {
-                        const current = element.multiverse.membrane.position;
-                        const r = Math.min(rows - 1, Math.floor((current.y + worldConfig.soup.height / 2) / row));
-                        const c = Math.min(cols - 1, Math.floor((current.x + worldConfig.soup.width / 2) / col));
-                        occupied[r * cols + c] = true;
-                    }
+                    const velocity = new Vector2(worldConfig.speed, 0);
                     let slot = Math.min(occupied.length - 1, Math.floor(randomFrom(0, occupied.length)));
-                    while (occupied[slot]) {
+                    let iteration = 0;
+                    while (true) {
+                        iteration++;
+                        if (occupied[slot] < iteration / occupied.length) {
+                            break;
+                        }
                         slot = (slot + 1) % occupied.length;
                     }
+                    occupy(occupied, Math.floor(slot / cols), slot % cols, rows, cols);
                     const position = new Vector2(
-                        col * (slot % cols) + randomFrom(col / 4, (3 * col) / 4) - worldConfig.soup.width / 2,
-                        row * Math.ceil(slot / cols) + randomFrom(row / 4, (3 * row) / 4) - worldConfig.soup.height / 2
+                        col * (slot % cols) - worldConfig.soup.width / 2 + randomFrom(col / 3, (2 * col) / 3),
+                        row * Math.floor(slot / cols) - worldConfig.soup.height / 2 + randomFrom(row / 3, (2 * row) / 3)
                     );
+                    position.x = Math.min(worldConfig.soup.width - sizes[i], Math.max(-worldConfig.soup.width + sizes[i], position.x));
+                    position.y = Math.min(worldConfig.soup.height - sizes[i], Math.max(-worldConfig.soup.height + sizes[i], position.y));
                     cell.multiverse.membrane.position.set(position.x, position.y, 0);
                     cell.multiverse.organell.position.set(position.x, position.y, 0);
-                    console.info(position);
                     cell.update(sizes[i], cellInfo.organells);
                     multiverse.top.membrane.add(cell.multiverse.membrane);
                     multiverse.top.organell.add(cell.multiverse.organell);

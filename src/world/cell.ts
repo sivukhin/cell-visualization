@@ -44,10 +44,12 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             flagellums = tickAll(flagellums, time, (f) => multiverse.membrane.remove(f.multiverse));
             membraneTick(time);
             organells.tick(time);
+            organells.multiverse.rotateZ(0.001);
             return true;
         },
         get: (id: number) => {
-            return organells.get(id);
+            const state = organells.get(id);
+            return { center: new Vector2().copy(state.center).rotateAround(zero2, organells.multiverse.rotation.z), weight: state.weight };
         },
         getAll: () => {
             return organells.getAll();

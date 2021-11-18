@@ -2,10 +2,11 @@ import { Vector2 } from "three";
 import { lastTick } from "../utils/tick";
 import { zero2 } from "../utils/geometry";
 import { DetailsElement } from "../world/types";
+import { interpolateMany } from "../utils/math";
 
 interface Detail {
     title: string;
-    attribute: string;
+    value: number;
     color?: string;
 }
 
@@ -31,27 +32,42 @@ function createDetail() {
     const detailOverlayStatus = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     const detailCenter = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     detailCenter.setAttribute("transform", "rotate(45)");
-    detailCenter.setAttribute("width", "8");
-    detailCenter.setAttribute("height", "8");
-    detailCenter.setAttribute("x", "-4");
-    detailCenter.setAttribute("y", "-4");
+    detailCenter.setAttribute("width", "4");
+    detailCenter.setAttribute("height", "4");
+    detailCenter.setAttribute("x", "-2");
+    detailCenter.setAttribute("y", "-2");
     detailCenter.setAttribute("class", "detail");
     const detailText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     detailText.setAttribute("class", "detail");
+    const detailAnchor = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    detailAnchor.setAttribute("class", "anchor");
+    detailAnchor.setAttribute("x", "0");
+    detailAnchor.setAttribute("y", "0");
+    detailAnchor.setAttribute("width", "0");
+    detailAnchor.setAttribute("height", "0");
     detailGroup.appendChild(detailOverlay);
     detailGroup.appendChild(detailPath);
     detailGroup.appendChild(detailCenter);
     detailGroup.appendChild(detailText);
+    detailGroup.appendChild(detailAnchor);
+
     return {
         element: detailGroup,
         setPath: (path: string) => {
             detailPath.setAttribute("d", path);
         },
-        setOverlay: (x: number, y: number, width: number, height: number, color?: string) => {
+        setOverlay: (x: number, y: number, width: number, height: number) => {
             detailOverlay.setAttribute("width", `${width}`);
             detailOverlay.setAttribute("height", `${height}`);
             detailOverlay.setAttribute("x", `${x}`);
             detailOverlay.setAttribute("y", `${y}`);
+        },
+        setAnchor: (x: number, y: number, widht: number, height: number, color: string) => {
+            detailAnchor.setAttribute("style", `fill: ${color}`);
+            detailAnchor.setAttribute("x", `${x}`);
+            detailAnchor.setAttribute("y", `${y}`);
+            detailAnchor.setAttribute("width", `${widht}`);
+            detailAnchor.setAttribute("height", `${height}`);
         },
         setText: (text: TextSegment[], x: number, y: number) => {
             detailText.setAttribute("x", `${x}`);
@@ -66,12 +82,13 @@ function createDetail() {
 
 function getPivots(positions: Vector2[], center: Vector2, innerRadius: number, outerRadius: number) {
     const sectors = [];
-    const sectorWideness = Math.PI / 2 / 6;
-    for (let i = -3; i < 3; i++) {
-        sectors.push(Math.asin((i + 0.5) / 4));
+    for (let i = 1; i <= 4; i++) {
+        sectors.push(Math.asin(i / 4.1));
+        sectors.push(Math.PI - Math.asin(i / 4.1));
     }
-    for (let i = -3; i < 3; i++) {
-        sectors.push(Math.PI + Math.asin((i + 0.5) / 4));
+    for (let i = 1; i <= 2; i++) {
+        sectors.push(-Math.asin(i / 4));
+        sectors.push(Math.PI + Math.asin(i / 4));
     }
     const pivots: Array<{ inner: Vector2; outer: Vector2; side: "left" | "right" }> = [];
     const occupied = sectors.map((_) => false);
@@ -91,7 +108,7 @@ function getPivots(positions: Vector2[], center: Vector2, innerRadius: number, o
             }
         }
         const innerPoint = new Vector2(innerRadius).rotateAround(zero2, sectors[best]);
-        const outerX = Math.sqrt(outerRadius * outerRadius - innerPoint.y * innerPoint.y);
+        const outerX = outerRadius;
         const outerPoint = new Vector2(innerPoint.x < 0 ? -outerX : outerX, innerPoint.y);
         const side = outerPoint.x < 0 ? "left" : "right";
         pivots.push({ inner: innerPoint.add(center), outer: outerPoint.add(center), side: side });
@@ -126,9 +143,9 @@ function getPath(path: Vector2[], alpha: number) {
 
 function getSvgPath(path: Vector2[]) {
     const result = [];
-    result.push(`M ${Math.round(path[0].x)} ${Math.round(path[0].y)}`);
+    result.push(`M ${path[0].x} ${path[0].y}`);
     for (let i = 1; i < path.length; i++) {
-        result.push(`L ${Math.round(path[i].x)} ${Math.round(path[i].y)}`);
+        result.push(`L ${path[i].x} ${path[i].y}`);
     }
     return result.join(" ");
 }
@@ -156,8 +173,9 @@ export function createDetails({ follow, center, innerRadius, outerRadius, captio
     const details = captions.map((_) => createDetail());
     const initialPosition = follow();
     const initial = getPivots(initialPosition, center(), innerRadius, outerRadius);
-    const sizes = captions.map((t) => getTextSize(t.title + " " + t.attribute));
-    const padding = 10;
+    const textSizes = captions.map((t) => getTextSize(t.title + " " + Math.round(t.value)));
+    const hPadding = 4;
+    const vPadding = 8;
     for (const detail of details) {
         detailsGroup.appendChild(detail.element);
     }
@@ -177,15 +195,15 @@ export function createDetails({ follow, center, innerRadius, outerRadius, captio
             const textAlpha = Math.min(1.0, Math.max(0.0, (time - startTime - 500.0) / 500.0));
             for (let i = 0; i < positions.length; i++) {
                 details[i].move(positions[i].x, -positions[i].y);
-                const inner = new Vector2().subVectors(initial[i].inner, initialPosition[i]);
+                const inner = new Vector2().subVectors(initial[i].inner, positions[i]);
                 inner.y = -inner.y;
-                const outer = new Vector2().subVectors(initial[i].outer, initialPosition[i]);
+                const outer = new Vector2().subVectors(initial[i].outer, positions[i]);
                 outer.y = -outer.y;
                 details[i].setPath(getSvgPath(getPath([zero2, inner, outer], lineAlpha)));
-                const cx = initial[i].side == "left" ? outer.x - sizes[i].width / 2 - padding : outer.x + sizes[i].width / 2 + padding;
-                const cy = outer.y - sizes[i].height / 2 - padding / 2;
+                const cx = initial[i].side == "left" ? outer.x - textSizes[i].width / 2 - vPadding : outer.x + textSizes[i].width / 2 + vPadding;
+                const cy = outer.y - textSizes[i].height / 2 - hPadding;
                 if (textAlpha > 0) {
-                    const text = initial[i].side == "left" ? `${captions[i].attribute}ё${captions[i].title}` : `${captions[i].title}ё${captions[i].attribute}`;
+                    const text = initial[i].side == "left" ? `${Math.round(captions[i].value)}ё${captions[i].title}` : `${captions[i].title}ё${Math.round(captions[i].value)}`;
                     const prefix = getText(text, textAlpha);
                     const tokens = prefix.split("ё");
                     const segments = tokens.map((t) => ({ value: t, color: undefined }));
@@ -194,8 +212,18 @@ export function createDetails({ follow, center, innerRadius, outerRadius, captio
                     } else if (tokens.length > 1) {
                         segments[1].color = captions[i].color;
                     }
-                    details[i].setText(segments, cx - sizes[i].width / 2 - 1, cy + sizes[i].height);
-                    details[i].setOverlay(cx - sizes[i].width / 2 - padding, cy, sizes[i].width + 2 * padding, sizes[i].height + padding);
+                    details[i].setText(segments, cx - textSizes[i].width / 2, cy + textSizes[i].height / 2 - hPadding);
+                    details[i].setOverlay(cx - textSizes[i].width / 2 - vPadding, cy, textSizes[i].width + 2 * vPadding, textSizes[i].height + 2 * hPadding, captions[i].color, captions[i].value);
+                    if (captions[i].color) {
+                        const height = 18;
+                        details[i].setAnchor(
+                            initial[i].side == "left" ? cx + textSizes[i].width / 2 + vPadding - 4 : cx - textSizes[i].width / 2 - vPadding,
+                            cy + textSizes[i].height / 2 + hPadding - height / 2,
+                            4,
+                            height,
+                            captions[i].color
+                        );
+                    }
                 }
             }
             return true;
