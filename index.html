@@ -31,9 +31,16 @@
                 padding: 0;
                 font-family: "JetBrains Mono", monospace;
             }
+            .service {
+                margin-right: 16px;
+            }
             .bottom {
                 position: absolute;
                 bottom: 16px;
+            }
+            .bottom2 {
+                position: absolute;
+                bottom: 46px;
             }
             .right {
                 position: absolute;
@@ -46,6 +53,10 @@
             .top {
                 position: absolute;
                 top: 16px;
+            }
+            .center {
+                text-align: center;
+                width: 100%;
             }
             .block > * {
                 display: inline-block;
@@ -100,6 +111,25 @@
             svg {
                 dominant-baseline: hanging;
             }
+            .width48 {
+                display: inline-block;
+                width: 48px;
+            }
+            #status {
+                position: relative;
+                top: -4px;
+                padding: 4px;
+                background: white;
+                color: black;
+            }
+            #legend {
+                color: white;
+            }
+            .underline {
+                margin-top: 8px;
+                width: 100px;
+                border: 2px solid;
+            }
         </style>
     </head>
     <body>
@@ -114,20 +144,26 @@
                 <canvas class="ruler"></canvas>
             </div>
             <div class="top left block">
-                <span> <span class="magnification">25</span> µm </span>
+                <div>
+                    <div><span class="magnification">25</span> µm</div>
+                    <div class="underline"></div>
+                </div>
             </div>
+            <div class="top right"><div id="status">LIVE</div></div>
+            <div id="legend" class="bottom2 center"></div>
             <div class="bottom left block">
                 <div>
-                    <div>CTF_NANO</div>
-                    <div>10.0[KV]</div>
+                    <div>CELL TEST FLASK</div>
+                    <div>PROBE #2021</div>
                 </div>
-                <span>SP=8.0</span>
-                <span>WD=7.9</span>
-                <span>×10.0k</span>
-                <span><span class="magnification">25</span>[um]</span>
-                <span>HV</span>
-                <span>SEI</span>
-                <div><label for="credentials"></label><input id="credentials" /></div>
+                <span>RND <span class="width48" id="round"></span></span>
+                <span>ATK <span class="width48" id="attacks"></span></span>
+                <span>BLEED <span class="width48" id="bleed"></span></span>
+                <span>STOL <span class="width48" id="stolen"></span></span>
+                <span>ALIVE <span class="width48" id="alive"></span></span>
+                <span class="width48"><span class="magnification" id>25</span>[µm]</span>
+                <span><span id="stat-enabled">◯</span> STAT</span>
+                <span><span id="action-enabled">◯</span> ACT</span>
             </div>
             <div class="bottom right block">
                 <span id="time"></span>

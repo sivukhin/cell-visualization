@@ -4,11 +4,11 @@ import { WorldConfiguration } from "./configuration";
 import { createScene } from "./world/scene";
 import { initializeGui } from "./utils/knobs";
 import Stats from "stats.js";
-import "./time";
-import { rollXY } from "./microscope/ruler";
+import "./microscope/time";
 import { convexHull } from "./utils/geometry";
 import { updateApiCredentials } from "./api";
 import { createDetails } from "./microscope/details";
+import { createMicroscope } from "./microscope/microscope";
 
 function adjust(adjustable: { setSize(width: number, height: number, arg?: boolean): void }, canvas) {
     const width = canvas.clientWidth;
@@ -91,32 +91,33 @@ function createConfiguration(canvas): WorldConfiguration {
         thorness: { min: 0, max: 1, step: 0.1 },
         wobbling: { min: 0, max: 1, step: 0.01 },
     };
-    initializeGui(configuration, {
-        light: { intensity: { min: 0, max: 1, step: 0.01 } },
-        soup: {
-            count: { min: 1, max: 40, step: 1 },
-        },
-        cell: {
-            bloomStrength: { min: 0, max: 1, step: 0.01 },
-            bloomThreshold: { min: 0, max: 1, step: 0.001 },
-            bloomRadius: { min: 0, max: 10, step: 0.01 },
-            membrane: membraneLimits,
-            radius: { min: 10, max: 200, step: 1 },
-            glowing: { min: 0, max: 1, step: 0.01 },
-            organell: {
-                membrane: membraneLimits,
+    if (false)
+        initializeGui(configuration, {
+            light: { intensity: { min: 0, max: 1, step: 0.01 } },
+            soup: {
+                count: { min: 1, max: 40, step: 1 },
             },
-        },
-        flagellum: {
-            segmentLength: { min: 2, max: 100, step: 1 },
-            amplitude: { min: 1, max: 200, step: 1 },
-            skew: { min: 0, max: Math.PI, step: 0.1 },
-            wobbling: { min: 0, max: 1, step: 0.05 },
-        },
-        speed: { min: 0, max: 10, step: 0.01 },
-        angular: { min: 0, max: 1, step: 0.0001 },
-        roundDuration: { min: 1000, max: 100_000, step: 100 },
-    });
+            cell: {
+                bloomStrength: { min: 0, max: 1, step: 0.01 },
+                bloomThreshold: { min: 0, max: 1, step: 0.001 },
+                bloomRadius: { min: 0, max: 10, step: 0.01 },
+                membrane: membraneLimits,
+                radius: { min: 10, max: 200, step: 1 },
+                glowing: { min: 0, max: 1, step: 0.01 },
+                organell: {
+                    membrane: membraneLimits,
+                },
+            },
+            flagellum: {
+                segmentLength: { min: 2, max: 100, step: 1 },
+                amplitude: { min: 1, max: 200, step: 1 },
+                skew: { min: 0, max: Math.PI, step: 0.1 },
+                wobbling: { min: 0, max: 1, step: 0.05 },
+            },
+            speed: { min: 0, max: 10, step: 0.01 },
+            angular: { min: 0, max: 1, step: 0.0001 },
+            roundDuration: { min: 1000, max: 100_000, step: 100 },
+        });
     return configuration;
 }
 
@@ -153,10 +154,16 @@ function initialize() {
     }
     requestAnimationFrame(render);
 
-    stats.showPanel(0);
-    document.body.appendChild(stats.dom);
+    // stats.showPanel(0);
+    // document.body.appendChild(stats.dom);
 }
 
+const mmm = createMicroscope();
+mmm.setServices([
+    { name: "RUBIK", color: "red" },
+    { name: "BINDER", color: "magenta" },
+]);
+mmm.setMode("attention");
 initialize();
 
 let dragging = false;
@@ -172,7 +179,7 @@ document.body.addEventListener("mousemove", (ev) => {
     if (dragging) {
         const delta = [-ev.movementX, ev.movementY];
         microcosmos.move(delta[0], delta[1]);
-        rollXY(delta[0], delta[1]);
+        mmm.rollXY(delta[0], delta[1]);
     }
 });
 document.body.addEventListener("wheel", (ev) => {

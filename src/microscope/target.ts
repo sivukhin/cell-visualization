@@ -23,11 +23,6 @@ export interface Target {
     start: number;
 }
 
-const fontLoader = new FontLoader();
-
-let font: any = null;
-fontLoader.load("assets/JetBrainsMono_Regular.json", (f) => (font = f));
-
 let camera = null;
 export function setCamera(update: any) {
     camera = update;
