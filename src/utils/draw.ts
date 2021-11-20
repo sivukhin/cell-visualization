@@ -72,3 +72,14 @@ export function to2(v: Vector3): Vector2 {
 export function to3(v: Vector2): Vector3 {
     return new Vector3(v.x, v.y, 0);
 }
+
+const shadow = document.getElementById("shadow-display");
+export function getTextSize(text: string, size: number) {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    element.setAttribute("style", `font-size: ${size}pt`);
+    element.textContent = text;
+    shadow.appendChild(element);
+    const bbox = element.getBBox();
+    shadow.removeChild(element);
+    return bbox;
+}

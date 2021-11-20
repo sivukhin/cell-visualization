@@ -15,7 +15,6 @@ import { BloomPass } from "three/examples/jsm/postprocessing/BloomPass";
 import { CopyShader } from "three/examples/jsm/shaders/CopyShader";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader";
-import { setCamera } from "../microscope/target";
 import { subscribeApi } from "../api";
 import { createTeamIndex } from "../glue";
 import { createGod } from "./god";
@@ -47,7 +46,6 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
     const store = createConfigurationStore(dynamic);
 
     const { camera, move, zoom, magnification, position } = createCamera(dynamic.soup.width, dynamic.soup.height);
-    setCamera({ camera, move, zoom, magnification, position });
 
     let world: WorldElement | null = null;
     let god: GodElement | null = null;

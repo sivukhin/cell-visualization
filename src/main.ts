@@ -164,6 +164,7 @@ mmm.setServices([
     { name: "BINDER", color: "magenta" },
 ]);
 mmm.setMode("attention");
+mmm.addTarget(() => new Vector2(0, 0), 200, "red", "Shadow Servants", "AGGRESSOR", 1000);
 initialize();
 
 let dragging = false;

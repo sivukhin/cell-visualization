@@ -3,6 +3,7 @@ import { lastTick } from "../utils/tick";
 import { tryIntersectLines, zero2 } from "../utils/geometry";
 import { DetailsElement } from "../world/types";
 import { interpolateMany, randomChoiceNonRepeat } from "../utils/math";
+import { getTextSize } from "../utils/draw";
 
 interface Detail {
     title: string;
@@ -156,18 +157,6 @@ function getSvgPath(path: Vector2[]) {
 function getText(text: string, alpha: number) {
     const length = Math.ceil(text.length * alpha);
     return text.slice(0, length);
-}
-
-const shadow = document.getElementById("shadow-display");
-
-function getTextSize(text: string) {
-    const element = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    element.setAttribute("class", "detail");
-    element.textContent = text;
-    shadow.appendChild(element);
-    const bbox = element.getBBox();
-    shadow.removeChild(element);
-    return bbox;
 }
 
 export function createDetails({ follow, center, sideX, captions, start, finish }: Details): DetailsElement {

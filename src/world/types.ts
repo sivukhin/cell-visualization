@@ -64,8 +64,7 @@ export interface DetailsElement {
 }
 
 export interface TargetElement {
-    multiverse: Object3D;
-    cleanup(): void;
+    multiverse: SVGElement;
     tick(time: number): boolean;
 }
 
