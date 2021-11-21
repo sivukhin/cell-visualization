@@ -318,9 +318,21 @@
                 opacity: 0;
                 animation: flicker 16s infinite;
             }
+            .back {
+                position: absolute;
+                width: 100vw;
+                height: 100vh;
+                object-fit: cover;
+            }
         </style>
     </head>
     <body>
+        <video autoplay loop class="back" id="#back">
+            <source src="assets/background.mp4" />
+        </video>
+        <script>
+            document.getElementById("#back").play();
+        </script>
         <canvas id="microcosmos"></canvas>
         <div id="microscope">
             <svg id="display"></svg>

@@ -60,7 +60,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         renderer.getSize(size);
         const composer = new EffectComposer(renderer);
         composer.addPass(createOverlayRender(new RenderPass(scene, camera)));
-        composer.addPass(new UnrealBloomPass(size, configuration.cell.bloomStrength, configuration.cell.bloomRadius, configuration.cell.bloomThreshold));
+        // composer.addPass(new UnrealBloomPass(size, configuration.cell.bloomStrength, configuration.cell.bloomRadius, configuration.cell.bloomThreshold));
         composers.splice(0, composers.length);
         composers.push(composer);
     });
