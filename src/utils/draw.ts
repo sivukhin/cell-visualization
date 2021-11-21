@@ -74,9 +74,11 @@ export function to3(v: Vector2): Vector3 {
 }
 
 const shadow = document.getElementById("shadow-display");
-export function getTextSize(text: string, size: number) {
+export function getTextSize(text: string, size?: number) {
     const element = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    element.setAttribute("style", `font-size: ${size}pt`);
+    if (size != null) {
+        element.setAttribute("style", `font-size: ${size}pt`);
+    }
     element.textContent = text;
     shadow.appendChild(element);
     const bbox = element.getBBox();

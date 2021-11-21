@@ -1,35 +1,17 @@
-import {
-    BufferAttribute,
-    BufferGeometry,
-    Color,
-    ColorRepresentation,
-    LineSegments,
-    Mesh,
-    MeshBasicMaterial,
-    Object3D,
-    PlaneGeometry,
-    ShaderMaterial,
-    Side,
-    Uniform,
-    Vector2,
-    Vector3,
-    WireframeGeometry,
-} from "three";
-import { getFlatComponents3D, getHSLVector, getTextSize } from "../utils/draw";
-import { interpolateLinear1D, randomChoice } from "../utils/math";
+import { Vector2 } from "three";
+import { getTextSize } from "../utils/draw";
 
 // @ts-ignore
 import TargetVertexShader from "../shaders/target-vertex.shader";
 // @ts-ignore
 import TargetFragmentShader from "../shaders/target-fragment.shader";
-import { lastTick } from "../utils/tick";
 import { TargetElement } from "../world/types";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader";
 
 export interface Target {
     follow(): Vector2;
+    size(): number;
     color: string;
-    size: number;
     top?: string;
     bottom?: string;
     start: number;
@@ -56,49 +38,71 @@ function createSvgPath(path: Vector2[][]) {
     return result.join(" ");
 }
 
-function createTextBlock(x: number, bottomY: number | null, topY: number | null, text: string, color: string, fontSize: number, padding: number) {
+function createTextBlock(x: number, bottomY: number | null, topY: number | null, text: string, color: string | null, fontSize: number, padding: number) {
     const groupElement = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const size = getTextSize(text, fontSize);
     const bottom = bottomY != null ? -bottomY + size.height + 2 * padding : -topY;
     const textElement = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    textElement.setAttribute("x", `${x + padding + size.width / 2}`);
-    textElement.setAttribute("y", `${bottom - size.height / 2}`);
-    textElement.setAttribute("stroke", "black");
+    textElement.setAttribute("x", `${x + padding}`);
+    textElement.setAttribute("y", `${bottom - size.height}`);
+    if (color != null) {
+        textElement.setAttribute("stroke", "black");
+    } else {
+        textElement.setAttribute("fill", "white");
+    }
     textElement.setAttribute("style", `font-size: ${fontSize}pt`);
-    textElement.setAttribute("text-anchor", "middle");
-    textElement.setAttribute("alignment-baseline", "middle");
     textElement.innerHTML = text;
-    const rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rectElement.setAttribute("fill", color);
-    rectElement.setAttribute("x", `${x}`);
-    rectElement.setAttribute("y", `${bottom - size.height - 2 * padding}`);
-    rectElement.setAttribute("width", `${size.width + 2 * padding}`);
-    rectElement.setAttribute("height", `${size.height + 2 * padding}`);
-    groupElement.appendChild(rectElement);
+    if (color != null) {
+        const rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rectElement.setAttribute("class", "flicker");
+        rectElement.setAttribute("fill", color);
+        rectElement.setAttribute("x", `${x}`);
+        rectElement.setAttribute("y", `${bottom - size.height - 2 * padding}`);
+        rectElement.setAttribute("width", `${size.width + 2 * padding}`);
+        rectElement.setAttribute("height", `${size.height + 2 * padding}`);
+        groupElement.appendChild(rectElement);
+    }
     groupElement.appendChild(textElement);
     return groupElement;
 }
 
 export function createTarget({ follow, color, size, top, bottom, start }: Target): TargetElement {
+    const initialSize = size();
     const root = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const targetElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    targetElement.setAttribute("d", createSvgPath(createSquare(size)));
-    targetElement.setAttribute("stroke", color);
+    targetElement.setAttribute("d", createSvgPath(createSquare(initialSize)));
+    targetElement.setAttribute("stroke", color || "white");
     targetElement.setAttribute("fill", "transparent");
+    let topElement = null;
     if (top != null) {
-        const topElement = createTextBlock(-size / 2, null, size / 2 + 16, top, color, 20, 8);
-        root.appendChild(topElement);
+        topElement = createTextBlock(-initialSize / 2, null, initialSize / 2 + 16, top, color, 20, color != null ? 8 : 0);
     }
+    let bottomElement = null;
     if (bottom != null) {
-        const bottomElement = createTextBlock(-size / 2, -size / 2 - 16, null, bottom, color, 16, 8);
-        root.appendChild(bottomElement);
+        bottomElement = createTextBlock(-initialSize / 2, -initialSize / 2 - 16, null, bottom, color, 16, color != null ? 8 : 0);
     }
 
-    root.appendChild(targetElement);
+    let position = follow();
+    root.setAttribute("transform", `translate(${position.x}, ${position.y})`);
 
+    let inserted = false;
     return {
         multiverse: root,
+        position: () => position,
         tick: (time: number) => {
+            if (time > start && !inserted) {
+                root.appendChild(targetElement);
+                if (topElement != null) {
+                    root.appendChild(topElement);
+                }
+                if (bottomElement != null) {
+                    root.appendChild(bottomElement);
+                }
+                inserted = true;
+            }
+            position = follow();
+            const scale = size() / initialSize;
+            root.setAttribute("transform", `translate(${position.x}, ${-position.y})`);
             return true;
         },
     };

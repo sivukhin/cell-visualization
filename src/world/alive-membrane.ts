@@ -4,7 +4,6 @@ import { MembraneConfiguration, Unwrap } from "../configuration";
 import { getFlatComponents3D } from "../utils/draw";
 import { calculateDeformation, calculateDeformationAngle, Deformation, findDeformationAngleTime } from "./deformation";
 import { randomFrom } from "../utils/math";
-import { lastTick } from "../utils/tick";
 
 interface DeformationLock {
     start: number;
@@ -14,11 +13,6 @@ interface DeformationLock {
 interface VertexLock {
     out?: DeformationLock;
     in?: DeformationLock;
-}
-
-interface Sector {
-    point: Vector2;
-    id: number;
 }
 
 interface MembraneSkeleton {
@@ -127,7 +121,6 @@ function calculateMembranePoints(membrane: MembraneSkeleton, config: Unwrap<Memb
 interface MembraneGeometry {
     geometry: BufferGeometry;
     tick(time: number): void;
-    thorn(id: number, duration: number): number;
     scale(scale: number): void;
     getScale(): number;
 }
@@ -160,16 +153,6 @@ export function createAliveMembrane(membrane: AliveMembrane, config: Unwrap<Memb
 
     return {
         geometry: geometry,
-        thorn: (id: number, duration: number) => {
-            const t = lastTick() * config.frequency;
-            const start1 = findDeformationAngleTime(skeleton.deformations[id], t, -Math.abs(skeleton.deformations[id].angle));
-            const start2 = findDeformationAngleTime(skeleton.deformations[id], t, Math.abs(skeleton.deformations[id].angle));
-            const finish1 = findDeformationAngleTime(skeleton.deformations[id], Math.max(start1, start2) + duration * config.frequency, -Math.abs(skeleton.deformations[id].angle));
-            const finish2 = findDeformationAngleTime(skeleton.deformations[id], Math.max(start1, start2) + duration * config.frequency, Math.abs(skeleton.deformations[id].angle));
-            skeleton.locks[id].out = { start: start1, finish: finish1 };
-            skeleton.locks[id].in = { start: start2, finish: finish2 };
-            return Math.max(start1, start2);
-        },
         tick: (time: number) => {
             const t = time * config.frequency;
             const { points, thickness } = calculateMembranePoints(skeleton, config, t);

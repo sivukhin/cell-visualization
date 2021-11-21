@@ -1,17 +1,16 @@
 import { Vector2 } from "three";
-import { lastTick } from "../utils/tick";
-import { tryIntersectLines, zero2 } from "../utils/geometry";
+import { zero2 } from "../utils/geometry";
 import { DetailsElement } from "../world/types";
-import { interpolateMany, randomChoiceNonRepeat } from "../utils/math";
 import { getTextSize } from "../utils/draw";
 
 interface Detail {
     title: string;
-    value: number;
+    value: number | null;
     color?: string;
+    highlight: boolean;
 }
 
-interface Details {
+export interface Details {
     follow: () => Vector2[];
     center: () => Vector2;
     sideX: number;
@@ -90,7 +89,7 @@ function diagonalIntersect(a: Vector2, b: Vector2): Vector2 {
 
 function getPivots(positions: Vector2[], center: Vector2, sideX: number) {
     const sectors = [];
-    for (let i = -3; i <= 3; i++) {
+    for (let i = -2.5; i <= 2.5; i++) {
         sectors.push(new Vector2(-sideX, i * 40));
         sectors.push(new Vector2(sideX, i * 40));
     }
@@ -166,7 +165,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
     const initialPosition = follow();
     const initialCenter = center();
     const initial = getPivots(initialPosition, initialCenter, sideX);
-    const textSizes = captions.map((t) => getTextSize(t.title + " " + Math.round(t.value)));
+    const textSizes = captions.map((t) => getTextSize(t.title + " " + Math.round(t.value), 14));
     const hPadding = 4;
     const vPadding = 8;
     for (const detail of details) {
@@ -180,7 +179,9 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
             }
             if (!appended) {
                 display.appendChild(detailsGroup);
+                appended = true;
             }
+
             if (time > finish) {
                 display.removeChild(detailsGroup);
                 return false;
@@ -199,18 +200,19 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
                 const cx = initial[i].side == "left" ? outer.x - textSizes[i].width / 2 - vPadding : outer.x + textSizes[i].width / 2 + vPadding;
                 const cy = outer.y - textSizes[i].height / 2 - hPadding;
                 if (textAlpha > 0) {
-                    const text = initial[i].side == "left" ? `${Math.round(captions[i].value)}ё${captions[i].title}` : `${captions[i].title}ё${Math.round(captions[i].value)}`;
+                    let text = captions[i].title;
+                    if (captions[i].value != null) text = initial[i].side == "left" ? `${Math.round(captions[i].value)}ё${captions[i].title}` : `${captions[i].title}ё${Math.round(captions[i].value)}`;
                     const prefix = getText(text, textAlpha);
                     const tokens = prefix.split("ё");
                     const segments = tokens.map((t) => ({ value: t, color: undefined }));
-                    if (initial[i].side == "right") {
-                        segments[0].color = captions[i].color || "gray";
-                    } else if (tokens.length > 1) {
-                        segments[1].color = captions[i].color || "gray";
+                    if (captions[i].value != null && initial[i].side == "left") {
+                        segments[0].color = captions[i].color;
+                    } else if (captions[i].value != null && tokens.length > 1) {
+                        segments[1].color = captions[i].color;
                     }
                     details[i].setText(segments, cx - textSizes[i].width / 2, cy + textSizes[i].height / 2 - hPadding);
                     details[i].setOverlay(cx - textSizes[i].width / 2 - vPadding, cy, textSizes[i].width + 2 * vPadding, textSizes[i].height + 2 * hPadding);
-                    if (captions[i].color) {
+                    if (captions[i].highlight) {
                         const height = 18;
                         details[i].setAnchor(
                             initial[i].side == "left" ? cx + textSizes[i].width / 2 + vPadding - 4 : cx - textSizes[i].width / 2 - vPadding,

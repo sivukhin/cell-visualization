@@ -6,7 +6,7 @@ import { initializeGui } from "./utils/knobs";
 import Stats from "stats.js";
 import "./microscope/time";
 import { convexHull } from "./utils/geometry";
-import { updateApiCredentials } from "./api";
+import { updateApiCredentials, updateFakeApi } from "./api";
 import { createDetails } from "./microscope/details";
 import { createMicroscope } from "./microscope/microscope";
 
@@ -158,13 +158,6 @@ function initialize() {
     // document.body.appendChild(stats.dom);
 }
 
-const mmm = createMicroscope();
-mmm.setServices([
-    { name: "RUBIK", color: "red" },
-    { name: "BINDER", color: "magenta" },
-]);
-mmm.setMode("attention");
-mmm.addTarget(() => new Vector2(0, 0), 200, "red", "Shadow Servants", "AGGRESSOR", 1000);
 initialize();
 
 let dragging = false;
@@ -180,7 +173,6 @@ document.body.addEventListener("mousemove", (ev) => {
     if (dragging) {
         const delta = [-ev.movementX, ev.movementY];
         microcosmos.move(delta[0], delta[1]);
-        mmm.rollXY(delta[0], delta[1]);
     }
 });
 document.body.addEventListener("wheel", (ev) => {
@@ -205,4 +197,5 @@ function updateApi() {
     updateApiCredentials(`wss://${username}:${password}@ctf.hitb.org/api/events`);
 }
 
+updateFakeApi();
 document.getElementById("credentials").addEventListener("keypress", (e) => (e.code.includes("Enter") ? updateApi() : null));

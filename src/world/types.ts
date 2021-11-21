@@ -1,8 +1,7 @@
 import { Camera, Color, ColorRepresentation, Object3D, Scene, Vector2, Vector3 } from "three";
-import { AliveMembrane } from "./alive-membrane";
-import { Organell } from "./organell";
 import { Timings } from "../utils/timings";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
+import { Details } from "../microscope/details";
 
 export type Multiverse =
     | Object3D
@@ -38,18 +37,8 @@ export interface FlagellumElement {
     tick(time: number): boolean;
 }
 
-export interface OrganellElement {
-    multiverse: Object3D;
-    tick(time: number): boolean;
-    update(nextOrganell: Organell | null): void;
-    glow(start: number, finish: number): void;
-}
-
 export interface CellElement {
-    multiverse: {
-        organell: Object3D;
-        membrane: Object3D;
-    };
+    multiverse: Object3D;
     tick(time: number): boolean;
     spawn(id: number, weight: number, active: boolean, color: ColorRepresentation): void;
     update(size: number, organells: OrganellInfo[]): void;
@@ -65,7 +54,29 @@ export interface DetailsElement {
 
 export interface TargetElement {
     multiverse: SVGElement;
+    position(): Vector2;
     tick(time: number): boolean;
+}
+
+export interface Stats {
+    round: number;
+    attacks: number;
+    bleeding: number;
+    stolen: number;
+    alive: number;
+    stat: boolean;
+    action: boolean;
+}
+
+export interface MicroscopeElement {
+    tick(time: number): void;
+    rollXY(x: number, y: number);
+    setServices(services: Array<{ name: string; color: ColorRepresentation }>);
+    setStats(stats: Stats);
+    setMode(mode: "live" | "attention");
+    addAlarm(time: number);
+    addTarget(follow: () => Vector2, size: () => number, color: string, bottom: string, top: string, start: number);
+    addDetails(details: Details);
 }
 
 export interface OrganellId {
@@ -88,29 +99,13 @@ export interface CellInfo {
 }
 
 export interface WorldElement {
-    multiverse: {
-        top: {
-            organell: Object3D;
-            membrane: Object3D;
-        };
-        middle: {
-            organell: Object3D;
-            membrane: Object3D;
-        };
-        bottom: {
-            organell: Object3D;
-            membrane: Object3D;
-        };
-        microscope: Object3D;
-    };
-    getTarget(cell: number, organell: number): Vector2;
+    multiverse: Object3D;
+    getOrganells(cell: number, organells: number[]): Vector2[];
+    getOrganell(cell: number, organell: number): Vector2;
+    getCell(cell: number): { center: Vector2; radius: number };
     tick(time: number): boolean;
-    register(id: number, name: string): void;
     update(cellStates: CellInfo[]);
-    inspect(id: number, start: number, finish: number): void;
     attack(from: number, targets: Array<{ cell: number; organell: number }>, start: number, finish: number);
-    setAccent(id: number, caption: string);
-    resetAccent(id: number);
 }
 
 export interface GodElement {

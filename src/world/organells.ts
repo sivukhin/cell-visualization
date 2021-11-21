@@ -7,20 +7,11 @@ import { randomFrom, randomChoice, randomChoiceNonRepeat } from "../utils/math";
 import OrganellsVertexShader from "../shaders/organells-vertex.shader";
 // @ts-ignore
 import OrganellsFragmentShader from "../shaders/organells-fragment.shader";
-import { lastTick } from "../utils/tick";
+
 import { OrganellInfo } from "./types";
 
 const loader = new TextureLoader();
 const textures = [loader.load("assets/texture.jpg")];
-const colorsPreset = [
-    getHSLVector("rgb(158, 186, 16)"),
-    getHSLVector("rgb(160, 137, 7)"),
-    getHSLVector("rgb(158, 147, 93)"),
-    getHSLVector("rgb(101, 154, 1)"),
-    getHSLVector("rgb(201, 189, 19)"),
-    getHSLVector("rgb(177, 129, 67)"),
-    getHSLVector("rgb(214, 224, 109)"),
-];
 
 const MaxOrganells = 15;
 

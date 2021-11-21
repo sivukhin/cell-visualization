@@ -2,13 +2,11 @@ import { Color, ColorRepresentation, Mesh, MeshBasicMaterial, Object3D, ShaderMa
 import { CellConfiguration, FlagellumConfiguration, Unwrap } from "../configuration";
 import { createFlagellum } from "./flagellum";
 import { createAliveMembrane } from "./alive-membrane";
-import { createAliveOrganell } from "./organell";
 import { getHSLVector } from "../utils/draw";
-import { lastTick, tickAll } from "../utils/tick";
-import { randomChoice, randomFrom } from "../utils/math";
+import { tickAll } from "../utils/tick";
 import { Timings } from "../utils/timings";
 import { getRegularPolygon, getSectorIn, scalePoints, zero2 } from "../utils/geometry";
-import { CellElement, FlagellumElement, OrganellElement, OrganellInfo } from "./types";
+import { CellElement, FlagellumElement, OrganellInfo } from "./types";
 import { createOrganells } from "./organells";
 
 // @ts-ignore
@@ -19,7 +17,7 @@ import CellFragmentShader from "../shaders/cell-fragment.shader";
 export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>): CellElement {
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
     const membrane = { points: getRegularPolygon(cellConfig.segments, r) };
-    const { geometry, thorn: membraneThorn, tick: membraneTick, scale: membraneScale, getScale: membraneGetScale } = createAliveMembrane(membrane, cellConfig.membrane);
+    const { geometry, tick: membraneTick, scale: membraneScale, getScale: membraneGetScale } = createAliveMembrane(membrane, cellConfig.membrane);
     let flagellums: FlagellumElement[] = [];
     let organells = createOrganells(membrane.points);
 
@@ -33,19 +31,16 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         fragmentShader: CellFragmentShader,
         transparent: true,
     });
-    const multiverse = {
-        organell: new Object3D(),
-        membrane: new Object3D(),
-    };
+    const multiverse = new Object3D();
     const cell = new Mesh(geometry, material);
     cell.renderOrder = 1;
-    multiverse.membrane.add(cell);
-    multiverse.membrane.add(organells.multiverse);
+    multiverse.add(cell);
+    multiverse.add(organells.multiverse);
     organells.multiverse.renderOrder = 2;
     return {
         multiverse: multiverse,
         tick: (time: number) => {
-            flagellums = tickAll(flagellums, time, (f) => multiverse.membrane.remove(f.multiverse));
+            flagellums = tickAll(flagellums, time, (f) => multiverse.remove(f.multiverse));
             membraneTick(time);
             organells.tick(time);
             organells.multiverse.rotateZ(0.001);
@@ -97,7 +92,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                 );
                 flagellum.multiverse.position.set(attach.x, attach.y, 0);
                 flagellum.multiverse.renderOrder = 3;
-                multiverse.membrane.add(flagellum.multiverse);
+                multiverse.add(flagellum.multiverse);
                 flagellums.push(flagellum);
             }
             return timing;

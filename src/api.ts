@@ -1,3 +1,5 @@
+import Events from "./secret/events.json";
+
 export interface Attack {
     service_id: number;
     attacker_id: number;
@@ -52,16 +54,25 @@ export function subscribeApi(handler: (r: Response) => void) {
 
 let active: WebSocket | null = null;
 
+export function updateFakeApi() {
+    for (let i = 0; i < Events.length; i++) {
+        setTimeout(() => notify(Events[i].data), Events[i].timestamp * 1000);
+    }
+}
+
+function notify(data) {
+    for (const subscription of subscriptions) {
+        subscription(data);
+    }
+}
+
 export function updateApiCredentials(url) {
     if (active != null) {
         active.close();
     }
     active = new WebSocket(url);
     active.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        for (const subscription of subscriptions) {
-            subscription(data);
-        }
+        notify(JSON.parse(e.data));
     };
     active.onerror = (e) => {
         console.error(e);
