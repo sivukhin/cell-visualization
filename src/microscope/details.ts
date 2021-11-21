@@ -189,7 +189,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
             const positions = follow();
             const currentCenter = center();
             const lineAlpha = Math.min(1.0, (time - start) / 500.0);
-            const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / Math.min(finish - start - 3000, 500)));
+            const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / 500));
             for (let i = 0; i < positions.length; i++) {
                 details[i].move(positions[i].x, -positions[i].y);
                 const outer = new Vector2().subVectors(initial[i].outer, positions[i]).add(new Vector2().subVectors(currentCenter, initialCenter));

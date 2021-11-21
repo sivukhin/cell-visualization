@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color, Mesh, ShaderMaterial, Uniform, Vector2, TextureLoader, ColorRepresentation, Vector3 } from "three";
 import { getFlatComponents3D, getHSLVector } from "../utils/draw";
 import { zero2 } from "../utils/geometry";
-import { randomFrom, randomChoice, randomChoiceNonRepeat } from "../utils/math";
+import { randomFrom, randomChoice, randomChoiceNonRepeat, interpolateLinear1D } from "../utils/math";
 
 // @ts-ignore
 import OrganellsVertexShader from "../shaders/organells-vertex.shader";
@@ -45,7 +45,9 @@ export function createOrganells(points: Vector2[]) {
     const occupied = new Array(slots.length).fill(false);
     const original = new Array(MaxOrganells).fill(null);
     const centers = new Array(MaxOrganells).fill(new Vector2(100000, 0));
+    const activityTransition = new Array(MaxOrganells).fill(null);
     const activity = new Array(MaxOrganells).fill(1);
+    const nextActivity = new Array(MaxOrganells).fill(1);
     const weights = new Array(MaxOrganells).fill(1);
     const originalColors = new Array(MaxOrganells).fill(null).map((_) => new Color());
     const colors = new Array(MaxOrganells).fill(null).map((_) => new Vector3());
@@ -76,7 +78,8 @@ export function createOrganells(points: Vector2[]) {
         }
         originalColors[id] = new Color(color);
         colors[id] = getHSLVector(color);
-        activity[id] = active ? 1 : 0;
+        nextActivity[id] = active ? 1 : 0;
+        activityTransition[id] = null;
         weights[id] = weight;
         material.needsUpdate = true;
     };
@@ -90,14 +93,14 @@ export function createOrganells(points: Vector2[]) {
     return {
         multiverse: organells,
         scale: (update: number) => {
-            scale = update;
-            material.uniforms.u_r.value = r * scale;
-            for (let i = 0; i < material.uniforms.u_centers.value.length; i++) {
-                if (original[i] != null) {
-                    centers[i] = new Vector2().copy(original[i]).multiplyScalar(scale);
-                }
-            }
-            material.needsUpdate = true;
+            // scale = update;
+            // material.uniforms.u_r.value = r * scale;
+            // for (let i = 0; i < material.uniforms.u_centers.value.length; i++) {
+            //     if (original[i] != null) {
+            //         centers[i] = new Vector2().copy(original[i]).multiplyScalar(scale);
+            //     }
+            // }
+            // material.needsUpdate = true;
         },
         getAll: () => {
             const result: Array<{ id: number; center: Vector2; weight: number; active: boolean; color: Color }> = [];
@@ -132,6 +135,12 @@ export function createOrganells(points: Vector2[]) {
         },
         tick: (time: number) => {
             material.uniforms.u_time.value = time;
+            for (let i = 0; i < MaxOrganells; i++) {
+                if (activity[i] != nextActivity[i]) {
+                    activityTransition[i] = activityTransition[i] == null ? time : activityTransition[i];
+                    activity[i] = interpolateLinear1D(1 - nextActivity[i], nextActivity[i], activityTransition[i], activityTransition[i] + 1000, time);
+                }
+            }
             material.needsUpdate = true;
         },
     };

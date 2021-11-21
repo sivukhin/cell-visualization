@@ -321,6 +321,15 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
 
                     showFirstBlood = true;
                     clearTargets();
+
+                    microscope.addDetails({
+                        center: () => world.getCell(lucker.to.victim).center,
+                        follow: () => [world.getOrganell(lucker.to.victim, lucker.to.service)],
+                        captions: [{ title: services.get(lucker.to.service).name, color: services.get(lucker.to.service).color, highlight: true, value: null }],
+                        start: time + 1500,
+                        finish: time + 5000,
+                        sideX: 110,
+                    });
                     targets.set(
                         lucker.attacker,
                         microscope.addTarget(

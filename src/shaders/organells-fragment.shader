@@ -89,12 +89,7 @@ void main() {
     if (u_activity[best_point] == 1.0) {
         color[2] = d * grayscale;
     } else {
-        color[2] = (1.0 - step(1.0, k)) *
-                    (0.5 + 0.5 * smoothstep(1.0, 0.4, best_dist / scnd_dist)) *
-                    smoothstep(0.0, u_r * 0.5, u_r - r) *
-                    (easing(100.0, 0.0, best_dist)) *
-                    (1.0 - (1.0 - u_activity[best_point]) * smoothstep(1.2, 0.0, best_dist / scnd_dist)) *
-                    grayscale;
+        color[2] = d * grayscale * (1.0 - (1.0 - u_activity[best_point]) * smoothstep(2.0, 0.0, best_dist / scnd_dist));
     }
     if (u_time > u_trans_start[best_point] && u_time < u_trans_finish[best_point]) {
         float duration = u_trans_finish[best_point] - u_trans_start[best_point];
