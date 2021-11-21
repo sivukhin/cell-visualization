@@ -13,12 +13,12 @@ interface CellState {
     caption: string;
 }
 
-function occupy(occupied: number[], row: number, col: number, rows: number, cols: number) {
-    occupied[row * cols + col]++;
-    occupied[Math.min(rows - 1, row + 1) * cols + col]++;
-    occupied[Math.max(0, row + 1) * cols + col]++;
-    occupied[row * cols + Math.min(cols - 1, col + 1)]++;
-    occupied[row * cols + Math.max(0, col - 1)]++;
+function occupy<T>(occupied: T[][], p: T, row: number, col: number, rows: number, cols: number) {
+    occupied[row * cols + col].push(p);
+    occupied[Math.min(rows - 1, row + 1) * cols + col].push(p);
+    occupied[Math.max(0, row - 1) * cols + col].push(p);
+    occupied[row * cols + Math.min(cols - 1, col + 1)].push(p);
+    occupied[row * cols + Math.max(0, col - 1)].push(p);
 }
 
 export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldElement {
@@ -89,13 +89,13 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             let cols = Math.ceil(count / rows);
             const row = (worldConfig.soup.height - 2 * hPadding) / rows;
             const col = (worldConfig.soup.width - 2 * vPadding) / cols;
-            const occupied = new Array(rows * cols).fill(0);
+            const occupied = new Array(rows * cols).fill(null).map((_) => []);
             for (const cell of cells.values()) {
                 const x = cell.element.multiverse.position.x;
                 const y = cell.element.multiverse.position.y;
                 const r = Math.min(rows - 1, Math.floor((y + worldConfig.soup.height / 2 - hPadding) / row));
                 const c = Math.min(cols - 1, Math.floor((x + worldConfig.soup.width / 2 - vPadding) / col));
-                occupy(occupied, r, c, rows, cols);
+                occupy(occupied, [new Vector2(x, y), cell.state.radius], r, c, rows, cols);
             }
             for (let i = 0; i < cellInfos.length; i++) {
                 const cellInfo = cellInfos[i];
@@ -109,17 +109,25 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     let slot = Math.min(occupied.length - 1, Math.floor(randomFrom(0, occupied.length)));
                     let iteration = 0;
                     while (true) {
-                        iteration++;
-                        if (occupied[slot] < iteration / occupied.length) {
+                        const center = new Vector2(
+                            col * (slot % cols) - worldConfig.soup.width / 2 + vPadding + col / 2,
+                            row * Math.floor(slot / cols) - worldConfig.soup.height / 2 + hPadding + row / 2
+                        );
+                        let minDistance = Infinity;
+                        for (const [p, size] of occupied[slot]) {
+                            minDistance = Math.min(minDistance, center.distanceTo(p) - size - sizes[i]);
+                        }
+                        if (minDistance > -iteration) {
                             break;
                         }
+                        iteration++;
                         slot = (slot + 1) % occupied.length;
                     }
-                    occupy(occupied, Math.floor(slot / cols), slot % cols, rows, cols);
                     const position = new Vector2(
                         col * (slot % cols) - worldConfig.soup.width / 2 + vPadding + randomFrom(col / 3, (2 * col) / 3),
                         row * Math.floor(slot / cols) - worldConfig.soup.height / 2 + hPadding + randomFrom(row / 3, (2 * row) / 3)
                     );
+                    occupy(occupied, [position, sizes[i]], Math.floor(slot / cols), slot % cols, rows, cols);
                     position.x = Math.min(worldConfig.soup.width - sizes[i] - vPadding, Math.max(-worldConfig.soup.width + sizes[i] + vPadding, position.x));
                     position.y = Math.min(worldConfig.soup.height - sizes[i] - hPadding, Math.max(-worldConfig.soup.height + sizes[i] + hPadding, position.y));
                     cell.multiverse.position.set(position.x, position.y, 0);

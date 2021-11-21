@@ -80,7 +80,7 @@ function createWorldStat(): WorldStat {
                 const current = [state.scoreboard[i].score, ...state.scoreboard[i].services.map((s) => s.fp)];
                 const previous = roundsBuffer.length > 0 ? [roundsBuffer[0].scoreboard[i].score, ...roundsBuffer[0].scoreboard[i].services.map((s) => s.fp)] : current.map((_) => 0);
                 const delta = calculateDelta(current, previous);
-                teamStatDelta.set(i, delta);
+                teamStatDelta.set(state.scoreboard[i].team_id, delta);
                 statDelta += delta;
             }
 
@@ -140,7 +140,6 @@ function createWorldStat(): WorldStat {
                 p *= Math.min(1.0, Math.max(0.0, (time - statShowTime) / (10 * 60 * 1000)));
                 p *= Math.min(0.99, (teamStatDelta.get(e.team) || 0) / Math.max(1, statDelta));
                 p *= Math.min(0.99, Math.max(0.0, (time - (teamStatShowTime.get(e.team) || -Infinity)) / (10 * 60 * 1000)));
-                p *= 0;
             }
             return p;
         },
@@ -166,6 +165,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
     const attacks: WorldEvent[] = [];
     const worldStat = createWorldStat();
 
+    let attackId = 0;
     subscribeApi((r) => {
         console.info("response", r);
         if (r.type == "state") {
@@ -194,7 +194,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 attacker: r.value.attacker_id,
                 amount: 1,
                 to: { victim: r.value.victim_id, service: r.value.service_id },
-                firstBlood: false,
+                firstBlood: attackId++ % 10 == 0,
             });
             if (attacks.length > 1000) {
                 attacks.splice(0, attacks.length - 1000);
@@ -269,7 +269,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             showStats = false;
 
             lastTick = time;
-            const events = [...attacks.map((x, i) => ({ ...x, firstBlood: true })), ...worldStat.state().scoreboard.map((s) => ({ kind: "stat", team: s.team_id } as WorldEvent))];
+            const events = [...attacks, ...worldStat.state().scoreboard.map((s) => ({ kind: "stat", team: s.team_id } as WorldEvent))];
             const probabilities = events.map((e) => worldStat.getProbability(e, time));
             let filtered = events.filter((e, i) => randomFrom(0, 1) < probabilities[i]);
             if (filtered.length == 0) {
@@ -280,12 +280,14 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 order.sort((a, b) => probabilities[a] - probabilities[b]);
                 filtered = order.map((x) => events[x]);
             }
+
             let luckers: WorldEvent[] = [];
             for (let i = filtered.length - 1; i >= 0 && luckers.length < 1; i--) {
                 if (filtered[i].kind == filtered[filtered.length - 1].kind) {
                     luckers.push(filtered[i]);
                 }
             }
+
             if (luckers.some((x) => x.kind == "attack" && x.firstBlood)) {
                 luckers = luckers.filter((x) => x.kind == "attack" && x.firstBlood);
             }
@@ -295,16 +297,11 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             for (let i = 0; i < luckers.length; i++) {
                 const lucker = luckers[i];
                 if (lucker.kind === "stat") {
+                    console.info("LUCKER", lucker);
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
+                    console.info("LUCKER", worldStat.getServices(lucker.team), worldStat.state());
                     const current = worldStat.getServices(lucker.team).filter((x) => services.has(x.id));
-                    console.info(
-                        world.getOrganells(
-                            lucker.team,
-                            current.map((x) => x.id)
-                        ),
-                        current.map((x) => ({ title: services.get(x.id).name, color: services.get(x.id).color, highlight: x.status == 101, value: x.fp }))
-                    );
                     microscope.addDetails({
                         center: () => world.getCell(lucker.team).center,
                         follow: () =>
@@ -315,7 +312,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                         captions: current.map((x) => ({ title: services.get(x.id).name, color: services.get(x.id).color, highlight: x.status == 101, value: x.fp })),
                         start: time + 6000 * i,
                         finish: time + 6000 * i + 6000,
-                        sideX: 110,
+                        sideX: 160,
                     });
                     worldStat.showStat(lucker.team, time + 6000 * i);
                 } else if (lucker.kind === "attack" && !lucker.firstBlood) {
@@ -335,7 +332,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                         captions: [{ title: services.get(lucker.to.service).name, color: services.get(lucker.to.service).color, highlight: true, value: null }],
                         start: time + 1500,
                         finish: time + 5000,
-                        sideX: 110,
+                        sideX: 160,
                     });
                     targets.set(
                         lucker.attacker,

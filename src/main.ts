@@ -38,7 +38,7 @@ function createConfiguration(canvas): WorldConfiguration {
             segments: atom<number>(10),
             bloomStrength: atom<number>(0.5),
             bloomThreshold: atom<number>(0),
-            bloomRadius: atom<number>(3),
+            bloomRadius: atom<number>(6),
             membrane: {
                 spline: atom<boolean>(false),
                 detalization: atom<number>(50),
@@ -68,7 +68,7 @@ function createConfiguration(canvas): WorldConfiguration {
                 },
             },
             glowing: atom<number>(0.85),
-            radius: atom<number>(100),
+            radius: atom<number>(120),
             color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
         },
         flagellum: {
@@ -197,6 +197,6 @@ function updateApi() {
     updateApiCredentials(`wss://${username}:${password}@ctf.hitb.org/api/events`);
 }
 
-updateApiCredentials(`ws://localhost:8080/api/events`);
-// updateFakeApi();
+// updateApiCredentials(`ws://localhost:8080/api/events`);
+updateFakeApi();
 document.getElementById("credentials").addEventListener("keypress", (e) => (e.code.includes("Enter") ? updateApi() : null));

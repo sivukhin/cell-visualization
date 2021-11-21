@@ -1,15 +1,17 @@
 import { Scene, Vector2, WebGLRenderer } from "three";
+import { UnrealBloomPass } from "../postprocessing/unreal-bloom";
 import { createCamera } from "./camera";
 import { createConfigurationStore, WorldConfiguration } from "../configuration";
 import { createWorld } from "./world";
-import { getWorldTime, setLastTick, tick } from "../utils/tick";
+import { tick } from "../utils/tick";
 import { EffectComposer, Pass } from "three/examples/jsm/postprocessing/EffectComposer";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass";
 import { GodElement, Microcosmos, MicroscopeElement, WorldElement } from "./types";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
+// import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import { createGod } from "./god";
 import { createMicroscope } from "../microscope/microscope";
+import { ColorifyShader } from "three/examples/jsm/shaders/ColorifyShader";
 
 function createOverlayRender(pass: RenderPass) {
     pass.clear = false;
@@ -60,7 +62,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         renderer.getSize(size);
         const composer = new EffectComposer(renderer);
         composer.addPass(createOverlayRender(new RenderPass(scene, camera)));
-        // composer.addPass(new UnrealBloomPass(size, configuration.cell.bloomStrength, configuration.cell.bloomRadius, configuration.cell.bloomThreshold));
+        composer.addPass(new UnrealBloomPass(size, configuration.cell.bloomStrength, configuration.cell.bloomRadius, configuration.cell.bloomThreshold));
         composers.splice(0, composers.length);
         composers.push(composer);
     });

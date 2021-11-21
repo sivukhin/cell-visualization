@@ -7,14 +7,24 @@ let startAt = null;
 export function stopTime(start: number, finish: number) {
     stopAt = currentTime + start;
     startAt = currentTime + finish;
-    console.info("STOP TIME", stopAt, startAt);
 }
 
+let paused = false;
 export function tick(time: number): [number, boolean] {
     let delta = time - currentTime;
     currentTime = time;
     if (stopAt != null && startAt != null && stopAt < time && time < startAt) {
+        if (!paused) {
+            paused = true;
+            // @ts-ignore
+            document.getElementById("#back").pause();
+        }
         return [currentWorldTime, true];
+    }
+    if (paused) {
+        paused = false;
+        // @ts-ignore
+        document.getElementById("#back").play();
     }
     currentWorldTime += delta;
     return [currentWorldTime, false];

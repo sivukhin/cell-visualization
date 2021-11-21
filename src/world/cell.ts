@@ -13,7 +13,7 @@ import { createOrganells } from "./organells";
 import CellVertexShader from "../shaders/cell-vertex.shader";
 // @ts-ignore
 import CellFragmentShader from "../shaders/cell-fragment.shader";
-import { interpolateLinear1D } from "../utils/math";
+import {interpolateLinear1D, randomFrom} from "../utils/math";
 
 export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>): CellElement {
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
@@ -44,6 +44,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     let transitionStart = null;
     let startScale = 1.0;
     let finishScale = 1.0;
+    let angular = randomFrom(-0.001, 0.001)
     return {
         multiverse: multiverse,
         tick: (time: number) => {
@@ -55,7 +56,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             flagellums = tickAll(flagellums, time, (f) => nonScalable.remove(f.multiverse));
             membraneTick(time);
             organells.tick(time);
-            organells.multiverse.rotateZ(0.001);
+            organells.multiverse.rotateZ(angular);
             return true;
         },
         get: (id: number) => {
