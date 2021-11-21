@@ -51,9 +51,21 @@ function createDetail() {
     detailGroup.appendChild(detailCenter);
     detailGroup.appendChild(detailText);
     detailGroup.appendChild(detailAnchor);
-
+    let removed = false;
     return {
         element: detailGroup,
+        removed: removed,
+        remove: () => {
+            if (removed) {
+                return;
+            }
+            detailGroup.removeChild(detailOverlay);
+            detailGroup.removeChild(detailPath);
+            detailGroup.removeChild(detailCenter);
+            detailGroup.removeChild(detailText);
+            detailGroup.removeChild(detailAnchor);
+            removed = true;
+        },
         setPath: (path: string) => {
             detailPath.setAttribute("d", path);
         },
@@ -191,6 +203,13 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
             const lineAlpha = Math.min(1.0, (time - start) / 500.0);
             const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / 500));
             for (let i = 0; i < positions.length; i++) {
+                if (details[i].removed) {
+                    continue;
+                }
+                if (positions[i].length() > 10000) {
+                    details[i].remove();
+                    continue;
+                }
                 details[i].move(positions[i].x, -positions[i].y);
                 const outer = new Vector2().subVectors(initial[i].outer, positions[i]).add(new Vector2().subVectors(currentCenter, initialCenter));
                 const inner = diagonalIntersect(zero2, outer);

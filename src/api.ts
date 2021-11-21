@@ -54,11 +54,11 @@ export function subscribeApi(handler: (r: Response) => void) {
 
 let active: WebSocket | null = null;
 
-// export function updateFakeApi() {
-//     for (let i = 0; i < Events.length; i++) {
-//         setTimeout(() => notify(Events[i].data), Events[i].timestamp * 1000);
-//     }
-// }
+export function updateFakeApi() {
+    for (let i = 0; i < Events.length; i++) {
+        setTimeout(() => notify(Events[i].data), Events[i].timestamp * 1000);
+    }
+}
 
 function notify(data) {
     for (const subscription of subscriptions) {

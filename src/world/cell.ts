@@ -32,10 +32,14 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         transparent: true,
     });
     const multiverse = new Object3D();
+    const scalable = new Object3D();
+    const nonScalable = new Object3D();
+    multiverse.add(scalable);
+    multiverse.add(nonScalable);
     const cell = new Mesh(geometry, material);
     cell.renderOrder = 1;
-    multiverse.add(cell);
-    multiverse.add(organells.multiverse);
+    scalable.add(cell);
+    scalable.add(organells.multiverse);
     organells.multiverse.renderOrder = 2;
     let transitionStart = null;
     let startScale = 1.0;
@@ -43,12 +47,12 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     return {
         multiverse: multiverse,
         tick: (time: number) => {
-            if (multiverse.scale.x != finishScale) {
+            if (scalable.scale.x != finishScale) {
                 transitionStart = transitionStart == null ? time : transitionStart;
                 let scale = interpolateLinear1D(startScale, finishScale, transitionStart, transitionStart + 1000, time);
-                multiverse.scale.set(scale, scale, 1.0);
+                scalable.scale.set(scale, scale, 1.0);
             }
-            flagellums = tickAll(flagellums, time, (f) => multiverse.remove(f.multiverse));
+            flagellums = tickAll(flagellums, time, (f) => nonScalable.remove(f.multiverse));
             membraneTick(time);
             organells.tick(time);
             organells.multiverse.rotateZ(0.001);
@@ -56,7 +60,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         },
         get: (id: number) => {
             const state = organells.get(id);
-            return { center: new Vector2().copy(state.center).rotateAround(zero2, organells.multiverse.rotation.z).multiplyScalar(multiverse.scale.x), weight: state.weight };
+            return { center: new Vector2().copy(state.center).rotateAround(zero2, organells.multiverse.rotation.z).multiplyScalar(scalable.scale.x), weight: state.weight };
         },
         getAll: () => {
             return organells.getAll();
@@ -76,7 +80,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             // organells.scale(size / cellConfig.radius);
 
             transitionStart = null;
-            startScale = multiverse.scale.x;
+            startScale = scalable.scale.x;
             finishScale = size / cellConfig.radius;
         },
         spawn: (id: number, weight: number, active: boolean, color: ColorRepresentation) => {
@@ -92,7 +96,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             };
             for (let i = 0; i < targets.length; i++) {
                 const { point, id } = getSectorIn(targets[i], membrane.points);
-                const attach = new Vector2().copy(point).multiplyScalar(0.9 * membraneGetScale());
+                const attach = new Vector2().copy(point).multiplyScalar(0.9 * scalable.scale.x);
                 const flagellum = createFlagellum(
                     {
                         startDirection: new Vector2().copy(point),
@@ -104,7 +108,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                 );
                 flagellum.multiverse.position.set(attach.x, attach.y, 0);
                 flagellum.multiverse.renderOrder = 3;
-                multiverse.add(flagellum.multiverse);
+                nonScalable.add(flagellum.multiverse);
                 flagellums.push(flagellum);
             }
             return timing;

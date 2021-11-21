@@ -298,6 +298,13 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
                     const current = worldStat.getServices(lucker.team).filter((x) => services.has(x.id));
+                    console.info(
+                        world.getOrganells(
+                            lucker.team,
+                            current.map((x) => x.id)
+                        ),
+                        current.map((x) => ({ title: services.get(x.id).name, color: services.get(x.id).color, highlight: x.status == 101, value: x.fp }))
+                    );
                     microscope.addDetails({
                         center: () => world.getCell(lucker.team).center,
                         follow: () =>

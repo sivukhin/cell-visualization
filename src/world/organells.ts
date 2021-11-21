@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color, Mesh, ShaderMaterial, Uniform, Vector2, TextureLoader, ColorRepresentation, Vector3 } from "three";
 import { getFlatComponents3D, getHSLVector } from "../utils/draw";
 import { zero2 } from "../utils/geometry";
-import { randomFrom, randomChoice, randomChoiceNonRepeat, interpolateLinear1D } from "../utils/math";
+import { randomFrom, randomChoice, randomChoiceNonRepeat, interpolateLinear1D, interpolateLinear2D } from "../utils/math";
 
 // @ts-ignore
 import OrganellsVertexShader from "../shaders/organells-vertex.shader";
@@ -14,6 +14,9 @@ const loader = new TextureLoader();
 const textures = [loader.load("assets/texture.jpg")];
 
 const MaxOrganells = 15;
+
+const InnerInf = new Vector2(200, 0);
+const OuterInf = new Vector2(100000, 0);
 
 export function createOrganells(points: Vector2[]) {
     const geometry = new BufferGeometry();
@@ -44,8 +47,11 @@ export function createOrganells(points: Vector2[]) {
     }
     const occupied = new Array(slots.length).fill(false);
     const original = new Array(MaxOrganells).fill(null);
-    const centers = new Array(MaxOrganells).fill(new Vector2(100000, 0));
+    const prevCenters = new Array(MaxOrganells).fill(InnerInf);
+    const nextCenters = new Array(MaxOrganells).fill(InnerInf);
+    const centers = new Array(MaxOrganells).fill(InnerInf);
     const activityTransition = new Array(MaxOrganells).fill(null);
+    const moveTransition = new Array(MaxOrganells).fill(null);
     const activity = new Array(MaxOrganells).fill(1);
     const nextActivity = new Array(MaxOrganells).fill(1);
     const weights = new Array(MaxOrganells).fill(1);
@@ -74,7 +80,9 @@ export function createOrganells(points: Vector2[]) {
     const spawn = (id: number, weight: number, active: boolean, color: ColorRepresentation) => {
         if (original[id] == null) {
             original[id] = randomChoiceNonRepeat(slots, occupied);
-            centers[id] = new Vector2().copy(original[id]).multiplyScalar(scale);
+            prevCenters[id] = new Vector2().copy(original[id]).setLength(200);
+            nextCenters[id] = original[id];
+            // centers[id] = new Vector2().copy(original[id]).multiplyScalar(scale);
         }
         originalColors[id] = new Color(color);
         colors[id] = getHSLVector(color);
@@ -84,24 +92,16 @@ export function createOrganells(points: Vector2[]) {
         material.needsUpdate = true;
     };
     const kill = (id: number) => {
+        const slotId = slots.indexOf(original[id]);
         original[id] = null;
-        material.uniforms.u_centers.value[id] = new Vector2(100000, 0);
-        occupied[id] = false;
+        prevCenters[id] = centers[id];
+        nextCenters[id] = new Vector2().copy(centers[id]).setLength(200);
+        occupied[slotId] = false;
         material.needsUpdate = true;
     };
     const organells = new Mesh(geometry, material);
     return {
         multiverse: organells,
-        scale: (update: number) => {
-            // scale = update;
-            // material.uniforms.u_r.value = r * scale;
-            // for (let i = 0; i < material.uniforms.u_centers.value.length; i++) {
-            //     if (original[i] != null) {
-            //         centers[i] = new Vector2().copy(original[i]).multiplyScalar(scale);
-            //     }
-            // }
-            // material.needsUpdate = true;
-        },
         getAll: () => {
             const result: Array<{ id: number; center: Vector2; weight: number; active: boolean; color: Color }> = [];
             for (let i = 0; i < MaxOrganells; i++) {
@@ -112,7 +112,7 @@ export function createOrganells(points: Vector2[]) {
             return result;
         },
         get: (id: number) => {
-            return { center: centers[id], weight: weights[id] };
+            return { center: original[id] == null ? OuterInf : original[id], weight: weights[id] };
         },
         kill: kill,
         spawnMany: (organellInfos: OrganellInfo[]) => {
@@ -139,6 +139,12 @@ export function createOrganells(points: Vector2[]) {
                 if (activity[i] != nextActivity[i]) {
                     activityTransition[i] = activityTransition[i] == null ? time : activityTransition[i];
                     activity[i] = interpolateLinear1D(1 - nextActivity[i], nextActivity[i], activityTransition[i], activityTransition[i] + 1000, time);
+                }
+                if (!centers[i].equals(nextCenters[i])) {
+                    moveTransition[i] = moveTransition[i] == null ? time : moveTransition[i];
+                    centers[i] = interpolateLinear2D(prevCenters[i], nextCenters[i], moveTransition[i], moveTransition[i] + 2000, time);
+                } else {
+                    moveTransition[i] = null;
                 }
             }
             material.needsUpdate = true;
