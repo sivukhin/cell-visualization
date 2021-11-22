@@ -262,6 +262,8 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             targets.delete(id);
         }
     };
+    let lastStatTime = 0;
+    let showedTeams = new Set<number>();
     return {
         tick: (time: number) => {
             terminal.tick(time);
@@ -292,33 +294,37 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             showStats = false;
 
             lastTick = time;
-            const events = [...attacks, ...worldStat.state().scoreboard.map((s) => ({ kind: "stat", team: s.team_id } as WorldEvent))];
-            const probabilities = events.map((e) => worldStat.getProbability(e, time));
-            let filtered = events.filter((e, i) => randomFrom(0, 1) < probabilities[i]);
-            if (filtered.length == 0) {
-                const order = [];
-                for (let i = 0; i < probabilities.length; i++) {
-                    order.push(i);
-                }
-                order.sort((a, b) => probabilities[a] - probabilities[b]);
-                filtered = order.map((x) => events[x]);
-            }
 
-            let luckers: WorldEvent[] = [];
-            for (let i = filtered.length - 1; i >= 0 && luckers.length < 1; i--) {
-                if (filtered[i].kind == filtered[filtered.length - 1].kind) {
-                    luckers.push(filtered[i]);
+            let eventsToShow: WorldEvent[] = [];
+            const firstBloodIndex = attacks.findIndex((x) => x.kind === "attack" && x.firstBlood);
+            if (firstBloodIndex != -1) {
+                eventsToShow.push(attacks[firstBloodIndex]);
+                attacks.splice(firstBloodIndex, 1);
+            } else {
+                if (lastStatTime < time - 30_000 || attacks.length == 0) {
+                    lastStatTime = time + 30_000;
+                    if (showedTeams.size == teams.size) {
+                        showedTeams.clear();
+                    }
+                    for (const team of teams.keys()) {
+                        if (showedTeams.has(team)) {
+                            continue;
+                        }
+                        eventsToShow.push({ kind: "stat", team: team });
+                        if (eventsToShow.length > 2) {
+                            break;
+                        }
+                    }
+                } else {
+                    eventsToShow = attacks.slice(Math.max(0, attacks.length - 8));
+                    attacks.splice(Math.max(0, attacks.length - 8), 8);
                 }
             }
-
-            if (luckers.some((x) => x.kind == "attack" && x.firstBlood)) {
-                luckers = luckers.filter((x) => x.kind == "attack" && x.firstBlood);
-            }
-            if (luckers.length == 0) {
+            if (eventsToShow.length == 0) {
                 return;
             }
-            for (let i = 0; i < luckers.length; i++) {
-                const lucker = luckers[i];
+            for (let i = 0; i < eventsToShow.length; i++) {
+                const lucker = eventsToShow[i];
                 if (lucker.kind === "stat") {
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);

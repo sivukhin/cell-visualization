@@ -70,7 +70,10 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
     let lastTime = -Infinity;
     return {
         composers: composers,
-        move: move,
+        move: (dx, dy) => {
+            microscope.rollXY(-dx, dy);
+            move(dx, dy);
+        },
         zoom: zoom,
         magnification: magnification,
         tick: (time: number) => {

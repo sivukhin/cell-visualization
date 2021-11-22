@@ -199,4 +199,4 @@ function updateApi() {
 
 // updateApiCredentials(`ws://localhost:8080/api/events`);
 updateFakeApi();
-document.getElementById("credentials").addEventListener("keypress", (e) => (e.code.includes("Enter") ? updateApi() : null));
+// document.getElementById("credentials").addEventListener("keypress", (e) => (e.code.includes("Enter") ? updateApi() : null));
