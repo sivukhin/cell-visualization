@@ -323,7 +323,8 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 eventsToShow.push(attacks[firstBloodIndex]);
                 attacks.splice(firstBloodIndex, 1);
             } else {
-                if (lastStatTime < time + 60_000 || attacks.length == 0) {
+                if (lastStatTime <
+                    time - 60_000 || attacks.length == 0) {
                     lastStatTime = time;
                     if (showedTeams.size == teams.size) {
                         showedTeams.clear();
