@@ -205,7 +205,7 @@
                 transform: rotate(0.001rad);
             }
             #terminal {
-                opacity: 0.35;
+                opacity: 0.3;
             }
         </style>
     </head>
@@ -216,32 +216,32 @@
         <script>
             document.getElementById("#back").play();
         </script>
+        <div id="terminal" class="top left" style="width: 800px; height: 800px; margin-top: 40px; color: white"></div>
         <canvas id="microcosmos"></canvas>
-        <svg xmlns="http://www.w3.org/2000/svg" class="back" version="1.1" color-interpolation-filters="sRGB">
-            <defs>
-                <radialGradient id="image-filter-left" cx="-0.5" cy="0.5" fx="0.5" fy="0.5" r="1.5">
-                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />
-                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />
-                </radialGradient>
-                <radialGradient id="image-filter-right" cx="1.5" cy="0.5" fx="0.5" fy="0.5" r="1.5">
-                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />
-                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />
-                </radialGradient>
-                <radialGradient id="image-filter-top" cx="0.5" cy="-0.5" fx="0.5" fy="0.5" r="1.5">
-                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />
-                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />
-                </radialGradient>
-                <radialGradient id="image-filter-bottom" cx="0.5" cy="1.5" fx="0.5" fy="0.5" r="1.5">
-                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />
-                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />
-                </radialGradient>
-            </defs>
+<!--        <svg xmlns="http://www.w3.org/2000/svg" class="back" version="1.1" color-interpolation-filters="sRGB">-->
+<!--            <defs>-->
+<!--                <radialGradient id="image-filter-left" cx="-0.5" cy="0.5" fx="0.5" fy="0.5" r="1.5">-->
+<!--                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />-->
+<!--                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />-->
+<!--                </radialGradient>-->
+<!--                <radialGradient id="image-filter-right" cx="1.5" cy="0.5" fx="0.5" fy="0.5" r="1.5">-->
+<!--                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />-->
+<!--                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />-->
+<!--                </radialGradient>-->
+<!--                <radialGradient id="image-filter-top" cx="0.5" cy="-0.5" fx="0.5" fy="0.5" r="1.5">-->
+<!--                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />-->
+<!--                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />-->
+<!--                </radialGradient>-->
+<!--                <radialGradient id="image-filter-bottom" cx="0.5" cy="1.5" fx="0.5" fy="0.5" r="1.5">-->
+<!--                    <stop offset="90%" stop-color="rgba(0, 0, 0, 0)" />-->
+<!--                    <stop offset="100%" stop-color="rgba(0, 0, 0, 1)" />-->
+<!--                </radialGradient>-->
+<!--            </defs>-->
 
-            <rect x="0" y="0" width="100%" height="100%" fill="url(#image-filter-left)"></rect>
-            <rect x="0" y="0" width="100%" height="100%" fill="url(#image-filter-right)"></rect>
-        </svg>
+<!--            <rect x="0" y="0" width="100%" height="100%" fill="url(#image-filter-left)"></rect>-->
+<!--            <rect x="0" y="0" width="100%" height="100%" fill="url(#image-filter-right)"></rect>-->
+<!--        </svg>-->
         <div id="microscope">
-            <div id="terminal" class="top left" style="width: 800px; height: 800px; margin-top: 40px; color: white"></div>
             <svg id="display"></svg>
             <svg id="shadow-display" width="0" height="0"></svg>
             <div class="right ruler-container">

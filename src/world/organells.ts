@@ -129,13 +129,16 @@ export function createOrganells(points: Vector2[]) {
         },
         spawn: spawn,
         irritate: (id: number, start: number, finish: number) => {
-            transitionStart[id] = start;
+            transitionStart[id] = transitionStart[id] == null ? start : Math.min(transitionStart[id], start);
             transitionFinish[id] = Math.max(transitionFinish[id], finish);
             material.needsUpdate = true;
         },
         tick: (time: number) => {
             material.uniforms.u_time.value = time;
             for (let i = 0; i < MaxOrganells; i++) {
+                if (transitionFinish[i] < time) {
+                    transitionStart[i] = transitionFinish[i] = null;
+                }
                 if (activity[i] != nextActivity[i]) {
                     activityTransition[i] = activityTransition[i] == null ? time : activityTransition[i];
                     activity[i] = interpolateLinear1D(1 - nextActivity[i], nextActivity[i], activityTransition[i], activityTransition[i] + 1000, time);

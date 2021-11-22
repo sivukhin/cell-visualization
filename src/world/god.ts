@@ -332,6 +332,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                         if (showedTeams.has(team)) {
                             continue;
                         }
+                        showedTeams.add(team);
                         eventsToShow.push({ kind: "stat", team: team });
                         if (eventsToShow.length > 2) {
                             break;
