@@ -3,7 +3,7 @@ import { randomFrom } from "../utils/math";
 
 const AlarmWidth = 494;
 const AlarmHeight = 176;
-export function createAlarm(obstables: Vector2[], width: number, height: number, start: number) {
+export function createAlarm(service: number, obstables: Vector2[], width: number, height: number, start: number) {
     const root = document.createElementNS("http://www.w3.org/2000/svg", "g");
     root.setAttribute("class", "alarm");
     const rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -24,22 +24,34 @@ export function createAlarm(obstables: Vector2[], width: number, height: number,
     textElement2.setAttribute("fill", "rgba(255, 90, 73, 1)");
     textElement2.innerHTML = "DETECTED";
 
-    let best = new Vector2(0, 0);
-    let bestDistance = 0;
-    for (let i = 0; i < 32; i++) {
-        const x = randomFrom(-width / 2 + AlarmWidth / 2, width / 2 - AlarmWidth / 2);
-        const y = randomFrom(-height / 2 + AlarmHeight / 2, height / 2 - AlarmHeight / 2);
-        const current = new Vector2(x, y);
-        let minDistance = 2 * Math.min(Math.min(x + width / 2, width / 2 - x), Math.min(y + height / 2, height / 2 - y));
+    let [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity];
+    for (const obstacle of obstables) {
+        minX = Math.min(minX, obstacle.x);
+        minY = Math.min(minY, obstacle.y);
+        maxX = Math.max(maxX, obstacle.x);
+        maxY = Math.max(maxY, obstacle.y);
+    }
+    const centers = [
+        new Vector2((minX + maxX) / 2, (minY + maxY) / 2),
+        new Vector2(minX - 150 - AlarmWidth / 2, (minY + maxY) / 2),
+        new Vector2(maxX + 150 + AlarmWidth / 2, (minY + maxY) / 2),
+        new Vector2((minX + maxX) / 2, minY - 150 - AlarmHeight / 2),
+        new Vector2((minX + maxX) / 2, maxY + 150 + AlarmWidth / 2),
+    ];
+    let bestDistance = -Infinity;
+    let best = null;
+    for (const center of centers) {
+        let current = Math.min(center.x - AlarmWidth / 2 + width / 2, width / 2 - (center.x + AlarmWidth / 2), center.y - AlarmHeight / 2 + height / 2, height / 2 - (center.y + AlarmHeight / 2));
         for (const obstacle of obstables) {
-            minDistance = Math.min(minDistance, obstacle.distanceTo(current));
+            current = Math.min(current, Math.abs(obstacle.x - (center.x - AlarmWidth / 2)), Math.abs(obstacle.x - (center.x + AlarmWidth / 2)));
+            current = Math.min(current, Math.abs(obstacle.y - (center.y - AlarmHeight / 2)), Math.abs(obstacle.y - (center.y + AlarmHeight / 2)));
         }
-        if (bestDistance < minDistance) {
-            bestDistance = minDistance;
-            best = current;
+        if (current > bestDistance) {
+            bestDistance = current;
+            best = center;
         }
     }
-    root.setAttribute("transform", `translate(${best.x - AlarmWidth / 2}, ${best.y - AlarmHeight / 2})`);
+    root.setAttribute("transform", `translate(${best.x - AlarmWidth / 2}, ${-(best.y + AlarmHeight / 2)})`);
 
     let appended = false;
     return {
@@ -52,6 +64,7 @@ export function createAlarm(obstables: Vector2[], width: number, height: number,
                 root.appendChild(rectElement);
                 root.appendChild(textElement1);
                 root.appendChild(textElement2);
+                document.getElementById(`service-${service}`).classList.add("alarm");
                 appended = true;
             }
         },

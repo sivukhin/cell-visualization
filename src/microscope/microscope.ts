@@ -29,11 +29,13 @@ export function createMicroscope(world: Unwrap<WorldConfiguration>): MicroscopeE
         rollXY: (x: number, y: number) => {
             ruler.rollXY(x, y);
         },
-        setServices: (services: Array<{ name: string; color: ColorRepresentation }>) => {
+        setServices: (services: Array<{ id: number; name: string; color: ColorRepresentation }>) => {
             const legend = document.getElementById("legend");
             const content = [];
             for (const service of services) {
-                content.push(`<span class="service"><span style="color: ${service.color}">▌</span><span>${service.name}</span></span>`);
+                const element = document.getElementById(`service-${service.id}`);
+                const classes = element == null ? "service" : element.className;
+                content.push(`<span class="${classes}" id="service-${service.id}"><span style="color: ${service.color}">▌</span><span>${service.name}</span></span>`);
             }
             legend.innerHTML = content.join("");
         },
@@ -51,7 +53,7 @@ export function createMicroscope(world: Unwrap<WorldConfiguration>): MicroscopeE
                 document.getElementById("status").textContent = "LIVE";
                 document.getElementById("status").setAttribute("style", "background: white;");
                 document.getElementById("microscope").setAttribute("style", "color: white;");
-                ruler.setColor("white");
+                ruler.setColor("#ADADAD");
             } else {
                 document.getElementById("status").textContent = "ATTENTION";
                 document.getElementById("status").setAttribute("style", "background: #FF5A49;");
@@ -59,8 +61,9 @@ export function createMicroscope(world: Unwrap<WorldConfiguration>): MicroscopeE
                 ruler.setColor("#FF5A49");
             }
         },
-        addAlarm: (start: number) => {
+        addAlarm: (service: number, start: number) => {
             const alarm = createAlarm(
+                service,
                 targets.map((x) => x.position()),
                 world.soup.width,
                 world.soup.height,
@@ -69,11 +72,12 @@ export function createMicroscope(world: Unwrap<WorldConfiguration>): MicroscopeE
             alarms.push(alarm);
             display.appendChild(alarm.multiverse);
             return () => {
+                document.getElementById(`service-${service}`).classList.remove("alarm");
                 alarms.splice(alarms.indexOf(alarm), 1);
                 display.removeChild(alarm.multiverse);
             };
         },
-        addTarget: (follow: () => Vector2, size: () => number, color: string, bottom: string, top: string, start: number) => {
+        addTarget: (follow: () => Vector2, size: () => number, color: string, bottom: string, top: string, start: number, hideTarget?: boolean) => {
             const target = createTarget({
                 follow: follow,
                 size: size,
@@ -81,6 +85,7 @@ export function createMicroscope(world: Unwrap<WorldConfiguration>): MicroscopeE
                 bottom: bottom,
                 top: top,
                 start: start,
+                hideTarget: hideTarget,
             });
             targets.push(target);
             display.appendChild(target.multiverse);

@@ -15,6 +15,7 @@ export interface Target {
     top?: string;
     bottom?: string;
     start: number;
+    hideTarget?: boolean;
 }
 
 function createSquare(size: number) {
@@ -51,6 +52,7 @@ function createTextBlock(x: number, bottomY: number | null, topY: number | null,
         textElement.setAttribute("fill", "white");
     }
     textElement.setAttribute("style", `font-size: ${fontSize}pt`);
+    textElement.setAttribute("class", "flicker");
     textElement.innerHTML = text;
     if (color != null) {
         const rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -66,13 +68,17 @@ function createTextBlock(x: number, bottomY: number | null, topY: number | null,
     return groupElement;
 }
 
-export function createTarget({ follow, color, size, top, bottom, start }: Target): TargetElement {
+export function createTarget({ follow, color, size, top, bottom, start, hideTarget }: Target): TargetElement {
     const initialSize = size();
     const root = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const targetElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    targetElement.setAttribute("d", createSvgPath(createSquare(initialSize)));
-    targetElement.setAttribute("stroke", color || "white");
-    targetElement.setAttribute("fill", "transparent");
+    let targetElement = null;
+    if (!hideTarget) {
+        targetElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        targetElement.setAttribute("class", "flicker");
+        targetElement.setAttribute("d", createSvgPath(createSquare(initialSize)));
+        targetElement.setAttribute("stroke", color || "white");
+        targetElement.setAttribute("fill", "transparent");
+    }
     let topElement = null;
     if (top != null) {
         topElement = createTextBlock(-initialSize / 2, null, initialSize / 2 + 16, top, color, 20, color != null ? 8 : 0);
@@ -91,7 +97,9 @@ export function createTarget({ follow, color, size, top, bottom, start }: Target
         position: () => position,
         tick: (time: number) => {
             if (time > start && !inserted) {
-                root.appendChild(targetElement);
+                if (targetElement != null) {
+                    root.appendChild(targetElement);
+                }
                 if (topElement != null) {
                     root.appendChild(topElement);
                 }

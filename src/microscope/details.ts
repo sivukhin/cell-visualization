@@ -7,16 +7,17 @@ interface Detail {
     title: string;
     value: number | null;
     color?: string;
-    highlight: boolean;
+    highlight?: boolean;
 }
 
 export interface Details {
     follow: () => Vector2[];
-    center: () => Vector2;
+    center: () => { center: Vector2; radius: number };
     sideX: number;
     captions: Detail[];
     start: number;
     finish: number;
+    main?: Detail;
 }
 
 interface TextSegment {
@@ -24,20 +25,21 @@ interface TextSegment {
     color?: string;
 }
 
-function createDetail() {
+function createDetail(withCenter: boolean) {
     const detailGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const detailPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     detailPath.setAttribute("class", "detail");
     const detailOverlay = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     detailOverlay.setAttribute("class", "overlay");
-    const detailOverlayStatus = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     const detailCenter = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    detailCenter.setAttribute("transform", "rotate(45)");
-    detailCenter.setAttribute("width", "4");
-    detailCenter.setAttribute("height", "4");
-    detailCenter.setAttribute("x", "-2");
-    detailCenter.setAttribute("y", "-2");
-    detailCenter.setAttribute("class", "detail");
+    if (withCenter) {
+        detailCenter.setAttribute("transform", "rotate(45)");
+        detailCenter.setAttribute("width", "4");
+        detailCenter.setAttribute("height", "4");
+        detailCenter.setAttribute("x", "-2");
+        detailCenter.setAttribute("y", "-2");
+        detailCenter.setAttribute("class", "detail");
+    }
     const detailText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     detailText.setAttribute("class", "detail");
     const detailAnchor = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -82,10 +84,10 @@ function createDetail() {
             detailAnchor.setAttribute("width", `${widht}`);
             detailAnchor.setAttribute("height", `${height}`);
         },
-        setText: (text: TextSegment[], x: number, y: number) => {
+        setText: (text: TextSegment[], x: number, y: number, fontSize: number) => {
             detailText.setAttribute("x", `${x}`);
             detailText.setAttribute("y", `${y}`);
-            detailText.innerHTML = text.map((t) => `<tspan ${t.color != null ? `style="fill: ${t.color}"` : ""}>${t.value}</tspan>`).join(" ");
+            detailText.innerHTML = text.map((t) => `<tspan ${t.color != null ? `style="fill: ${t.color}; font-size: ${fontSize}pt"` : ""}>${t.value}</tspan>`).join(" ");
         },
         move: (x: number, y: number) => {
             detailGroup.setAttribute("transform", `translate(${x}, ${y})`);
@@ -170,18 +172,35 @@ function getText(text: string, alpha: number) {
     return text.slice(0, length);
 }
 
-export function createDetails({ follow, center, sideX, captions, start, finish }: Details): DetailsElement {
+export function createDetails({ follow, center, sideX, captions, start, finish, main }: Details): DetailsElement {
     const display = document.getElementById("display");
     const detailsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const details = captions.map((_) => createDetail());
+    const details = captions.map((_) => createDetail(true));
     const initialPosition = follow();
     const initialCenter = center();
-    const initial = getPivots(initialPosition, initialCenter, sideX);
+    const initial = getPivots(initialPosition, initialCenter.center, sideX);
     const textSizes = captions.map((t) => getTextSize(t.title + " " + Math.round(t.value), 14));
     const hPadding = 4;
     const vPadding = 8;
     for (const detail of details) {
         detailsGroup.appendChild(detail.element);
+    }
+    let mainDetail = null;
+    let mainSize = null;
+    if (main != null) {
+        mainDetail = createDetail(false);
+        mainDetail.setText(
+            [
+                { value: main.title, color: "white" },
+                { value: `${Math.round(main.value)}`, color: "rgba(173, 173, 173, 1)" },
+            ],
+            0,
+            0,
+            18
+        );
+        mainSize = getTextSize(`${main.title} ${Math.round(main.value)}`, 18);
+        mainDetail.setOverlay(-8, -8, mainSize.width + 16, mainSize.height + 8);
+        detailsGroup.appendChild(mainDetail.element);
     }
     let appended = false;
     return {
@@ -200,6 +219,9 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
             }
             const positions = follow();
             const currentCenter = center();
+            if (mainDetail != null) {
+                mainDetail.move(currentCenter.center.x - currentCenter.radius, -(currentCenter.center.y - currentCenter.radius - 20));
+            }
             const lineAlpha = Math.min(1.0, (time - start) / 500.0);
             const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / 500));
             for (let i = 0; i < positions.length; i++) {
@@ -211,7 +233,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
                     continue;
                 }
                 details[i].move(positions[i].x, -positions[i].y);
-                const outer = new Vector2().subVectors(initial[i].outer, positions[i]).add(new Vector2().subVectors(currentCenter, initialCenter));
+                const outer = new Vector2().subVectors(initial[i].outer, positions[i]).add(new Vector2().subVectors(currentCenter.center, initialCenter.center));
                 const inner = diagonalIntersect(zero2, outer);
                 outer.y = -outer.y;
                 inner.y = -inner.y;
@@ -229,7 +251,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish }
                     } else if (captions[i].value != null && tokens.length > 1) {
                         segments[1].color = captions[i].color;
                     }
-                    details[i].setText(segments, cx - textSizes[i].width / 2, cy + textSizes[i].height / 2 - hPadding);
+                    details[i].setText(segments, cx - textSizes[i].width / 2, cy + textSizes[i].height / 2 - hPadding, 14);
                     details[i].setOverlay(cx - textSizes[i].width / 2 - vPadding, cy, textSizes[i].width + 2 * vPadding, textSizes[i].height + 2 * hPadding);
                     if (captions[i].highlight) {
                         const height = 18;

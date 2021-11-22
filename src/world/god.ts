@@ -22,6 +22,7 @@ type WorldEvent =
 
 interface WorldStat {
     top(k: number): number[];
+    getScore(id: number): number;
     getServices(id: number): TeamService[];
     state(): State;
     update(state: State);
@@ -62,6 +63,9 @@ function createWorldStat(): WorldStat {
             return order.slice(0, k).map((x) => x.id);
         },
         state: () => (roundsBuffer.length > 0 ? roundsBuffer[roundsBuffer.length - 1] : null),
+        getScore(id: number) {
+            return teamStat.get(id).score;
+        },
         getServices(id: number) {
             return teamStat.get(id).services;
         },
@@ -177,6 +181,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     services.set(parseInt(id), { name: service.name, color: palette[hash % palette.length] });
                 }
             }
+            microscope.setServices([...services.keys()].map((k) => ({ id: k, ...services.get(k) })).sort((a, b) => a.name.localeCompare(b.name)));
             for (const team of r.value.scoreboard) {
                 teams.set(team.team_id, team.name);
             }
@@ -265,6 +270,8 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 alarms = [];
                 microscope.setMode("live");
                 clearTargets();
+                actionFinish = time + 1000;
+                return;
             }
             showStats = false;
 
@@ -297,13 +304,15 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             for (let i = 0; i < luckers.length; i++) {
                 const lucker = luckers[i];
                 if (lucker.kind === "stat") {
-                    console.info("LUCKER", lucker);
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
-                    console.info("LUCKER", worldStat.getServices(lucker.team), worldStat.state());
                     const current = worldStat.getServices(lucker.team).filter((x) => services.has(x.id));
                     microscope.addDetails({
-                        center: () => world.getCell(lucker.team).center,
+                        main: {
+                            title: teams.get(lucker.team),
+                            value: worldStat.getScore(lucker.team),
+                        },
+                        center: () => world.getCell(lucker.team),
                         follow: () =>
                             world.getOrganells(
                                 lucker.team,
@@ -327,7 +336,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     clearTargets();
 
                     microscope.addDetails({
-                        center: () => world.getCell(lucker.to.victim).center,
+                        center: () => world.getCell(lucker.to.victim),
                         follow: () => [world.getOrganell(lucker.to.victim, lucker.to.service)],
                         captions: [{ title: services.get(lucker.to.service).name, color: services.get(lucker.to.service).color, highlight: true, value: null }],
                         start: time + 1500,
@@ -361,7 +370,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     stopTime(2600, 20000);
                     setAttentionTime = time + 2500;
 
-                    alarms.push(microscope.addAlarm(time + 2500));
+                    alarms.push(microscope.addAlarm(lucker.to.service, time + 2500));
 
                     worldStat.attack(lucker.attacker, lucker.to.victim, time);
                 }

@@ -74,8 +74,8 @@ export interface MicroscopeElement {
     setServices(services: Array<{ name: string; color: ColorRepresentation }>);
     setStats(stats: Stats);
     setMode(mode: "live" | "attention");
-    addAlarm(time: number);
-    addTarget(follow: () => Vector2, size: () => number, color: string, bottom: string, top: string, start: number);
+    addAlarm(service: number, time: number);
+    addTarget(follow: () => Vector2, size: () => number, color: string, bottom: string, top: string, start: number, hideTarget?: boolean);
     addDetails(details: Details);
 }
 

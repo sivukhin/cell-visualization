@@ -24,7 +24,7 @@
                 padding: 0;
             }
             #microscope {
-                color: white;
+                color: #adadad;
                 position: relative;
                 display: block;
                 width: 100vw;
@@ -34,7 +34,12 @@
                 font-family: "JetBrains Mono", monospace;
             }
             .service {
+                padding: 4px 4px 2px 0;
                 margin-right: 16px;
+            }
+            .service.alarm {
+                background-color: rgba(169, 42, 39, 0.8);
+                color: rgba(255, 90, 73, 1);
             }
             .bottom {
                 position: absolute;
@@ -129,7 +134,8 @@
                 color: black;
             }
             #legend {
-                color: white;
+                color: #adadad;
+                font-size: 16px;
             }
             .underline {
                 margin-top: 8px;
@@ -160,163 +166,37 @@
                     opacity: 1;
                 }
             }
-            rect.flicker {
+            .flicker {
                 animation: blink 0.3s;
             }
 
             @keyframes flicker {
                 100%,
                 0% {
+                    opacity: 1;
+                }
+                5% {
+                    opacity: 1;
+                }
+                10% {
                     opacity: 0;
                 }
-                1.7241379310344827% {
+                15% {
                     opacity: 1;
                 }
-                3.4482758620689653% {
+                25% {
+                    opacity: 1;
+                }
+                30% {
                     opacity: 0;
                 }
-                5.172413793103448% {
+                35% {
                     opacity: 1;
-                }
-                8.620689655172413% {
-                    opacity: 1;
-                }
-                10.344827586206897% {
-                    opacity: 0;
-                }
-                12.068965517241379% {
-                    opacity: 1;
-                }
-                15.517241379310343% {
-                    opacity: 1;
-                }
-                17.241379310344826% {
-                    opacity: 0;
-                }
-                18.96551724137931% {
-                    opacity: 1;
-                }
-                20.689655172413794% {
-                    opacity: 0;
-                }
-                22.413793103448274% {
-                    opacity: 1;
-                }
-                24.137931034482758% {
-                    opacity: 0;
-                }
-                25.86206896551724% {
-                    opacity: 1;
-                }
-                29.310344827586206% {
-                    opacity: 1;
-                }
-                31.034482758620687% {
-                    opacity: 0;
-                }
-                32.75862068965517% {
-                    opacity: 1;
-                }
-                34.48275862068965% {
-                    opacity: 0;
-                }
-                36.206896551724135% {
-                    opacity: 1;
-                }
-                39.6551724137931% {
-                    opacity: 1;
-                }
-                41.37931034482759% {
-                    opacity: 0;
-                }
-                43.103448275862064% {
-                    opacity: 1;
-                }
-                46.55172413793103% {
-                    opacity: 1;
-                }
-                48.275862068965516% {
-                    opacity: 0;
-                }
-                50.0% {
-                    opacity: 1;
-                }
-                53.44827586206896% {
-                    opacity: 1;
-                }
-                55.172413793103445% {
-                    opacity: 0;
-                }
-                56.89655172413793% {
-                    opacity: 1;
-                }
-                60.34482758620689% {
-                    opacity: 1;
-                }
-                62.068965517241374% {
-                    opacity: 0;
-                }
-                63.79310344827586% {
-                    opacity: 1;
-                }
-                65.51724137931033% {
-                    opacity: 0;
-                }
-                67.24137931034483% {
-                    opacity: 1;
-                }
-                70.6896551724138% {
-                    opacity: 1;
-                }
-                72.41379310344827% {
-                    opacity: 0;
-                }
-                74.13793103448275% {
-                    opacity: 1;
-                }
-                75.86206896551724% {
-                    opacity: 0;
-                }
-                77.58620689655172% {
-                    opacity: 1;
-                }
-                81.03448275862068% {
-                    opacity: 1;
-                }
-                82.75862068965517% {
-                    opacity: 0;
-                }
-                84.48275862068965% {
-                    opacity: 1;
-                }
-                86.20689655172413% {
-                    opacity: 0;
-                }
-                87.93103448275862% {
-                    opacity: 1;
-                }
-                89.6551724137931% {
-                    opacity: 0;
-                }
-                91.37931034482759% {
-                    opacity: 1;
-                }
-                94.82758620689654% {
-                    opacity: 1;
-                }
-                96.55172413793103% {
-                    opacity: 0;
-                }
-                98.27586206896551% {
-                    opacity: 1;
-                }
-                100.0% {
-                    opacity: 0;
                 }
             }
             g.alarm {
                 opacity: 0;
-                animation: flicker 16s infinite;
+                animation: flicker 2s infinite;
             }
             .back {
                 position: absolute;
@@ -376,24 +256,18 @@
                 </div>
             </div>
             <div class="top right"><div id="status">LIVE</div></div>
-            <div id="legend" class="bottom2 center"></div>
+            <div id="legend" class="bottom center"></div>
             <div class="bottom left block">
                 <div>
-                    <div>CELL TEST FLASK</div>
-                    <div>PROBE #2021</div>
+                    <div>ProCTF2021</div>
+                    <div>[Abu Dhabi]</div>
                 </div>
-                <span>RND <span class="width48" id="round"></span></span>
-                <span>ATK <span class="width48" id="attacks"></span></span>
-                <span>BLEED <span class="width48" id="bleeding"></span></span>
-                <span>STOL <span class="width48" id="stolen"></span></span>
-                <span>ALIVE <span class="width48" id="alive"></span></span>
-                <span class="width48"><span class="magnification" id>25</span>[µm]</span>
-                <span><span id="stat-enabled">◯</span> STAT</span>
-                <span><span id="action-enabled">◯</span> ACT</span>
             </div>
             <div class="bottom right block">
-                <span id="time"></span>
-                <span id="date"></span>
+                <div>
+                    <div id="time"></div>
+                    <div id="date"></div>
+                </div>
             </div>
         </div>
         <script src="dist/main.js"></script>
