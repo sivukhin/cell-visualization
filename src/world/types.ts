@@ -43,7 +43,7 @@ export interface CellElement {
     spawn(id: number, weight: number, active: boolean, color: ColorRepresentation): void;
     update(size: number, organells: OrganellInfo[]): void;
     irritate(id: number, start: number, finish: number): void;
-    attack(targets: Vector2[], start: number, finish: number): Timings;
+    attack(targets: Array<() => Vector2>, start: number, finish: number): Timings;
     get(id: number): { center: Vector2; weight: number };
     getAll(): Array<{ id: number; center: Vector2; weight: number; active: boolean; color: Color }>;
 }

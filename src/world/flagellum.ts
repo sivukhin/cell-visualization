@@ -1,4 +1,4 @@
-import { BackSide, BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, Path, ShaderMaterial, Uniform, Vector2 } from "three";
+import { BackSide, BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Line, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, Object3D, Path, ShaderMaterial, Uniform, Vector2 } from "three";
 import { FlagellumConfiguration, Unwrap } from "../configuration";
 import { createFigureFromPath, cutBezierCurve, getFlatComponents3D } from "../utils/draw";
 import { randomFrom } from "../utils/math";
@@ -97,7 +97,7 @@ function calculateFlagellumPoints({ points, length, deformations, jitters }: Fla
 export interface FlagellumState {
     startDirection: Vector2;
     finishDirection: Vector2;
-    target: Vector2;
+    follow: () => Vector2;
     timings: Timings;
 }
 
@@ -125,10 +125,18 @@ function createTrace(points: Vector2[]) {
     return new Float32Array(trace);
 }
 
-export function createFlagellum({ startDirection, finishDirection, target, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>): FlagellumElement {
-    const flagellum = generateFlagellum(target, configuration);
-    const points = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, 0);
-    const figure = createFigureFromPath(points, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 2)));
+function transform(p: Vector2, m: number[][]) {
+    return new Vector2(p.x * m[0][0] + p.y * m[1][0], p.x * m[0][1] + p.y * m[1][1]);
+}
+
+export function createFlagellum({ startDirection, finishDirection, follow, timings }: FlagellumState, configuration: Unwrap<FlagellumConfiguration>): FlagellumElement {
+    const initial = follow();
+    const r = initial.lengthSq();
+    const rTransform = [
+        [initial.x / r, -initial.y / r],
+        [initial.y / r, initial.x / r],
+    ];
+    const flagellum = generateFlagellum(follow(), configuration);
     const geometry = new BufferGeometry();
 
     const material = new ShaderMaterial({
@@ -148,7 +156,13 @@ export function createFlagellum({ startDirection, finishDirection, target, timin
                 return false;
             }
             const relativeTime = getRelativeTime(timings, time);
-            const current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
+            let current = calculateFlagellumPoints(flagellum, startDirection, finishDirection, configuration, relativeTime);
+            const target = follow();
+            const fTransform = [
+                [target.x, target.y],
+                [-target.y, target.x],
+            ];
+            current = current.map((x) => transform(transform(x, rTransform), fTransform));
             const update = createFigureFromPath(current, (d) => Math.max(1, 5 / Math.pow(1 + d, 1 / 4)));
             geometry.setAttribute("position", new BufferAttribute(update.positions, 3));
             geometry.setAttribute("orientation", new BufferAttribute(createOrientation(current.length), 1));

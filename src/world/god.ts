@@ -208,8 +208,8 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
     const attacks: WorldEvent[] = [];
     const worldStat = createWorldStat();
 
+    let lastTime = 0;
     subscribeApi((r) => {
-        console.info("response", r);
         if (r.type == "state") {
             worldStat.update(r.value);
             services.clear();
@@ -222,6 +222,11 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             }
             microscope.setServices([...services.keys()].map((k) => ({ id: k, ...services.get(k) })).sort((a, b) => a.name.localeCompare(b.name)));
             for (const team of r.value.scoreboard) {
+                if (team.d != 0) {
+                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `${team.name} [Δ${team.d > 0 ? "+" : ""}${team.d}]`);
+                } else {
+                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `${team.name} [=${team.score}]`);
+                }
                 teams.set(team.team_id, team.name);
             }
             world.update(
@@ -235,6 +240,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 }))
             );
         } else if (r.type == "attack") {
+            terminal.sendCommand(lastTime + randomFrom(0, 10000), `attack ${r.value.attacker_id} ${r.value.victim_id}...`);
             attacks.push({
                 kind: "attack",
                 attacker: r.value.attacker_id,
@@ -266,6 +272,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
     let showedTeams = new Set<number>();
     return {
         tick: (time: number) => {
+            lastTime = time;
             terminal.tick(time);
             if (time < lastTick + 100 || worldStat.state() == null) {
                 return;
@@ -329,7 +336,6 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
                     const current = worldStat.getServices(lucker.team).filter((x) => services.has(x.id));
-                    terminal.sendCommand(`show team ${lucker.team}`, `rank ${worldStat.getPosition(lucker.team)}`);
                     microscope.addDetails({
                         main: {
                             title: teams.get(lucker.team),
@@ -390,7 +396,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                         )
                     );
 
-                    stopTime(2600, 20000);
+                    stopTime(2501, 20000);
                     setAttentionTime = time + 2500;
 
                     alarms.push(microscope.addAlarm(lucker.to.service, time + 2500));
@@ -399,9 +405,6 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 }
             }
             if (!showStats && !showFirstBlood) {
-                if (targets.size == 0) {
-                    terminal.sendCommand("show top 5", "ok");
-                }
                 const currentTop = worldStat.top(5);
                 const keys = [...targets.keys()];
                 for (const id of keys) {

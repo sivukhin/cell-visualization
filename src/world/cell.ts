@@ -13,7 +13,7 @@ import { createOrganells } from "./organells";
 import CellVertexShader from "../shaders/cell-vertex.shader";
 // @ts-ignore
 import CellFragmentShader from "../shaders/cell-fragment.shader";
-import {interpolateLinear1D, randomFrom} from "../utils/math";
+import { interpolateLinear1D, randomFrom } from "../utils/math";
 
 export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellumConfig: Unwrap<FlagellumConfiguration>): CellElement {
     const r = cellConfig.radius / Math.cos(Math.PI / cellConfig.segments);
@@ -44,7 +44,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
     let transitionStart = null;
     let startScale = 1.0;
     let finishScale = 1.0;
-    let angular = randomFrom(-0.001, 0.001)
+    let angular = randomFrom(-0.001, 0.001);
     return {
         multiverse: multiverse,
         tick: (time: number) => {
@@ -87,7 +87,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         spawn: (id: number, weight: number, active: boolean, color: ColorRepresentation) => {
             organells.spawn(id, weight, active, color);
         },
-        attack: (targets: Vector2[], start: number, finish: number): Timings => {
+        attack: (targets: Array<() => Vector2>, start: number, finish: number): Timings => {
             const duration = finish - start;
             const timing = {
                 startIn: start,
@@ -96,13 +96,13 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
                 finishOut: start + duration,
             };
             for (let i = 0; i < targets.length; i++) {
-                const { point, id } = getSectorIn(targets[i], membrane.points);
+                const { point, id } = getSectorIn(targets[i](), membrane.points);
                 const attach = new Vector2().copy(point).multiplyScalar(0.9 * scalable.scale.x);
                 const flagellum = createFlagellum(
                     {
                         startDirection: new Vector2().copy(point),
-                        finishDirection: new Vector2().subVectors(targets[i], attach),
-                        target: new Vector2().subVectors(targets[i], attach),
+                        finishDirection: new Vector2().subVectors(targets[i](), attach),
+                        follow: () => new Vector2().subVectors(targets[i](), attach),
                         timings: timing,
                     },
                     flagellumConfig

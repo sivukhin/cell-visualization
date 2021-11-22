@@ -1,10 +1,10 @@
-import { Unwrap, WorldConfiguration } from "../configuration";
-import { Object3D, Vector2 } from "three";
-import { getComponents } from "../utils/geometry";
-import { createAliveCell } from "./cell";
-import { CellElement, CellInfo, OrganellInfo, WorldElement } from "./types";
-import { to2 } from "../utils/draw";
-import { interpolateMany, randomFrom } from "../utils/math";
+import {Unwrap, WorldConfiguration} from "../configuration";
+import {Object3D, Vector2} from "three";
+import {getComponents} from "../utils/geometry";
+import {createAliveCell} from "./cell";
+import {CellElement, CellInfo, WorldElement} from "./types";
+import {to2} from "../utils/draw";
+import {interpolateMany, randomFrom} from "../utils/math";
 
 interface CellState {
     velocity: Vector2;
@@ -153,13 +153,16 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             const points = [];
             for (let i = 0; i < targets.length; i++) {
                 const cell = cells.get(targets[i].cell);
-                const v = to2(cell.element.multiverse.position).sub(to2(source.element.multiverse.position)).setLength(worldConfig.speed * 0.25);
+                const v = to2(cell.element.multiverse.position)
+                    .sub(to2(source.element.multiverse.position))
+                    .setLength(worldConfig.speed * 0.25);
                 cell.state.velocity.add(v);
                 v.negate();
                 source.state.velocity.add(v);
-                const absolute = new Vector2().addVectors(cell.element.get(targets[i].organell).center, to2(cell.element.multiverse.position));
-                const relative = new Vector2().subVectors(absolute, to2(source.element.multiverse.position));
-                points.push(relative);
+                points.push(() => {
+                    const absolute = new Vector2().addVectors(cell.element.get(targets[i].organell).center, to2(cell.element.multiverse.position));
+                    return new Vector2().subVectors(absolute, to2(source.element.multiverse.position));
+                });
             }
             if (source.state.velocity.length() > worldConfig.speed) source.state.velocity.setLength(worldConfig.speed);
             for (let i = 0; i < targets.length; i++) {
