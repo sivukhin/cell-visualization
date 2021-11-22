@@ -283,7 +283,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             targets.delete(id);
         }
     };
-    let lastStatTime = 0;
+    let lastStatTime = -Infinity;
     let showedTeams = new Set<number>();
     return {
         tick: (time: number) => {
@@ -323,13 +323,17 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 eventsToShow.push(attacks[firstBloodIndex]);
                 attacks.splice(firstBloodIndex, 1);
             } else {
-                if (lastStatTime < time - 30_000 || attacks.length == 0) {
-                    lastStatTime = time + 30_000;
+                if (lastStatTime < time + 60_000 || attacks.length == 0) {
+                    lastStatTime = time;
                     if (showedTeams.size == teams.size) {
                         showedTeams.clear();
                     }
                     for (const team of teams.keys()) {
                         if (showedTeams.has(team)) {
+                            continue;
+                        }
+                        if (worldStat.getScore(team) == 0) {
+                            showedTeams.add(team);
                             continue;
                         }
                         showedTeams.add(team);
