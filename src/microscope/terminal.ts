@@ -7,7 +7,7 @@ export function createTerminal() {
     return {
         tick: (time: number) => {
             buffer = buffer.filter((x) => x[0] > time - 5000);
-            if (buffer.length > 0 && buffer[0][0] > time) {
+            if (buffer.length > 0 && buffer[0][0] > time && current == null) {
                 return;
             }
             if (current == null && buffer.length > 0) {
@@ -19,7 +19,7 @@ export function createTerminal() {
             if (current != null) {
                 let input = document.getElementById(`input-${lineId}`);
                 if (input == null) {
-                    if (terminal.childElementCount == 10) {
+                    if (terminal.childElementCount == 20) {
                         terminal.removeChild(terminal.childNodes[0]);
                     }
                     const inputElement = document.createElement("div");
@@ -28,9 +28,9 @@ export function createTerminal() {
                     terminal.appendChild(inputElement);
                     input = inputElement;
                 }
-                const prefix = current.slice(0, Math.floor(current.length * Math.min(1.0, (time - startTime) / 500)));
+                const prefix = current.slice(0, Math.floor(current.length * Math.min(1.0, (time - startTime) / 1000)));
                 input.innerHTML = `${prefix}`;
-                if (time > startTime + 500) {
+                if (time > startTime + 1000) {
                     current = null;
                 }
             }

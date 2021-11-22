@@ -1,6 +1,6 @@
 import { GodElement, MicroscopeElement, WorldElement } from "./types";
 import { State, subscribeApi, Team, TeamService } from "../api";
-import { randomFrom } from "../utils/math";
+import { randomChoice, randomFrom } from "../utils/math";
 import { Vector2 } from "three";
 import { stopTime } from "../utils/tick";
 import { createTerminal } from "../microscope/terminal";
@@ -222,12 +222,27 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
             }
             microscope.setServices([...services.keys()].map((k) => ({ id: k, ...services.get(k) })).sort((a, b) => a.name.localeCompare(b.name)));
             for (const team of r.value.scoreboard) {
-                if (team.d != 0) {
-                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `${team.name} [Δ${team.d > 0 ? "+" : ""}${team.d}]`);
-                } else {
-                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `${team.name} [=${team.score}]`);
-                }
                 teams.set(team.team_id, team.name);
+
+                if (team.d != 0) {
+                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] Δrank ${team.d > 0 ? "+" : ""}${team.d}`);
+                } else if (team.score != team.old_score) {
+                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] Δscore ${Math.round(team.score - team.old_score)}`);
+                } else {
+                    terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] score ${Math.round(team.score)}`);
+                }
+                const s = randomChoice(team.services);
+                if (services.has(s.id)) {
+                    if (s.status == 101) {
+                        terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] ${services.get(s.id).name} up`);
+                    } else if (s.status == 102) {
+                        terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] ${services.get(s.id).name} corrupt`);
+                    } else if (s.status == 103) {
+                        terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] ${services.get(s.id).name} mumble`);
+                    } else if (s.status == 104) {
+                        terminal.sendCommand(lastTime + randomFrom(0, 30000), `[${team.name}] ${services.get(s.id).name} down`);
+                    }
+                }
             }
             world.update(
                 r.value.scoreboard.map((team) => ({
@@ -240,7 +255,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 }))
             );
         } else if (r.type == "attack") {
-            terminal.sendCommand(lastTime + randomFrom(0, 10000), `attack ${r.value.attacker_id} ${r.value.victim_id}...`);
+            terminal.sendCommand(lastTime + randomFrom(0, 10000), `[${teams.get(r.value.attacker_id)}] attacks [${teams.get(r.value.victim_id)}]`);
             attacks.push({
                 kind: "attack",
                 attacker: r.value.attacker_id,
