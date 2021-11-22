@@ -1,3 +1,4 @@
+// @ts-ignore
 import Events from "./secret/events.json";
 
 export interface Attack {

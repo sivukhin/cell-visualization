@@ -14,6 +14,7 @@
                 margin: 0;
                 padding: 0;
                 background: black;
+                font-family: "JetBrains Mono", monospace;
             }
             #microcosmos {
                 position: absolute;
@@ -31,7 +32,6 @@
                 height: 100vh;
                 margin: 0;
                 padding: 0;
-                font-family: "JetBrains Mono", monospace;
             }
             .service {
                 padding: 4px 4px 2px 0;
@@ -66,7 +66,6 @@
                 width: 100%;
             }
             text {
-                font-family: "JetBrains Mono", monospace;
                 font-weight: 200;
             }
             .block > * {
@@ -92,7 +91,6 @@
             .caption {
                 position: absolute;
                 color: white;
-                font-family: "JetBrains Mono", monospace;
             }
             .highlight {
                 color: lightgreen;
@@ -110,7 +108,6 @@
             }
             text.detail {
                 fill: aliceblue;
-                font-family: "JetBrains Mono", monospace;
                 font-size: 14pt;
             }
             text.block {
@@ -207,6 +204,9 @@
             text {
                 transform: rotate(0.001rad);
             }
+            #terminal {
+                opacity: 0.5;
+            }
         </style>
     </head>
     <body>
@@ -240,6 +240,7 @@
             <rect x="0" y="0" width="100%" height="100%" fill="url(#image-filter-left)"></rect>
             <rect x="0" y="0" width="100%" height="100%" fill="url(#image-filter-right)"></rect>
         </svg>
+        <div id="terminal" class="top left" style="background-color: rgba(100, 100, 100, 0.5); width: 184px; height: 232px; margin-top: 40px; margin-left: 24px; color: white"></div>
         <div id="microscope">
             <svg id="display"></svg>
             <svg id="shadow-display" width="0" height="0"></svg>

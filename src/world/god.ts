@@ -3,6 +3,7 @@ import { State, subscribeApi, Team, TeamService } from "../api";
 import { randomFrom } from "../utils/math";
 import { Vector2 } from "three";
 import { stopTime } from "../utils/tick";
+import { createTerminal } from "../microscope/terminal";
 
 type WorldEvent =
     | {
@@ -22,11 +23,13 @@ type WorldEvent =
 
 interface WorldStat {
     top(k: number): number[];
+    getPosition(id: number): number;
     getScore(id: number): number;
     getServices(id: number): TeamService[];
     state(): State;
     update(state: State);
     showStat(team: number, time: number);
+    isFirstBlood(service: number);
     attack(from: number, to: number, time: number);
     getProbability(e: WorldEvent, time: number): number;
 }
@@ -42,6 +45,8 @@ function calculateDelta(a: number[], b: number[]) {
 function createWorldStat(): WorldStat {
     const roundsBuffer: State[] = [];
     const teamStat = new Map<number, Team>();
+
+    const bleeding = new Map<number, boolean>();
 
     let statShowTime = -Infinity;
     const teamStatShowTime = new Map<number, number>();
@@ -63,8 +68,18 @@ function createWorldStat(): WorldStat {
             return order.slice(0, k).map((x) => x.id);
         },
         state: () => (roundsBuffer.length > 0 ? roundsBuffer[roundsBuffer.length - 1] : null),
+        getPosition(id: number) {
+            return teamStat.get(id).n;
+        },
         getScore(id: number) {
             return teamStat.get(id).score;
+        },
+        isFirstBlood(service: number) {
+            if (bleeding.has(service) && bleeding.get(service)) {
+                return false;
+            }
+            bleeding.set(service, true);
+            return true;
         },
         getServices(id: number) {
             return teamStat.get(id).services;
@@ -72,6 +87,16 @@ function createWorldStat(): WorldStat {
         update: (state: State) => {
             for (let i = 0; i < state.scoreboard.length; i++) {
                 teamStat.set(state.scoreboard[i].team_id, state.scoreboard[i]);
+            }
+
+            if (bleeding.size == 0) {
+                for (let i = 0; i < state.scoreboard.length; i++) {
+                    for (let s = 0; s < state.scoreboard[i].services.length; s++) {
+                        if (state.scoreboard[i].services[s].sflags > 0) {
+                            bleeding.set(state.scoreboard[i].services[s].id, true);
+                        }
+                    }
+                }
             }
 
             statDelta = 0;
@@ -150,7 +175,20 @@ function createWorldStat(): WorldStat {
     };
 }
 
-const palette = ["#F03B36", "#FC7630", "#64B419", "#26AD50", "#00BEA2", "#2291FF", "#366AF3", "#B750D1"];
+const palette = [
+    "rgba(255, 136, 123, 1)",
+    "rgba(225, 187, 90, 1)",
+    "rgba(211, 143, 64, 1)",
+    "rgba(150, 200, 64, 1)",
+    "rgba(70, 205, 104, 1)",
+    "rgba(79, 216, 195, 1)",
+    "rgba(81, 173, 255, 1)",
+    "rgba(97, 138, 255, 1)",
+    "rgba(171, 132, 255, 1)",
+    "rgba(197, 111, 218, 1)",
+    "rgba(222, 99, 136, 1)",
+    "rgba(170, 129, 100, 1)",
+];
 function getHashCode(s: string) {
     let hash = 0;
     if (s.length === 0) return hash;
@@ -163,22 +201,23 @@ function getHashCode(s: string) {
 }
 
 export function createGod(world: WorldElement, microscope: MicroscopeElement): GodElement {
+    const terminal = createTerminal();
     const teams = new Map<number, string>();
-    const services = new Map<number, { name: string; color: string }>();
+    const services = new Map<number, { internalId: number; name: string; color: string }>();
     let top = [];
     const attacks: WorldEvent[] = [];
     const worldStat = createWorldStat();
 
-    let attackId = 0;
     subscribeApi((r) => {
         console.info("response", r);
         if (r.type == "state") {
             worldStat.update(r.value);
             services.clear();
+            let serviceId = 0;
             for (const [id, service] of Object.entries(r.value.services)) {
                 if (service.active) {
-                    const hash = Math.abs(getHashCode(service.name));
-                    services.set(parseInt(id), { name: service.name, color: palette[hash % palette.length] });
+                    services.set(parseInt(id), { internalId: serviceId, name: service.name, color: palette[serviceId % palette.length] });
+                    serviceId++;
                 }
             }
             microscope.setServices([...services.keys()].map((k) => ({ id: k, ...services.get(k) })).sort((a, b) => a.name.localeCompare(b.name)));
@@ -190,7 +229,9 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     id: team.team_id,
                     size: team.score,
                     caption: team.name,
-                    organells: team.services.filter((s) => services.has(s.id)).map((s) => ({ id: s.id, size: s.fp, active: s.status == 101, color: services.get(s.id).color })),
+                    organells: team.services
+                        .filter((s) => services.has(s.id))
+                        .map((s) => ({ id: services.get(s.id).internalId, size: s.fp, active: s.status == 101, color: services.get(s.id).color })),
                 }))
             );
         } else if (r.type == "attack") {
@@ -199,7 +240,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 attacker: r.value.attacker_id,
                 amount: 1,
                 to: { victim: r.value.victim_id, service: r.value.service_id },
-                firstBlood: attackId++ % 10 == 0,
+                firstBlood: worldStat.isFirstBlood(r.value.service_id),
             });
             if (attacks.length > 1000) {
                 attacks.splice(0, attacks.length - 1000);
@@ -223,37 +264,12 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
     };
     return {
         tick: (time: number) => {
+            terminal.tick(time);
             if (time < lastTick + 100 || worldStat.state() == null) {
                 return;
             }
             if (time < lastTick + 100) {
                 return;
-            }
-            if (!showStats && !showFirstBlood) {
-                const currentTop = worldStat.top(5);
-                const keys = [...targets.keys()];
-                for (const id of keys) {
-                    if (currentTop.every((x) => x != id)) {
-                        targets.get(id)();
-                        targets.delete(id);
-                    }
-                }
-                for (const id of currentTop) {
-                    if (!targets.has(id)) {
-                        targets.set(
-                            id,
-                            microscope.addTarget(
-                                () => world.getCell(id).center,
-                                () => 2 * world.getCell(id).radius,
-                                null,
-                                teams.get(id),
-                                null,
-                                time
-                            )
-                        );
-                    }
-                }
-                top = currentTop;
             }
             if (time > setAttentionTime) {
                 microscope.setMode("attention");
@@ -307,6 +323,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
                     const current = worldStat.getServices(lucker.team).filter((x) => services.has(x.id));
+                    terminal.sendCommand(`show team ${lucker.team}`, `rank ${worldStat.getPosition(lucker.team)}`);
                     microscope.addDetails({
                         main: {
                             title: teams.get(lucker.team),
@@ -316,7 +333,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                         follow: () =>
                             world.getOrganells(
                                 lucker.team,
-                                current.map((x) => x.id)
+                                current.map((x) => services.get(x.id).internalId)
                             ),
                         captions: current.map((x) => ({ title: services.get(x.id).name, color: services.get(x.id).color, highlight: x.status == 101, value: x.fp })),
                         start: time + 6000 * i,
@@ -326,7 +343,7 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     worldStat.showStat(lucker.team, time + 6000 * i);
                 } else if (lucker.kind === "attack" && !lucker.firstBlood) {
                     actionFinish = Math.max(actionFinish, time + (2000 / 3) * i + 2000);
-                    world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: lucker.to.service }], time + (2000 / 3) * i, time + (2000 / 3) * i + 2000);
+                    world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: services.get(lucker.to.service).internalId }], time + (2000 / 3) * i, time + (2000 / 3) * i + 2000);
                     worldStat.attack(lucker.attacker, lucker.to.victim, time + (2000 / 3) * i);
                 } else if (lucker.kind === "attack" && lucker.firstBlood) {
                     actionFinish = Math.max(actionFinish, time + 5000);
@@ -375,7 +392,36 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                     worldStat.attack(lucker.attacker, lucker.to.victim, time);
                 }
             }
-            if (showStats) {
+            if (!showStats && !showFirstBlood) {
+                if (targets.size == 0) {
+                    terminal.sendCommand("show top 5", "ok");
+                }
+                const currentTop = worldStat.top(5);
+                const keys = [...targets.keys()];
+                for (const id of keys) {
+                    if (currentTop.every((x) => x != id)) {
+                        targets.get(id)();
+                        targets.delete(id);
+                    }
+                }
+                for (const id of currentTop) {
+                    if (!targets.has(id)) {
+                        targets.set(
+                            id,
+                            microscope.addTarget(
+                                () => world.getCell(id).center,
+                                () => 2 * world.getCell(id).radius,
+                                null,
+                                teams.get(id),
+                                null,
+                                time
+                            )
+                        );
+                    }
+                }
+                top = currentTop;
+            }
+            if (showStats && targets.size > 0) {
                 clearTargets();
             }
         },

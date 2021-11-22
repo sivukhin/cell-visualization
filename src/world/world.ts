@@ -26,8 +26,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
 
     const cells = new Map<number, { element: CellElement; state: CellState }>();
 
-    const vPadding = 150;
-    const hPadding = 50;
+    const vPadding = 200;
+    const hPadding = 100;
     return {
         multiverse: multiverse,
         getOrganells(cellId: number, organells: number[]): Vector2[] {
@@ -146,18 +146,27 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             }
         },
         attack: (from: number, targets: Array<{ cell: number; organell: number }>, start: number, finish: number) => {
-            const source = cells.get(from).element;
-            if (source == null) {
+            const source = cells.get(from);
+            if (source.element == null) {
                 return;
             }
             const points = [];
             for (let i = 0; i < targets.length; i++) {
                 const cell = cells.get(targets[i].cell);
+                const v = to2(cell.element.multiverse.position).sub(to2(source.element.multiverse.position)).setLength(worldConfig.speed * 0.25);
+                cell.state.velocity.add(v);
+                v.negate();
+                source.state.velocity.add(v);
                 const absolute = new Vector2().addVectors(cell.element.get(targets[i].organell).center, to2(cell.element.multiverse.position));
-                const relative = new Vector2().subVectors(absolute, to2(source.multiverse.position));
+                const relative = new Vector2().subVectors(absolute, to2(source.element.multiverse.position));
                 points.push(relative);
             }
-            const timing = source.attack(points, start, finish);
+            if (source.state.velocity.length() > worldConfig.speed) source.state.velocity.setLength(worldConfig.speed);
+            for (let i = 0; i < targets.length; i++) {
+                const cell = cells.get(targets[i].cell);
+                if (cell.state.velocity.length() > worldConfig.speed) cell.state.velocity.setLength(worldConfig.speed);
+            }
+            const timing = source.element.attack(points, start, finish);
             for (let i = 0; i < targets.length; i++) {
                 const cell = cells.get(targets[i].cell);
                 cell.element.irritate(targets[i].organell, timing.finishIn, timing.finishOut);
