@@ -6,6 +6,7 @@ export interface Attack {
     service_id: number;
     attacker_id: number;
     victim_id: number;
+    round: number;
 }
 
 export interface TeamService {

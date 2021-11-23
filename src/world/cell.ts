@@ -98,16 +98,24 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
             for (let i = 0; i < targets.length; i++) {
                 const { point, id } = getSectorIn(targets[i](), membrane.points);
                 const attach = new Vector2().copy(point).multiplyScalar(0.9 * scalable.scale.x);
+                let initialized = false;
                 const flagellum = createFlagellum(
                     {
                         startDirection: new Vector2().copy(point),
                         finishDirection: new Vector2().subVectors(targets[i](), attach),
-                        follow: () => new Vector2().subVectors(targets[i](), attach),
+                        follow: () => {
+                            const next = new Vector2().copy(point).multiplyScalar(0.9 * scalable.scale.x);
+                            if (initialized) {
+                                flagellum.multiverse.position.set(next.x, next.y, 0);
+                            }
+                            return new Vector2().subVectors(targets[i](), next);
+                        },
                         timings: timing,
                     },
                     flagellumConfig
                 );
                 flagellum.multiverse.position.set(attach.x, attach.y, 0);
+                initialized = true;
                 flagellum.multiverse.renderOrder = 3;
                 nonScalable.add(flagellum.multiverse);
                 flagellums.push(flagellum);

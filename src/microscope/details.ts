@@ -249,10 +249,10 @@ export function createDetails({ follow, center, sideX, captions, start, finish, 
                     const tokens = prefix.split("ё");
                     const segments = tokens.map((t) => ({ value: t, color: undefined }));
                     if (!captions[i].highlight && initial[i].side == "left" && tokens.length > 1) {
-                        segments[1].color = "rgba(173, 173, 173, 1)";
+                        segments[1].color = "rgba(255, 255, 255, 0.3)";
                     }
                     if (!captions[i].highlight && initial[i].side == "right") {
-                        segments[0].color = "rgba(173, 173, 173, 1)";
+                        segments[0].color = "rgba(255, 255, 255, 0.3)";
                     }
                     if (captions[i].value != null && initial[i].side == "left") {
                         segments[0].color = captions[i].color;

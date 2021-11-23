@@ -197,7 +197,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 // v.negate();
                 // source.state.velocity.add(v);
                 points.push(() => {
-                    const absolute = new Vector2().addVectors(cell.element.get(targets[i].organell).center, to2(cell.element.multiverse.position));
+                    const c = cell.element.get(targets[i].organell).center;
+                    const absolute = new Vector2().addVectors(c.length() > 10000 ? zero2 : c, to2(cell.element.multiverse.position));
                     return new Vector2().subVectors(absolute, to2(source.element.multiverse.position));
                 });
             }

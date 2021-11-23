@@ -9,6 +9,7 @@ import { Unwrap, WorldConfiguration } from "../configuration";
 type WorldEvent =
     | {
           kind: "attack";
+          round: number;
           attacker: number;
           amount: number;
           firstBlood: boolean;
@@ -265,6 +266,7 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
             terminal.sendCommand(lastTime + randomFrom(0, 10000), `[${teams.get(r.value.attacker_id)}] attacks [${teams.get(r.value.victim_id)}]`);
             attacks.push({
                 kind: "attack",
+                round: r.value.round,
                 attacker: r.value.attacker_id,
                 amount: 1,
                 to: { victim: r.value.victim_id, service: r.value.service_id },
@@ -272,6 +274,9 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
             });
             if (attacks.length > 1000) {
                 attacks.splice(0, attacks.length - 1000);
+            }
+            if (worldStat.state() != null) {
+                attacks = attacks.filter((x) => x.kind == "attack" && x.round >= worldStat.state().round - 1);
             }
         }
     });
@@ -322,6 +327,41 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
             }
             showStats = false;
 
+            if (!showStats && !showFirstBlood) {
+                let initialize = false;
+                if (targets.size == 0) {
+                    initialize = true;
+                    actionFinish = time + 5000;
+                }
+                const currentTop = worldStat.top(5);
+                const keys = [...targets.keys()];
+                for (const id of keys) {
+                    if (currentTop.every((x) => x != id)) {
+                        targets.get(id)();
+                        targets.delete(id);
+                    }
+                }
+                for (const id of currentTop) {
+                    if (!targets.has(id)) {
+                        targets.set(
+                            id,
+                            microscope.addTarget(
+                                () => world.getCell(id).center,
+                                () => 2 * world.getCell(id).radius,
+                                null,
+                                teams.get(id),
+                                null,
+                                time
+                            )
+                        );
+                    }
+                }
+                top = currentTop;
+                if (initialize) {
+                    return;
+                }
+            }
+
             lastTick = time;
 
             let eventsToShow: WorldEvent[] = [];
@@ -348,8 +388,38 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
                         }
                     }
                 } else {
-                    eventsToShow = attacks.slice(Math.max(0, attacks.length - 8));
-                    attacks.splice(Math.max(0, attacks.length - 8), 8);
+                    const counts = new Map<number, number>();
+                    for (const attack of attacks) {
+                        if (attack.kind !== "attack") {
+                            continue;
+                        }
+                        if (!counts.has(attack.attacker)) {
+                            counts.set(attack.attacker, 0);
+                        }
+                        counts.set(attack.attacker, counts.get(attack.attacker) + 1);
+                    }
+                    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+                    const top = sorted.slice(0, 3);
+                    const next = [];
+                    const duplicates = new Set<string>();
+                    const randomProb = Math.min(0.5, 10 / attacks.length);
+                    for (const attack of attacks) {
+                        if (attack.kind !== "attack") {
+                            continue;
+                        }
+                        const serialized = `${attack.attacker}-${attack.to.victim}-${attack.to.service}`;
+                        if (duplicates.has(serialized)) {
+                            continue;
+                        }
+                        duplicates.add(serialized);
+                        const choose = randomFrom(0, 1) < randomProb;
+                        if ((!choose && !top.map((x) => x[0]).includes(attack.attacker)) || eventsToShow.length >= 50) {
+                            next.push(attack);
+                            continue;
+                        }
+                        eventsToShow.push(attack);
+                    }
+                    attacks = next;
                 }
             }
             if (eventsToShow.length == 0) {
@@ -379,9 +449,9 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
                     });
                     worldStat.showStat(lucker.team, time + 6000 * i);
                 } else if (lucker.kind === "attack" && !lucker.firstBlood) {
-                    actionFinish = Math.max(actionFinish, time + (2000 / 3) * i + 2000);
-                    world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: services.get(lucker.to.service).internalId }], time + (2000 / 3) * i, time + (2000 / 3) * i + 2000);
-                    worldStat.attack(lucker.attacker, lucker.to.victim, time + (2000 / 3) * i);
+                    actionFinish = Math.max(actionFinish, time + (2000 / 25) * i + 2000);
+                    world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: services.get(lucker.to.service).internalId }], time + (2000 / 25) * i, time + (2000 / 25) * i + 2000);
+                    worldStat.attack(lucker.attacker, lucker.to.victim, time + (2000 / 25) * i);
                 } else if (lucker.kind === "attack" && lucker.firstBlood) {
                     actionFinish = Math.max(actionFinish, time + 5000);
                     world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: services.get(lucker.to.service).internalId }], time, time + 5000);
@@ -428,32 +498,6 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
 
                     worldStat.attack(lucker.attacker, lucker.to.victim, time);
                 }
-            }
-            if (!showStats && !showFirstBlood) {
-                const currentTop = worldStat.top(5);
-                const keys = [...targets.keys()];
-                for (const id of keys) {
-                    if (currentTop.every((x) => x != id)) {
-                        targets.get(id)();
-                        targets.delete(id);
-                    }
-                }
-                for (const id of currentTop) {
-                    if (!targets.has(id)) {
-                        targets.set(
-                            id,
-                            microscope.addTarget(
-                                () => world.getCell(id).center,
-                                () => 2 * world.getCell(id).radius,
-                                null,
-                                teams.get(id),
-                                null,
-                                time
-                            )
-                        );
-                    }
-                }
-                top = currentTop;
             }
             if (showStats && targets.size > 0) {
                 clearTargets();
