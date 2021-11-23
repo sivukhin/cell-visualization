@@ -1,6 +1,6 @@
 import { Unwrap, WorldConfiguration } from "../configuration";
 import { Object3D, Vector2 } from "three";
-import { getComponents } from "../utils/geometry";
+import { getComponents, zero2 } from "../utils/geometry";
 import { createAliveCell } from "./cell";
 import { CellElement, CellInfo, WorldElement } from "./types";
 import { to2 } from "../utils/draw";
@@ -133,7 +133,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     cell.element.update(sizes[i], cellInfo.organells);
                 } else {
                     const cell = createAliveCell(worldConfig.cell, worldConfig.flagellum);
-                    const velocity = new Vector2(worldConfig.speed, 0);
+                    const velocity = new Vector2(worldConfig.speed, 0).rotateAround(zero2, randomFrom(0, 2 * Math.PI));
                     let position = null;
                     if (initialPositions.has(cellInfo.id)) {
                         position = initialPositions.get(cellInfo.id);
