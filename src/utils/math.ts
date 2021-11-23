@@ -103,7 +103,7 @@ export function interpolateMany(values: number[], l: number, r: number) {
     const result: number[] = [];
     for (const value of values) {
         if (min == max) {
-            result.push(r);
+            result.push((l + r) / 2);
         } else {
             result.push(l + ((value - min) / (max - min)) * (r - l));
         }
