@@ -31,16 +31,19 @@ export function createAlarm(service: number, obstables: Vector2[], width: number
         maxX = Math.max(maxX, obstacle.x);
         maxY = Math.max(maxY, obstacle.y);
     }
-    const centers = [
-        new Vector2((minX + maxX) / 2, (minY + maxY) / 2),
-        new Vector2(minX - 150 - AlarmWidth / 2, (minY + maxY) / 2),
-        new Vector2(maxX + 150 + AlarmWidth / 2, (minY + maxY) / 2),
-        new Vector2((minX + maxX) / 2, minY - 250 - AlarmHeight / 2),
-        new Vector2((minX + maxX) / 2, maxY + 250 + AlarmWidth / 2),
+    const centers: Array<[Vector2, boolean]> = [
+        [new Vector2(minX - 150 - AlarmWidth / 2, (minY + maxY) / 2), false],
+        [new Vector2(maxX + 150 + AlarmWidth / 2, (minY + maxY) / 2), false],
+        [new Vector2((minX + maxX) / 2, minY - 250 - AlarmHeight / 2), false],
+        [new Vector2((minX + maxX) / 2, maxY + 250 + AlarmWidth / 2), false],
+        [new Vector2((minX + maxX) / 2, (minY + maxY) / 2), true],
     ];
     let bestDistance = -Infinity;
     let best = null;
-    for (const center of centers) {
+    for (const [center, isUnique] of centers) {
+        if (bestDistance > 0 && isUnique) {
+            continue;
+        }
         let current = Math.min(center.x - AlarmWidth / 2 + width / 2, width / 2 - (center.x + AlarmWidth / 2), center.y - AlarmHeight / 2 + height / 2, height / 2 - (center.y + AlarmHeight / 2));
         for (const obstacle of obstables) {
             if (
