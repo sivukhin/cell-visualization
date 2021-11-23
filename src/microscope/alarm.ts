@@ -35,16 +35,24 @@ export function createAlarm(service: number, obstables: Vector2[], width: number
         new Vector2((minX + maxX) / 2, (minY + maxY) / 2),
         new Vector2(minX - 150 - AlarmWidth / 2, (minY + maxY) / 2),
         new Vector2(maxX + 150 + AlarmWidth / 2, (minY + maxY) / 2),
-        new Vector2((minX + maxX) / 2, minY - 150 - AlarmHeight / 2),
-        new Vector2((minX + maxX) / 2, maxY + 150 + AlarmWidth / 2),
+        new Vector2((minX + maxX) / 2, minY - 250 - AlarmHeight / 2),
+        new Vector2((minX + maxX) / 2, maxY + 250 + AlarmWidth / 2),
     ];
     let bestDistance = -Infinity;
     let best = null;
     for (const center of centers) {
         let current = Math.min(center.x - AlarmWidth / 2 + width / 2, width / 2 - (center.x + AlarmWidth / 2), center.y - AlarmHeight / 2 + height / 2, height / 2 - (center.y + AlarmHeight / 2));
         for (const obstacle of obstables) {
-            current = Math.min(current, Math.abs(obstacle.x - (center.x - AlarmWidth / 2)), Math.abs(obstacle.x - (center.x + AlarmWidth / 2)));
-            current = Math.min(current, Math.abs(obstacle.y - (center.y - AlarmHeight / 2)), Math.abs(obstacle.y - (center.y + AlarmHeight / 2)));
+            if (
+                center.x - AlarmWidth / 2 - 100 < obstacle.x &&
+                obstacle.x < center.x + AlarmWidth / 2 + 100 &&
+                center.y - AlarmHeight / 2 - 50 < obstacle.y &&
+                obstacle.y < center.y + AlarmHeight / 2 + 50
+            ) {
+                current = -1 / (1 + obstacle.distanceTo(center));
+            }
+            current = Math.min(current, Math.abs(obstacle.x - (center.x - AlarmWidth / 2 - 50)), Math.abs(obstacle.x - (center.x + AlarmWidth / 2 + 50)));
+            current = Math.min(current, Math.abs(obstacle.y - (center.y - AlarmHeight / 2 - 25)), Math.abs(obstacle.y - (center.y + AlarmHeight / 2 + 25)));
         }
         if (current > bestDistance) {
             bestDistance = current;
