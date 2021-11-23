@@ -19,7 +19,7 @@ export function createTerminal() {
             if (current != null) {
                 let input = document.getElementById(`input-${lineId}`);
                 if (input == null) {
-                    if (terminal.childElementCount == 20) {
+                    if (terminal.childElementCount == 30) {
                         terminal.removeChild(terminal.childNodes[0]);
                     }
                     const inputElement = document.createElement("div");
