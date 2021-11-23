@@ -64,7 +64,10 @@ function createWorldStat(): WorldStat {
                 return [];
             }
             const last = roundsBuffer[roundsBuffer.length - 1];
-            const order = last.scoreboard.map((x) => ({ id: x.team_id, name: x.name, position: x.n, score: x.score })).sort((a, b) => a.position - b.position).filter(x => x.score > 0);
+            const order = last.scoreboard
+                .map((x) => ({ id: x.team_id, name: x.name, position: x.n, score: x.score }))
+                .sort((a, b) => a.position - b.position)
+                .filter((x) => x.score > 0);
             return order.slice(0, k).map((x) => x.id);
         },
         state: () => (roundsBuffer.length > 0 ? roundsBuffer[roundsBuffer.length - 1] : null),
@@ -323,18 +326,14 @@ export function createGod(world: WorldElement, microscope: MicroscopeElement): G
                 eventsToShow.push(attacks[firstBloodIndex]);
                 attacks.splice(firstBloodIndex, 1);
             } else {
-                if (lastStatTime <
-                    time - 60_000 || attacks.length == 0) {
+                const state = worldStat.state();
+                if ((lastStatTime < time - 60_000 || attacks.length == 0) && state != null && state.scoreboard.some((x) => x.score > 0)) {
                     lastStatTime = time;
                     if (showedTeams.size == teams.size) {
                         showedTeams.clear();
                     }
                     for (const team of teams.keys()) {
                         if (showedTeams.has(team)) {
-                            continue;
-                        }
-                        if (worldStat.getScore(team) == 0) {
-                            showedTeams.add(team);
                             continue;
                         }
                         showedTeams.add(team);
