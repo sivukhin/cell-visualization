@@ -1,5 +1,6 @@
 // @ts-ignore
 import Events from "./secret/events.json";
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 export interface Attack {
     service_id: number;
@@ -53,7 +54,7 @@ export function subscribeApi(handler: (r: Response) => void) {
     };
 }
 
-let active: WebSocket | null = null;
+let active: ReconnectingWebSocket | null = null;
 
 export function updateFakeApi() {
     for (let i = 0; i < Events.length; i++) {
@@ -71,7 +72,7 @@ export function updateApiCredentials(url) {
     if (active != null) {
         active.close();
     }
-    active = new WebSocket(url);
+    active = new ReconnectingWebSocket(url);
     active.onmessage = (e) => {
         notify(JSON.parse(e.data));
     };
