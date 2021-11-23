@@ -64,7 +64,7 @@ function createWorldStat(): WorldStat {
                 return [];
             }
             const last = roundsBuffer[roundsBuffer.length - 1];
-            const order = last.scoreboard.map((x) => ({ id: x.team_id, name: x.name, position: x.n })).sort((a, b) => a.position - b.position);
+            const order = last.scoreboard.map((x) => ({ id: x.team_id, name: x.name, position: x.n, score: x.score })).sort((a, b) => a.position - b.position).filter(x => x.score > 0);
             return order.slice(0, k).map((x) => x.id);
         },
         state: () => (roundsBuffer.length > 0 ? roundsBuffer[roundsBuffer.length - 1] : null),
