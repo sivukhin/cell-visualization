@@ -4,7 +4,7 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --outfile=dist/main.js",
     "watch": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --outfile=dist/main.js --watch",
-    "serve": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --servedir=. --outdir=www/js"
+    "serve": "esbuild src/main.ts --bundle --loader:.shader=text --loader:.png=binary --servedir=. --outdir=www/js --serve=127.0.0.1:8000"
   },
   "devDependencies": {
     "esbuild": "^0.13.8",
