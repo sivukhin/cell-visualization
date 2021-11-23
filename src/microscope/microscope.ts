@@ -72,7 +72,10 @@ export function createMicroscope(world: Unwrap<WorldConfiguration>): MicroscopeE
             alarms.push(alarm);
             display.appendChild(alarm.multiverse);
             return () => {
-                document.getElementById(`service-${service}`).classList.remove("alarm");
+                const element = document.getElementById(`service-${service}`);
+                if (element != null) {
+                    element.classList.remove("alarm");
+                }
                 alarms.splice(alarms.indexOf(alarm), 1);
                 display.removeChild(alarm.multiverse);
             };

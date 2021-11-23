@@ -55,9 +55,12 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
         multiverse: multiverse,
         getOrganells(cellId: number, organells: number[]): Vector2[] {
             const cell = cells.get(cellId);
-            return organells.map((x) => new Vector2().addVectors(cell.element.get(x).center, to2(cell.element.multiverse.position)));
+            return organells.map((x) => (x == -1 ? new Vector2(100000, 0) : new Vector2().addVectors(cell.element.get(x).center, to2(cell.element.multiverse.position))));
         },
         getOrganell(cellId: number, organell: number): Vector2 {
+            if (organell == -1) {
+                return new Vector2(100000, 0);
+            }
             const cell = cells.get(cellId);
             return new Vector2().addVectors(cell.element.get(organell).center, to2(cell.element.multiverse.position));
         },

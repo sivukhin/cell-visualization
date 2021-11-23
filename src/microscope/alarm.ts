@@ -64,7 +64,10 @@ export function createAlarm(service: number, obstables: Vector2[], width: number
                 root.appendChild(rectElement);
                 root.appendChild(textElement1);
                 root.appendChild(textElement2);
-                document.getElementById(`service-${service}`).classList.add("alarm");
+                const element = document.getElementById(`service-${service}`);
+                if (element != null) {
+                    element.classList.add("alarm");
+                }
                 appended = true;
             }
         },

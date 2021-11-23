@@ -109,7 +109,6 @@ export function createTarget({ follow, color, size, top, bottom, start, hideTarg
                 inserted = true;
             }
             position = follow();
-            const scale = size() / initialSize;
             root.setAttribute("transform", `translate(${position.x}, ${-position.y})`);
             return true;
         },

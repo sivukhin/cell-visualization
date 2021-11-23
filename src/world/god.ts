@@ -47,6 +47,7 @@ function createWorldStat(): WorldStat {
     const roundsBuffer: State[] = [];
     const teamStat = new Map<number, Team>();
 
+    let bleedingInitialized = false;
     const bleeding = new Map<number, boolean>();
 
     let statShowTime = -Infinity;
@@ -93,7 +94,8 @@ function createWorldStat(): WorldStat {
                 teamStat.set(state.scoreboard[i].team_id, state.scoreboard[i]);
             }
 
-            if (bleeding.size == 0) {
+            if (!bleedingInitialized) {
+                bleedingInitialized = true;
                 for (let i = 0; i < state.scoreboard.length; i++) {
                     for (let s = 0; s < state.scoreboard[i].services.length; s++) {
                         if (state.scoreboard[i].services[s].sflags > 0) {
@@ -209,11 +211,12 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
     const teams = new Map<number, string>();
     const services = new Map<number, { internalId: number; name: string; color: string }>();
     let top = [];
-    const attacks: WorldEvent[] = [];
+    let attacks: WorldEvent[] = [];
     const worldStat = createWorldStat();
 
     let lastTime = 0;
     subscribeApi((r) => {
+        console.info("api data", r);
         if (r.type == "state") {
             worldStat.update(r.value);
             services.clear();
@@ -322,13 +325,14 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
             lastTick = time;
 
             let eventsToShow: WorldEvent[] = [];
+            attacks = attacks.filter((x) => x.kind === "attack" && services.has(x.to.service));
             const firstBloodIndex = attacks.findIndex((x) => x.kind === "attack" && x.firstBlood);
             if (firstBloodIndex != -1) {
                 eventsToShow.push(attacks[firstBloodIndex]);
                 attacks.splice(firstBloodIndex, 1);
             } else {
                 const state = worldStat.state();
-                if ((lastStatTime < time - 60_000 || attacks.length == 0) && state != null && state.scoreboard.some((x) => x.score > 0)) {
+                if ((lastStatTime < time - 120_000 || attacks.length == 0) && state != null && state.scoreboard.some((x) => x.score > 0)) {
                     lastStatTime = time;
                     if (showedTeams.size == teams.size) {
                         showedTeams.clear();
@@ -339,7 +343,7 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
                         }
                         showedTeams.add(team);
                         eventsToShow.push({ kind: "stat", team: team });
-                        if (eventsToShow.length > 2) {
+                        if (eventsToShow.length > 5) {
                             break;
                         }
                     }
@@ -366,7 +370,7 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
                         follow: () =>
                             world.getOrganells(
                                 lucker.team,
-                                current.map((x) => services.get(x.id).internalId)
+                                current.map((x) => (services.has(x.id) ? services.get(x.id).internalId : -1))
                             ),
                         captions: current.map((x) => ({ title: services.get(x.id).name, color: services.get(x.id).color, highlight: x.status == 101, value: x.fp })),
                         start: time + 6000 * i,
@@ -380,14 +384,14 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
                     worldStat.attack(lucker.attacker, lucker.to.victim, time + (2000 / 3) * i);
                 } else if (lucker.kind === "attack" && lucker.firstBlood) {
                     actionFinish = Math.max(actionFinish, time + 5000);
-                    world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: lucker.to.service }], time, time + 5000);
+                    world.attack(lucker.attacker, [{ cell: lucker.to.victim, organell: services.get(lucker.to.service).internalId }], time, time + 5000);
 
                     showFirstBlood = true;
                     clearTargets();
 
                     microscope.addDetails({
                         center: () => world.getCell(lucker.to.victim),
-                        follow: () => [world.getOrganell(lucker.to.victim, lucker.to.service)],
+                        follow: () => [world.getOrganell(lucker.to.victim, services.has(lucker.to.service) ? services.get(lucker.to.service).internalId : -1)],
                         captions: [{ title: services.get(lucker.to.service).name, color: services.get(lucker.to.service).color, highlight: true, value: null }],
                         start: time + 1500,
                         finish: time + 5000,

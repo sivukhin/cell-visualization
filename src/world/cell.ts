@@ -50,7 +50,7 @@ export function createAliveCell(cellConfig: Unwrap<CellConfiguration>, flagellum
         tick: (time: number) => {
             if (scalable.scale.x != finishScale) {
                 transitionStart = transitionStart == null ? time : transitionStart;
-                let scale = interpolateLinear1D(startScale, finishScale, transitionStart, transitionStart + 1000, time);
+                let scale = interpolateLinear1D(startScale, finishScale, transitionStart, transitionStart + 20_000, time);
                 scalable.scale.set(scale, scale, 1.0);
             }
             flagellums = tickAll(flagellums, time, (f) => nonScalable.remove(f.multiverse));

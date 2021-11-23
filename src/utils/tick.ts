@@ -15,6 +15,7 @@ export function tick(time: number): [number, boolean] {
     currentTime = time;
     if (stopAt != null && startAt != null && stopAt < time && time < startAt) {
         if (!paused) {
+            currentWorldTime += Math.max(0, delta - (time - stopAt));
             paused = true;
             // @ts-ignore
             document.getElementById("#back").pause();

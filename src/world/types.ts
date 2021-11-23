@@ -71,7 +71,7 @@ export interface Stats {
 export interface MicroscopeElement {
     tick(time: number): void;
     rollXY(x: number, y: number);
-    setServices(services: Array<{ name: string; color: ColorRepresentation }>);
+    setServices(services: Array<{ id: number, name: string; color: ColorRepresentation }>);
     setStats(stats: Stats);
     setMode(mode: "live" | "attention");
     addAlarm(service: number, time: number);
