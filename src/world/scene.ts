@@ -52,7 +52,7 @@ export function createScene(dynamic: WorldConfiguration, renderer: WebGLRenderer
         id = 0;
         world = createWorld(configuration);
         microscope = createMicroscope(configuration);
-        god = createGod(world, microscope);
+        god = createGod(configuration, world, microscope);
 
         const scene = new Scene();
         scene.add(world.multiverse);

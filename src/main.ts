@@ -14,9 +14,10 @@ function adjust(adjustable: { setSize(width: number, height: number, arg?: boole
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     adjustable.setSize(width, height, false);
+    return [width, height];
 }
 
-function createConfiguration(canvas): WorldConfiguration {
+function createConfiguration(canvas, width: number, height: number): WorldConfiguration {
     const configuration: WorldConfiguration = {
         light: {
             color: atom<ColorRepresentation>("rgb(0, 0, 0)"),
@@ -69,6 +70,7 @@ function createConfiguration(canvas): WorldConfiguration {
             },
             glowing: atom<number>(0.85),
             radius: atom<number>(120),
+            // radius: atom<number>(Math.min((width - 300) / 8, (height - 100) / 8)),
             color: atom<ColorRepresentation>("rgb(84, 105, 125)"),
         },
         flagellum: {
@@ -128,8 +130,8 @@ function initialize() {
         alpha: true,
     });
     renderer.autoClear = false;
-    adjust(renderer, renderer.domElement);
-    const configuration = createConfiguration(renderer.domElement);
+    const [width, height] = adjust(renderer, renderer.domElement);
+    const configuration = createConfiguration(renderer.domElement, width, height);
     microcosmos = createScene(configuration, renderer);
 
     for (const composer of microcosmos.composers) {

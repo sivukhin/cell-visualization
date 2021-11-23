@@ -4,6 +4,7 @@ import { randomChoice, randomFrom } from "../utils/math";
 import { Vector2 } from "three";
 import { stopTime } from "../utils/tick";
 import { createTerminal } from "../microscope/terminal";
+import { Unwrap, WorldConfiguration } from "../configuration";
 
 type WorldEvent =
     | {
@@ -203,7 +204,7 @@ function getHashCode(s: string) {
     return hash;
 }
 
-export function createGod(world: WorldElement, microscope: MicroscopeElement): GodElement {
+export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElement, microscope: MicroscopeElement): GodElement {
     const terminal = createTerminal();
     const teams = new Map<number, string>();
     const services = new Map<number, { internalId: number; name: string; color: string }>();

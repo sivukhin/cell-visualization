@@ -186,6 +186,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish, 
         detailsGroup.appendChild(detail.element);
     }
     let mainDetail = null;
+    let mainDetailWidth = 0;
     let mainSize = null;
     if (main != null) {
         mainDetail = createDetail(false);
@@ -199,6 +200,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish, 
             18
         );
         mainSize = getTextSize(`${main.title} ${Math.round(main.value)}`, 18);
+        mainDetailWidth = mainSize.width;
         mainDetail.setOverlay(-8, -8, mainSize.width + 16, mainSize.height + 8);
         detailsGroup.appendChild(mainDetail.element);
     }
@@ -220,7 +222,7 @@ export function createDetails({ follow, center, sideX, captions, start, finish, 
             const positions = follow();
             const currentCenter = center();
             if (mainDetail != null) {
-                mainDetail.move(currentCenter.center.x - currentCenter.radius, -(currentCenter.center.y - currentCenter.radius - 20));
+                mainDetail.move(currentCenter.center.x - mainDetailWidth / 2, -(currentCenter.center.y - Math.max(currentCenter.radius - 5, 120)));
             }
             const lineAlpha = Math.min(1.0, (time - start) / 500.0);
             const textAlpha = Math.min(1.0, Math.max(0.0, (time - start - 500.0) / 500));
