@@ -120,8 +120,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             for (const cell of cells.values()) {
                 const x = cell.element.multiverse.position.x;
                 const y = cell.element.multiverse.position.y;
-                const r = Math.min(rows - 1, Math.floor((y + worldConfig.soup.height / 2 - hPadding) / row));
-                const c = Math.min(cols - 1, Math.floor((x + worldConfig.soup.width / 2 - vPadding) / col));
+                const r = Math.max(0, Math.min(rows - 1, Math.floor((y + worldConfig.soup.height / 2 - hPadding) / row)));
+                const c = Math.max(0, Math.min(cols - 1, Math.floor((x + worldConfig.soup.width / 2 - vPadding) / col)));
                 occupy(occupied, [new Vector2(x, y), cell.state.radius], r, c, rows, cols);
             }
             for (let i = 0; i < cellInfos.length; i++) {
