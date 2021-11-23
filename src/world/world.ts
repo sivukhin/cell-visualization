@@ -26,8 +26,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
 
     const cells = new Map<number, { element: CellElement; state: CellState }>();
 
-    const vPadding = 200;
-    const hPadding = 100;
+    const vPadding = 150;
+    const hPadding = 50;
     return {
         multiverse: multiverse,
         getOrganells(cellId: number, organells: number[]): Vector2[] {
