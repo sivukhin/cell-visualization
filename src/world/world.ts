@@ -98,6 +98,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                     const [v, u] = getComponents(aState.velocity, direction);
                     aState.velocity = new Vector2().addVectors(v.addScaledVector(direction, -worldConfig.speed / 10), u);
                 }
+                // aState.velocity.addScaledVector(new Vector2().copy(aState.velocity).normalize(), worldConfig.speed / 100);
                 if (aState.velocity.length() > worldConfig.speed) {
                     aState.velocity.setLength(worldConfig.speed);
                 }
@@ -128,6 +129,7 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                 if (cells.has(cellInfo.id)) {
                     const cell = cells.get(cellInfo.id);
                     cells.get(cellInfo.id).state.caption = cellInfo.caption;
+                    cells.get(cellInfo.id).state.radius = sizes[i];
                     cell.element.update(sizes[i], cellInfo.organells);
                 } else {
                     const cell = createAliveCell(worldConfig.cell, worldConfig.flagellum);
@@ -188,12 +190,12 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
             const points = [];
             for (let i = 0; i < targets.length; i++) {
                 const cell = cells.get(targets[i].cell);
-                const v = to2(cell.element.multiverse.position)
-                    .sub(to2(source.element.multiverse.position))
-                    .setLength(worldConfig.speed * 0.25);
-                cell.state.velocity.add(v);
-                v.negate();
-                source.state.velocity.add(v);
+                // const v = to2(cell.element.multiverse.position)
+                //     .sub(to2(source.element.multiverse.position))
+                //     .setLength(worldConfig.speed * 0.25);
+                // cell.state.velocity.add(v);
+                // v.negate();
+                // source.state.velocity.add(v);
                 points.push(() => {
                     const absolute = new Vector2().addVectors(cell.element.get(targets[i].organell).center, to2(cell.element.multiverse.position));
                     return new Vector2().subVectors(absolute, to2(source.element.multiverse.position));
