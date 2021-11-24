@@ -115,7 +115,7 @@ function createTrace(points: Vector2[]) {
     for (let i = 1; i < points.length; i++) {
         length += points[i].distanceTo(points[i - 1]);
     }
-    const trace = [0];
+    const trace = [0, 0];
     let current = 0;
     for (let i = 1; i < points.length; i++) {
         current += points[i].distanceTo(points[i - 1]);
