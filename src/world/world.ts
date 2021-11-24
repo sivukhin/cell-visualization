@@ -165,8 +165,8 @@ export function createWorld(worldConfig: Unwrap<WorldConfiguration>): WorldEleme
                         );
                     }
 
-                    const currentRow = Math.min(rows - 1, Math.floor((position.y + worldConfig.soup.height / 2 - hPadding) / row));
-                    const currentCol = Math.min(cols - 1, Math.floor((position.x + worldConfig.soup.width / 2 - vPadding) / col));
+                    const currentRow = Math.max(0, Math.min(rows - 1, Math.floor((position.y + worldConfig.soup.height / 2 - hPadding) / row)));
+                    const currentCol = Math.max(0, Math.min(cols - 1, Math.floor((position.x + worldConfig.soup.width / 2 - vPadding) / col)));
                     occupy(occupied, [position, sizes[i]], currentRow, currentCol, rows, cols);
 
                     position.x = Math.min(worldConfig.soup.width - sizes[i] - vPadding, Math.max(-worldConfig.soup.width + sizes[i] + vPadding, position.x));
