@@ -4,6 +4,7 @@ import { DetailsElement } from "../world/types";
 import { getTextSize } from "../utils/draw";
 
 interface Detail {
+    prefix?: string;
     title: string;
     value: number | null;
     color?: string;
@@ -190,16 +191,14 @@ export function createDetails({ follow, center, sideX, captions, start, finish, 
     let mainSize = null;
     if (main != null) {
         mainDetail = createDetail(false);
-        mainDetail.setText(
-            [
-                { value: main.title, color: "white" },
-                { value: `${Math.round(main.value)}`, color: "rgba(173, 173, 173, 1)" },
-            ],
-            0,
-            0,
-            18
-        );
-        mainSize = getTextSize(`${main.title} ${Math.round(main.value)}`, 18);
+        const segments = [];
+        if (main.prefix != null) {
+            segments.push({ value: main.prefix, color: "rgba(173, 173, 173, 1)" });
+        }
+        segments.push({ value: main.title, color: "white" });
+        segments.push({ value: `${Math.round(main.value)}`, color: "rgba(173, 173, 173, 1)" });
+        mainDetail.setText(segments, 0, 0, 18);
+        mainSize = getTextSize(`${main.prefix} ${main.title} ${Math.round(main.value)}`, 18);
         mainDetailWidth = mainSize.width;
         mainDetail.setOverlay(-8, -8, mainSize.width + 16, mainSize.height + 8);
         detailsGroup.appendChild(mainDetail.element);

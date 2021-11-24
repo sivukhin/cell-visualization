@@ -94,9 +94,9 @@ void main() {
     if (u_time > u_trans_start[best_point] && u_time < u_trans_finish[best_point]) {
         float duration = u_trans_finish[best_point] - u_trans_start[best_point];
         color[0] = u_colors[best_point][0];
-        color[1] = 0.5 * (1.0 - step(u_trans_start[best_point] + duration / 6.0, u_time)) * smoothstep(u_trans_start[best_point], u_trans_start[best_point] + duration / 6.0, u_time) +
-                    0.5 * (step(u_trans_start[best_point] + duration / 6.0, u_time)) * smoothstep(u_trans_finish[best_point], u_trans_start[best_point] + duration / 6.0, u_time);
-        color[2] *= 1.0 + color[1];
+        color[1] = 1.0 * (1.0 - step(u_trans_start[best_point] + duration / 6.0, u_time)) * smoothstep(u_trans_start[best_point], u_trans_start[best_point] + duration / 6.0, u_time) +
+                    1.0 * (step(u_trans_start[best_point] + duration / 6.0, u_time)) * smoothstep(u_trans_finish[best_point], u_trans_start[best_point] + duration / 6.0, u_time);
+        color[2] *= 1.0 + 0.5 * color[1];
     }
 //    color[2] *= activity;
     gl_FragColor = vec4(hsl2rgb(color), smoothstep(0.0, 1.5, d));

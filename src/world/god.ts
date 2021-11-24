@@ -207,6 +207,22 @@ function getHashCode(s: string) {
     return hash;
 }
 
+function getEnding(n: number) {
+    if (n == 11 || n == 12 || n == 13) {
+        return "th";
+    }
+    if (n % 10 == 1) {
+        return "st";
+    }
+    if (n % 10 == 2) {
+        return "nd";
+    }
+    if (n % 10 == 3) {
+        return "rd";
+    }
+    return "th";
+}
+
 export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElement, microscope: MicroscopeElement): GodElement {
     const terminal = createTerminal();
     const teams = new Map<number, string>();
@@ -431,9 +447,12 @@ export function createGod(config: Unwrap<WorldConfiguration>, world: WorldElemen
                     showStats = true;
                     actionFinish = Math.max(actionFinish, time + 6000 * i + 6000);
                     const current = worldStat.getServices(lucker.team).filter((x) => services.has(x.id));
+                    const name = teams.get(lucker.team);
+                    const place = worldStat.getPosition(lucker.team);
                     microscope.addDetails({
                         main: {
-                            title: teams.get(lucker.team),
+                            prefix: `${place}${getEnding(place)}`,
+                            title: name,
                             value: worldStat.getScore(lucker.team),
                         },
                         center: () => world.getCell(lucker.team),
